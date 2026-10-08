@@ -776,8 +776,8 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; // fallback until the HDR sky arrives
 scene.fog = new THREE.Fog('#cfdce4', 60, 170);
 let skyTex = null; // overcast Dutch sky (Poly Haven, CC0): image-based light + dollhouse backdrop
-function loadSky() {
-  new RGBELoader().setDataType(THREE.FloatType).load('assets/sky_1k.hdr', t => {
+function loadSky(url = 'assets/sky_1k.hdr') {
+  new RGBELoader().setDataType(THREE.FloatType).load(url, t => {
     t.mapping = THREE.EquirectangularReflectionMapping;
     // The sky itself is the backdrop. For the light probe, the lower hemisphere (mud, trees) is blended to a neutral
     // "floor bounce" grey, otherwise every ceiling and underside indoors is lit brown by the ground of the HDRI.
@@ -795,7 +795,13 @@ function loadSky() {
     const probe = new THREE.DataTexture(d, w, h, t.format, t.type); probe.mapping = t.mapping; probe.colorSpace = t.colorSpace; probe.flipY = t.flipY; probe.needsUpdate = true;
     scene.environment = pmrem.fromEquirectangular(probe).texture; probe.dispose();
     skyTex = t; applyTime(state.time);
-  }, undefined, () => { /* keep RoomEnvironment */ });
+  }, undefined, () => {
+    // claude.ai artifacts don't serve .hdr files, so they get a base64 copy; otherwise keep RoomEnvironment
+    if (url.startsWith('blob:')) return;
+    fetch('assets/sky_1k.hdr.b64.txt').then(r => r.ok ? r.text() : Promise.reject())
+      .then(b64 => loadSky(URL.createObjectURL(new Blob([Uint8Array.from(atob(b64.trim()), c => c.charCodeAt(0))]))))
+      .catch(() => { /* keep RoomEnvironment */ });
+  });
 }
 
 // groups: per level 'main' (walls, floors, furniture) and 'ceil' (ceilings, slabs, roofs above that level)
@@ -1551,15 +1557,47 @@ window.HOUSE = {
   roomAt: (level, x, z) => roomAt(level, x, z)?.id || null,
   colliders, doors, get mode() { return mode; }, get view() { return view; },
 };
+// API used by modules/ (measure, shopping, vr): house data, state + change events, walker, toolbar and toasts
+{
+  const H = window.HOUSE, subs = { change: new Set(), room: new Set() };
+  const emit = (k, ...a) => { for (const f of subs[k]) { try { f(...a); } catch (e) { console.error(e); } } };
+  const _save = saveState; saveState = function () { _save(); emit('change', state); };
+  const _sel = selectRoom; let lastSel = state.sel; selectRoom = function (id) { _sel(id); if (state.sel !== lastSel) { lastSel = state.sel; emit('room', id); } };
+  Object.defineProperty(H, 'state', { get: () => state });
+  Object.assign(H, {
+    data: { LV, ROOMS, WALLS, HOLES, FLOORS, PAINTS, STYLES },
+    on: (k, f) => { (subs[k] ||= new Set()).add(f); return () => subs[k].delete(f); },
+    walker, setMode, toggleDoor,
+    // setWalker({ x, z, l, yaw }) or setWalker(l, x, z, yaw)
+    setWalker(a, x, z, yaw) { if (a && typeof a === 'object') placeWalker(a.l ?? walker.l, [a.x, a.z, a.yaw ?? 0]); else placeWalker(a, [x, z, yaw ?? 0]); },
+    // [lowerLevel, x0, x1, zBottom, zTop, yBottom, yTop] (VR walks these; the desktop walk doesn't yet)
+    stairs: [[0, 8.24, 9.0, 10.55, 8.3, 0, 2.76], [1, 8.2, 9.0, 8.3, 10.25, 2.76, 5.39], [0, 0, 0.92, 7.73, 5.8, 0, 2.76]],
+    pickables: () => [...G.map(g => g.main), ...G.map(g => g.ceil), EXT].filter(o => shown(o)),
+  });
+  const bar = document.createElement('div'); bar.className = 'seg'; bar.id = 'toolSeg'; bar.setAttribute('role', 'group'); bar.setAttribute('aria-label', 'Gereedschap');
+  $('#topbar').append(bar);
+  let tt = 0; const toastEl = document.createElement('div');
+  toastEl.style.cssText = 'position:absolute;left:50%;bottom:90px;transform:translateX(-50%);z-index:20;background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:999px;font-size:13px;max-width:calc(100vw - 32px)';
+  toastEl.hidden = true; toastEl.setAttribute('role', 'status'); $('#app').append(toastEl);
+  H.ui = {
+    addTool({ id, label, icon, onClick, title }) {
+      const b = document.createElement('button'); b.type = 'button'; b.dataset.tool = id; b.setAttribute('aria-pressed', 'false'); if (title) b.title = title;
+      b.innerHTML = (icon || '') + '<span style="margin-left:6px">' + label + '</span>'; b.style.display = 'inline-flex'; b.style.alignItems = 'center';
+      b.onclick = e => onClick?.(e); bar.append(b); return b;
+    },
+    toast(t) { toastEl.textContent = t; toastEl.hidden = false; clearTimeout(tt); tt = setTimeout(() => { toastEl.hidden = true; }, 2600); },
+  };
+}
 
 /* ================= BOOT + LOOP ================= */
 buildArchitecture(); buildFixtures(); buildAllFurniture();
 buildPanel(); syncPanel(); applyTime(state.time); setHint();
 loadTextureSets(); loadSky();
-function resize() { const w = stage.clientWidth || innerWidth, h = stage.clientHeight || innerHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+function resize() { if (renderer.xr.isPresenting) return; const w = stage.clientWidth || innerWidth, h = stage.clientHeight || innerHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
 view = ROOM[state.sel].lvl; applyVisibility();
 { const t = viewTarget(view); orbit.target.copy(t); camera.position.copy(t).add(V(-8.5, 15.5, 14.5)); }
+view = 0; setMode('walk'); // open walking, just inside the front door; the dollhouse is one tap away
 const clock = new THREE.Clock(); let lastRoom = null, frames = 0;
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05);
@@ -1613,4 +1651,10 @@ function boot() {
   });
 }
 boot();
+</script>
+<script type="module">
+// add-ons: measuring tape, shopping list, VR (each self-boots once window.HOUSE exists)
+import './modules/measure.js';
+import './modules/shopping.js';
+import './modules/vr.js';
 </script>
