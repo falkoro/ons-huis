@@ -2,7 +2,8 @@
 // Standalone ES module, imports nothing: THREE (0.170.0) is passed in.
 //
 //   import { addDalmatians, pet } from './dalmatians.js';
-//   const { dogs, bed, dispose, update } = addDalmatians(THREE, scene, { onTick, walkableRects });
+//   const { dogs, bed, dispose, update, setObstacles } = addDalmatians(THREE, scene, { onTick, walkableRects, obstacles, sofa });
+//   obstacles: [{ x0, x1, z0, z1 }] furniture footprints (inflated 0.3 m); sofa: { x, z, y, heading } spot where Gemma lounges
 //   // raycast: raycaster.intersectObjects(dogs.map(d => d.group), true) -> pet(hit.object)
 //
 // Coordinates: metres, Y up, X 0..9 left->right, Z 0 back facade .. 12.25 front facade.
@@ -308,15 +309,36 @@ export function addDalmatians(THREE, scene, opts = {}) {
   let totalArea = 0;
   for (const r of rects) totalArea += (r.x1 - r.x0) * (r.z1 - r.z0);
 
-  const inside = (x, z, grow) => {
+  const insideRects = (x, z, grow) => {
     for (let i = 0; i < rects.length; i++) { const r = rects[i]; if (x >= r.x0 - grow && x <= r.x1 + grow && z >= r.z0 - grow && z <= r.z1 + grow) return true; }
     return false;
   };
+  // furniture footprints { x0, x1, z0, z1 } (opts.obstacles / setObstacles), inflated by 0.3 m; the dog bed itself stays reachable
+  let obstacles = [];
+  function setObstacles(list) {
+    obstacles = (Array.isArray(list) ? list : []).filter((o) => o && [o.x0, o.x1, o.z0, o.z1].every(Number.isFinite)).map((o) => ({
+      x0: Math.min(o.x0, o.x1) - 0.3, x1: Math.max(o.x0, o.x1) + 0.3, z0: Math.min(o.z0, o.z1) - 0.3, z1: Math.max(o.z0, o.z1) + 0.3,
+    }));
+  }
+  setObstacles(opts.obstacles);
+  const blocked = (x, z) => {
+    if (Math.hypot(x - BED_X, z - BED_Z) < 0.55) return false;
+    for (let i = 0; i < obstacles.length; i++) { const o = obstacles[i]; if (x >= o.x0 && x <= o.x1 && z >= o.z0 && z <= o.z1) return true; }
+    return false;
+  };
+  const inside = (x, z, grow) => insideRects(x, z, grow) && !blocked(x, z);
   const segmentOK = (x0, z0, x1, z1) => {
     const len = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.ceil(len / 0.12));
-    for (let i = 0; i <= n; i++) if (!inside(lerp(x0, x1, i / n), lerp(z0, z1, i / n), 0.25)) return false;
+    let escaping = blocked(x0, z0); // a dog that ended up inside a footprint may walk out of it
+    for (let i = 0; i <= n; i++) {
+      const x = lerp(x0, x1, i / n), z = lerp(z0, z1, i / n);
+      if (escaping && !blocked(x, z)) escaping = false;
+      if (!(escaping ? insideRects(x, z, 0.25) : inside(x, z, 0.25))) return false;
+    }
     return true;
   };
+  // optional sofa spot { x, z, y, heading }: the second dog (Gemma) lounges there instead of roaming
+  const sofa = opts.sofa && [opts.sofa.x, opts.sofa.z].every(Number.isFinite) ? { y: 0.45, heading: 0, ...opts.sofa } : null;
 
   // ---- shared resources
   const geos = [], mats = [], texs = [];
@@ -425,6 +447,7 @@ export function addDalmatians(THREE, scene, opts = {}) {
     d.goingToBed = true;
   }
   function decide(d) {
+    if (d.onSofa) return startLie(d, 20 + Math.random() * 25); // stretches, then settles again
     const r = Math.random();
     if (d.bedCooldown > 0) d.bedCooldown--;
     if (d.homebody) {
@@ -445,6 +468,7 @@ export function addDalmatians(THREE, scene, opts = {}) {
     else setIdle(d, 1.5 + Math.random() * 3);
   }
   function command(d, cmd) {
+    if (d.onSofa) return startLie(d, 10 + Math.random() * 10);
     if (cmd === 'bed') return goBed(d);
     if (cmd === 'wander') { d.lieTarget = 0; return wander(d); }
     if (cmd === 'lie') return startLie(d, 5 + Math.random() * 5);
@@ -462,7 +486,10 @@ export function addDalmatians(THREE, scene, opts = {}) {
     }
     return true;
   }
-  function moveTo(d, x, z) { if (inside(x, z, 0.12)) { d.x = x; d.z = z; } }
+  function moveTo(d, x, z) {
+    if (d.onSofa) return;
+    if (inside(x, z, 0.12) || (blocked(d.x, d.z) && insideRects(x, z, 0.12))) { d.x = x; d.z = z; }
+  }
   const pinned = (d) => d.state === 'lie' || d.lieLin > 0.1;
 
   // ---- initial placement: Logan lies on the bed, Gemma stands somewhere in the room
@@ -470,9 +497,14 @@ export function addDalmatians(THREE, scene, opts = {}) {
     const a = dogs[0], b = dogs[1];
     a.x = bedSpotX; a.z = bedSpotZ; a.heading = BED_HEADING; a.onBed = true; a.wasInBed = true;
     startLie(a, 6 + Math.random() * 8); a.lieLin = 1;
-    b.x = 5.6; b.z = 8.6; b.heading = -2.4;
-    if (!inside(b.x, b.z, 0) && pickTarget(b, 0)) { b.x = b.tx; b.z = b.tz; }
-    setIdle(b, 0.8 + Math.random());
+    if (sofa) {
+      b.x = sofa.x; b.z = sofa.z; b.heading = sofa.heading; b.onSofa = true;
+      startLie(b, 12 + Math.random() * 20); b.lieLin = 1;
+    } else {
+      b.x = 5.6; b.z = 8.6; b.heading = -2.4;
+      if (!inside(b.x, b.z, 0) && pickTarget(b, 0)) { b.x = b.tx; b.z = b.tz; }
+      setIdle(b, 0.8 + Math.random());
+    }
   }
 
   // ---- per-frame update (no allocations)
@@ -515,7 +547,7 @@ export function addDalmatians(THREE, scene, opts = {}) {
 
     // lie / sleepy blends
     d.lieLin = clamp(d.lieLin + (d.lieTarget ? dt : -dt) / 0.9, 0, 1);
-    const sleepyT = d.state === 'lie' && d.onBed && d.timer > 2 && d.timer < d.lieDur - 3 && d.petT <= 0 ? 1 : 0;
+    const sleepyT = d.state === 'lie' && (d.onBed || d.onSofa) && d.timer > 2 && d.timer < d.lieDur - 3 && d.petT <= 0 ? 1 : 0;
     d.sleepy = damp(d.sleepy, sleepyT, 1.2, dt);
 
     // gait
@@ -599,7 +631,7 @@ export function addDalmatians(THREE, scene, opts = {}) {
     if (d.hopT < HOP_TIME) { d.hopT += dt; hop = Math.sin(Math.PI * Math.min(1, d.hopT / HOP_TIME)) * 0.11; }
     const tuck = hop * 6; // 0..0.66
 
-    d.group.position.set(d.x, levelY + lift, d.z);
+    d.group.position.set(d.x, d.onSofa ? sofa.y : levelY + lift, d.z);
     d.group.rotation.y = d.heading;
     P.body.position.y = -0.32 * lie - 0.009 * Math.cos(2 * p) * W + hop;
     P.body.rotation.z = 0.025 * Math.sin(p) * W;
@@ -671,5 +703,5 @@ export function addDalmatians(THREE, scene, opts = {}) {
     for (const t of texs) t.dispose();
   }
 
-  return { dogs, bed, dispose, pet, update };
+  return { dogs, bed, dispose, pet, update, setObstacles };
 }
