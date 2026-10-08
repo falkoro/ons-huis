@@ -1185,12 +1185,9 @@ const ITEMS = {
   ],
   keuken: [['hanglampen', 'Hanglamp', 7.55, 2.0, 0, f => P.pendant(f, 0.7)], ['planten', 'Kruidenplant', 8.72, 3.0, 0, f => P.plant(f, 0.45)], ['kunst', 'Wandkunst', 6.64, 1.25, HP, f => P.art(f, 3, 0.5, 0.65, 1.55)]],
   zitkamer: [
-    ['bank', 'Bank', 0.47, 4.9, HP, f => P.sofa(f, 2.1)], ['salontafel', 'Salontafel', 1.6, 4.9, HP, f => P.coffee(f, 1.0, 0.55)],
-    ['kleed', 'Vloerkleed', 1.55, 4.9, 0, (f, r) => P.rug(f, r.id, 1.8, 2.4)], ['tv', 'Televisie + meubel', 2.78, 4.9, -HP, f => P.tv(f, 1.15, true)],
     ['fauteuil', 'Fauteuil', 1.1, 1.3, 0.7, P.armchair], ['boekenkast', 'Boekenkast', 3.44, 1.0, -HP, f => P.bookshelf(f, 1.4, 2.0)],
     ['vloerlamp', 'Vloerlamp', 0.35, 3.55, 0, P.floorlamp], ['planten', 'Plant', 0.32, 0.36, 0, f => P.plant(f, 1)],
-    ['hanglampen', 'Hanglamp', 1.6, 4.9, 0, f => P.pendant(f, 0.7)], ['kunst', 'Wandkunst', 0.01, 4.9, HP, f => P.art(f, 1, 1.1, 0.75, 1.55)],
-  ],
+    ],
   entree: [['bank', 'Halbankje', 7.3, 9.9, HP, f => P.bench(f, 1.1)], ['kunst', 'Wandkunst', 7.08, 9.9, HP, f => P.art(f, 2, 0.6, 0.8, 1.55)], ['planten', 'Plant', 8.42, 11.05, 0, f => P.plant(f, 0.9)], ['hanglampen', 'Hanglamp', 7.65, 9.3, 0, f => P.pendant(f, 0.3)]],
   sk1: [
     ['bed', 'Bed 180', 4.35, 6.4, HP, f => P.bed(f, 1.8, 2.1)], ['nachtkastjes', 'Nachtkastjes', 3.52, 5.05, HP, P.nightstand],
@@ -1653,8 +1650,9 @@ function boot() {
 boot();
 </script>
 <script type="module">
-// add-ons: measuring tape, shopping list, VR (each self-boots once window.HOUSE exists)
+// add-ons: measuring tape, shopping list, VR, office corner (each self-boots once window.HOUSE exists)
 import './modules/measure.js';
 import './modules/shopping.js';
 import './modules/vr.js';
+import './modules/office.js';
 </script>
