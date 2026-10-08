@@ -1,0 +1,18 @@
+Textures from Poly Haven (https://polyhaven.com) and ambientCG (https://ambientcg.com), all CC0 1.0 Public Domain. Credit not required.
+
+oak_light: https://polyhaven.com/a/laminate_floor_02 (CC0)
+oak_smoked: https://polyhaven.com/a/dark_wooden_planks (CC0)
+herringbone: https://polyhaven.com/a/herringbone_parquet (CC0)
+concrete: https://ambientcg.com/a/Concrete034 (CC0)
+terrazzo: https://ambientcg.com/a/Terrazzo004 (CC0)
+tiles_checker: https://polyhaven.com/a/floor_tiles_06 (CC0)
+tiles_large: https://polyhaven.com/a/interior_tiles (CC0)
+carpet: https://ambientcg.com/a/Carpet001 (CC0)
+linoleum: https://polyhaven.com/a/linoleum_brown (CC0)
+plaster: https://polyhaven.com/a/painted_plaster_wall (CC0)
+brick: https://polyhaven.com/a/brick_4 (CC0)
+roof_tiles: https://polyhaven.com/a/roof_slates_03 (CC0)
+grass: https://ambientcg.com/a/Grass004 (CC0)
+paving: https://polyhaven.com/a/brick_pavement_02 (CC0)
+fabric: https://ambientcg.com/a/Fabric030 (CC0)
+hdri: https://polyhaven.com/a/kloofendal_overcast (CC0)
