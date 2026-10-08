@@ -120,10 +120,13 @@ input[type=color]{width:38px;height:28px;border:1px solid var(--line);border-rad
 #cross::after{top:8px;left:2px;height:2px;width:14px}
 #tag{position:absolute;z-index:3;pointer-events:none;transform:translate(-50%,14px);background:var(--ink);color:var(--bg);
   font:500 12px/1 var(--font-body);padding:5px 9px;border-radius:999px;white-space:nowrap;opacity:.92}
+#roomTag{position:absolute;left:16px;bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:3;pointer-events:none; /* stacked above #hint */
+  background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);color:var(--ink);
+  font:600 13px/1 var(--font-body);letter-spacing:.01em;padding:7px 14px;border-radius:999px;white-space:nowrap;box-shadow:var(--shadow)}
 #joy{position:absolute;left:24px;bottom:calc(96px + env(safe-area-inset-bottom,0px));width:120px;height:120px;border-radius:50%;z-index:5;
   background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);touch-action:none}
 #joyKnob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(255,255,255,.85);box-shadow:0 2px 10px rgba(0,0,0,.25)}
-#walkStart{position:absolute;inset:0;z-index:4;display:grid;place-items:center;pointer-events:none}
+#walkStart{position:absolute;inset:0;z-index:4;display:grid;place-items:end center;padding-bottom:20vh;box-sizing:border-box;pointer-events:none}
 #walkStart button{pointer-events:auto;border:0;background:var(--accent);color:var(--accent-ink);font-weight:600;border-radius:999px;padding:12px 22px;box-shadow:var(--shadow)}
 #loading{position:absolute;inset:0;display:grid;place-items:center;z-index:9;background:var(--bg);font:500 13px var(--font-mono);color:var(--ink-2);letter-spacing:.06em}
 
@@ -144,6 +147,8 @@ input[type=color]{width:38px;height:28px;border:1px solid var(--line);border-rad
   .handle .ht small{font:500 11px var(--font-mono);color:var(--ink-2)}
   .panel-body{padding:0 16px 16px}
   #hint{display:none}
+  #roomTag{left:50%;transform:translateX(-50%);bottom:calc(68px + env(safe-area-inset-bottom,0px))}
+  #walkStart{padding-bottom:28vh}
   #joy{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
   .tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
@@ -224,6 +229,7 @@ input[type=color]{width:38px;height:28px;border:1px solid var(--line);border-rad
   <div id="hint"></div>
   <div id="cross" hidden></div>
   <div id="tag" hidden></div>
+  <div id="roomTag" hidden aria-live="polite"></div>
   <div id="joy" hidden><div id="joyKnob"></div></div>
   <div id="walkStart" hidden><button id="btnLook">Klik om rond te kijken</button></div>
   <div id="loading">HUIS WORDT OPGEBOUWD…</div>
@@ -238,6 +244,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 const $ = s => document.querySelector(s);
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -375,15 +382,18 @@ const FLOORS = {
   tapijt: { name: 'Tapijt', size: 0.6, rough: 0.98 },
   linoleum: { name: 'Linoleum', size: 2, rough: 0.5 },
 };
-// Hook for real photo textures: publish these files next to the page and they replace the procedural ones.
-// Value: relative URL (or { url, size } with size = metres covered by one image). Missing files are ignored.
-const TEXTURE_FILES = {
-  eiken_licht: { url: 'assets/oak_light_diff.jpg', size: 2.4 },
-  eiken_gerookt: { url: 'assets/oak_smoked_diff.jpg', size: 2.4 },
-  visgraat: { url: 'assets/herringbone_diff.jpg', size: 0.9 },
-  beton: { url: 'assets/concrete_diff.jpg', size: 3 },
-  terrazzo: { url: 'assets/terrazzo_diff.jpg', size: 1.2 },
+// Photo texture sets (CC0, see assets/CREDITS.txt): assets/<base>_diff.jpg (sRGB), _nor.jpg (OpenGL), _rough.jpg.
+// size = metres covered by one tile. Missing files are simply skipped: the procedural canvases and flat colours stay.
+// detail:true sets apply only normal + roughness, so user-chosen wall/fabric colours stay untouched.
+const TEX_SETS = {
+  eiken_licht: { base: 'oak_light', size: 1.7 }, eiken_gerookt: { base: 'oak_smoked', size: 2.0 }, visgraat: { base: 'herringbone', size: 3.4 },
+  beton: { base: 'concrete', size: 1.1 }, terrazzo: { base: 'terrazzo', size: 1.0 }, zwartwit: { base: 'tiles_checker', size: 3.0 },
+  keramisch: { base: 'tiles_large', size: 1.9 }, tapijt: { base: 'carpet', size: 1.0 }, linoleum: { base: 'linoleum', size: 2.0 },
+  brick: { base: 'brick', size: 0.9 }, roof: { base: 'roof_tiles', size: 3.0 }, grass: { base: 'grass', size: 1.4 }, paving: { base: 'paving', size: 2.0 },
+  plaster: { base: 'plaster', size: 2.0, detail: true }, fabric: { base: 'fabric', size: 0.5, detail: true },
 };
+for (const S of Object.values(TEX_SETS)) S.users = new Set();
+const LOWQ = COARSE || isPhone();
 const STYLES = {
   scandi: { name: 'Scandinavisch', wall: '#f3f1ea', wallWet: '#f3f1ea', floor: 'eiken_licht', tint: '#ffffff', wetFloor: 'keramisch', accent: { sk2: '#9eabb5' },
     c: { fab: '#cbc8c1', fab2: '#8fa3ad', wood: '#d8bb92', woodDark: '#a5875f', metal: '#262626', front: '#f1f0eb', worktop: '#d2b48a', shade: '#f4f1ea', bedding: '#eeece6', rug: '#e4ddcf', leather: '#c79f74', pot: '#efece6' },
@@ -642,26 +652,42 @@ const T = {
   fence: canvasTex(texBoards(25, 25, 24, 4), 0.6, 1.8), shed: canvasTex(texBoards(28, 20, 34, 5), 0.8, 2.4),
   asphalt: canvasTex((() => { const c = mkCanvas(256), x = c.getContext('2d'); x.fillStyle = '#44464a'; x.fillRect(0, 0, 256, 256); noise(x, 256, 30, 3); return c; })(), 1.5),
 };
+// procedural canvases are the fallback diffuse of each photo set until (unless) the jpg arrives
+for (const k in floorTex) if (TEX_SETS[k]) TEX_SETS[k].diffTex = floorTex[k];
+TEX_SETS.brick.diffTex = T.brick; TEX_SETS.roof.diffTex = T.roof; TEX_SETS.grass.diffTex = T.grass; TEX_SETS.paving.diffTex = T.paving;
+// bind a material to a texture set; o: { ns: normalScale, rmul: roughness factor with roughnessMap, rough: roughness without }
+function applySet(mat) {
+  const S = TEX_SETS[mat.userData.set], o = mat.userData.setOpts;
+  if (!S.detail) mat.map = S.diffTex || null;
+  mat.normalMap = S.norTex || null; if (S.norTex) mat.normalScale.set(o.ns ?? 1, o.ns ?? 1);
+  mat.roughnessMap = S.roughTex || null; mat.roughness = S.roughTex ? (o.rmul ?? 1) : (o.rough ?? mat.userData.rough0);
+  mat.needsUpdate = true;
+}
+function bindSet(mat, set, o = {}) {
+  if (mat.userData.rough0 == null) mat.userData.rough0 = mat.roughness;
+  const prev = mat.userData.set; if (prev && prev !== set) TEX_SETS[prev].users.delete(mat);
+  mat.userData.set = set; mat.userData.setOpts = o; TEX_SETS[set].users.add(mat); applySet(mat); return mat;
+}
 
 /* ================= MATERIALS ================= */
 const MSM = THREE.MeshStandardMaterial;
 const MAT = new Map();
 const STATIC_MAT = {
-  brick: () => new MSM({ map: T.brick, roughness: 0.9 }), brick2: () => new MSM({ map: T.brick2, roughness: 0.9 }),
-  plaster: () => new MSM({ color: '#eeece6', roughness: 0.92 }), ceiling: () => new MSM({ color: '#f5f4f0', roughness: 0.95 }),
+  brick: () => bindSet(new MSM({ roughness: 0.9 }), 'brick', { ns: 0.8 }), brick2: () => bindSet(new MSM({ color: '#d8cdc0', roughness: 0.9 }), 'brick', { ns: 0.8 }),
+  plaster: () => bindSet(new MSM({ color: '#eeece6', roughness: 0.92 }), 'plaster', { ns: 0.45 }), ceiling: () => bindSet(new MSM({ color: '#f5f4f0', roughness: 0.95 }), 'plaster', { ns: 0.3 }),
   slab: () => new MSM({ color: '#a29f97', roughness: 1 }), trim: () => new MSM({ color: '#e7e5df', roughness: 0.7 }),
   frame: () => new MSM({ color: '#f2f1ec', roughness: 0.45 }),
   glass: () => new MSM({ color: '#c9dde6', transparent: true, opacity: 0.16, roughness: 0.04, metalness: 0.1, envMapIntensity: 2, depthWrite: false }),
   glassDark: () => new MSM({ color: '#27313a', roughness: 0.08, metalness: 0.4 }),
   doorleaf: () => new MSM({ color: '#f3f2ee', roughness: 0.4 }), extdoor: () => new MSM({ color: '#24423a', roughness: 0.35 }),
   hardware: () => new MSM({ color: '#b9bbbd', metalness: 0.95, roughness: 0.32 }),
-  roofTile: () => new MSM({ map: T.roof, roughness: 0.72 }), bitumen: () => new MSM({ color: '#4b4c4e', roughness: 0.95 }),
+  roofTile: () => bindSet(new MSM({ roughness: 0.72 }), 'roof', { ns: 0.9 }), bitumen: () => new MSM({ color: '#4b4c4e', roughness: 0.95 }),
   stair: () => new MSM({ color: '#b98f62', roughness: 0.55 }), steel: () => new MSM({ color: '#c9cbcc', metalness: 0.9, roughness: 0.3 }),
   ceramic: () => new MSM({ color: '#f8f8f6', roughness: 0.12 }), hob: () => new MSM({ color: '#0e0f10', roughness: 0.08, metalness: 0.3 }),
   soot: () => new MSM({ color: '#1a1918', roughness: 1 }), mirror: () => new MSM({ color: '#e8eef0', metalness: 1, roughness: 0.03 }),
   screen: () => new MSM({ color: '#0b0c0e', roughness: 0.12, metalness: 0.4 }), dark: () => new MSM({ color: '#2b2c2d', roughness: 0.6 }),
   appliance: () => new MSM({ color: '#f1f2f1', roughness: 0.3 }), boiler: () => new MSM({ color: '#e9eae8', roughness: 0.4 }),
-  grass: () => new MSM({ map: T.grass, roughness: 1 }), paving: () => new MSM({ map: T.paving, roughness: 0.85 }),
+  grass: () => bindSet(new MSM({ roughness: 1 }), 'grass', { ns: 0.7 }), paving: () => bindSet(new MSM({ roughness: 0.85 }), 'paving', { ns: 0.9 }),
   fence: () => new MSM({ map: T.fence, roughness: 0.9 }), shed: () => new MSM({ map: T.shed, roughness: 0.9 }),
   asphalt: () => new MSM({ map: T.asphalt, roughness: 0.95 }), hedge: () => new MSM({ color: '#3d5a2d', roughness: 1 }),
   meadow: () => new MSM({ color: '#6c7f55', roughness: 1 }), soil: () => new MSM({ color: '#4a3b2c', roughness: 1 }),
@@ -675,12 +701,13 @@ function M(key) {
   let m = MAT.get(key); if (m) return m;
   const [kind, id] = key.split(':');
   if (STATIC_MAT[key]) m = STATIC_MAT[key]();
-  else if (kind === 'wall') m = new MSM({ color: state.rooms[id]?.wall || '#eeece6', roughness: 0.9 });
-  else if (kind === 'floor') { const rs = state.rooms[id]; m = new MSM({ map: floorTex[rs.floor], color: rs.tint, roughness: FLOORS[rs.floor].rough }); }
-  else if (kind === 'rug') m = new MSM({ color: state.rooms[id]?.rug || '#e4ddcf', roughness: 1 });
+  else if (kind === 'wall') m = bindSet(new MSM({ color: state.rooms[id]?.wall || '#eeece6', roughness: 0.9 }), 'plaster', { ns: 0.45 });
+  else if (kind === 'floor') { const rs = state.rooms[id]; m = bindSet(new MSM({ color: rs.tint, roughness: FLOORS[rs.floor].rough }), rs.floor, { rough: FLOORS[rs.floor].rough }); }
+  else if (kind === 'rug') m = bindSet(new MSM({ color: state.rooms[id]?.rug || '#e4ddcf', roughness: 1 }), 'fabric', { ns: 0.9 });
   else if (kind === 'art') m = new MSM({ map: artTex(+id), roughness: 0.85 });
   else if (key in STYLE_MAT) {
     m = new MSM({ color: STYLES[state.style].c[key], roughness: STYLE_MAT[key] });
+    if (key === 'fab' || key === 'fab2' || key === 'bedding') bindSet(m, 'fabric', { ns: 0.7 });
     if (key === 'metal') m.metalness = 0.75;
     if (key === 'shade') { m.emissive = new THREE.Color('#ffcf8a'); m.emissiveIntensity = 0; m.side = THREE.DoubleSide; }
   } else m = new MSM({ color: '#ff00ff' });
@@ -714,19 +741,20 @@ function refreshRoomMaterials(id) {
   if (MAT.has('wall:' + id)) MAT.get('wall:' + id).color.set(rs.wall);
   if (MAT.has('rug:' + id)) MAT.get('rug:' + id).color.set(rs.rug);
   const f = MAT.get('floor:' + id);
-  if (f) { f.map = floorTex[rs.floor]; f.color.set(rs.tint); f.roughness = FLOORS[rs.floor].rough; f.needsUpdate = true; }
+  if (f) { bindSet(f, rs.floor, { rough: FLOORS[rs.floor].rough }); f.color.set(rs.tint); }
 }
-// optional photo textures
-async function loadTextureFiles() {
-  for (const [k, v] of Object.entries(TEXTURE_FILES)) {
-    const url = typeof v === 'string' ? v : v.url, size = (typeof v === 'object' && v.size) || FLOORS[k].size;
-    try {
-      const res = await fetch(url); if (!res.ok) continue;
-      const bmp = await createImageBitmap(await res.blob());
-      const t = new THREE.Texture(bmp); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / size, 1 / size);
-      t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; if (FLOORS[k].rot) t.rotation = FLOORS[k].rot;
-      floorTex[k] = t; for (const r of ROOMS) if (state.rooms[r.id].floor === k) refreshRoomMaterials(r.id);
-    } catch (e) { /* keep procedural */ }
+// photo textures: each file that arrives is pushed to every material bound to its set; failures keep the fallback
+function loadTextureSets() {
+  const loader = new THREE.TextureLoader(), aniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  for (const S of Object.values(TEX_SETS)) {
+    const get = (suffix, srgb, cb) => loader.load(`assets/${S.base}_${suffix}.jpg`, t => {
+      t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / S.size, 1 / S.size); t.anisotropy = aniso;
+      if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+      cb(t); for (const m of S.users) applySet(m);
+    }, undefined, () => { /* missing: keep procedural / flat */ });
+    if (!S.detail) get('diff', true, t => { S.diffTex = t; });
+    if (!(LOWQ && S.detail)) get('nor', false, t => { S.norTex = t; }); // phones skip wall/fabric detail normals
+    get('rough', false, t => { S.roughTex = t; });
   }
 }
 
@@ -745,8 +773,30 @@ renderer.domElement.tabIndex = 0;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 400);
 const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; // fallback until the HDR sky arrives
 scene.fog = new THREE.Fog('#cfdce4', 60, 170);
+let skyTex = null; // overcast Dutch sky (Poly Haven, CC0): image-based light + dollhouse backdrop
+function loadSky() {
+  new RGBELoader().setDataType(THREE.FloatType).load('assets/sky_1k.hdr', t => {
+    t.mapping = THREE.EquirectangularReflectionMapping;
+    // The sky itself is the backdrop. For the light probe, the lower hemisphere (mud, trees) is blended to a neutral
+    // "floor bounce" grey, otherwise every ceiling and underside indoors is lit brown by the ground of the HDRI.
+    const { data, width: w, height: h } = t.image, n = data.length / (w * h), d = data.slice();
+    const rowSum = (y0, y1) => { let s = 0; for (let y = y0; y < y1; y++) for (let x = 0; x < w; x += 4) { const i = (y * w + x) * n; s += d[i] + d[i + 1] + d[i + 2]; } return s; };
+    const topIsSky = rowSum(0, h >> 2) > rowSum(h - (h >> 2), h);
+    const sky = [0, 0, 0]; let c = 0;
+    for (let y = topIsSky ? 0 : h - (h >> 2); y < (topIsSky ? h >> 2 : h); y += 2) for (let x = 0; x < w; x += 4) { const i = (y * w + x) * n; sky[0] += d[i]; sky[1] += d[i + 1]; sky[2] += d[i + 2]; c++; }
+    const bounce = sky.map(v => v / c * 0.45);
+    for (let y = 0; y < h; y++) {
+      const v = topIsSky ? 1 - (y + 0.5) / h : (y + 0.5) / h, k = clamp((0.56 - v) / 0.1, 0, 1);
+      if (k <= 0) continue;
+      for (let x = 0; x < w; x++) { const i = (y * w + x) * n; for (let ch = 0; ch < 3; ch++) d[i + ch] += (bounce[ch] - d[i + ch]) * k; }
+    }
+    const probe = new THREE.DataTexture(d, w, h, t.format, t.type); probe.mapping = t.mapping; probe.colorSpace = t.colorSpace; probe.flipY = t.flipY; probe.needsUpdate = true;
+    scene.environment = pmrem.fromEquirectangular(probe).texture; probe.dispose();
+    skyTex = t; applyTime(state.time);
+  }, undefined, () => { /* keep RoomEnvironment */ });
+}
 
 // groups: per level 'main' (walls, floors, furniture) and 'ceil' (ceilings, slabs, roofs above that level)
 const G = [0, 1, 2].map(l => { const main = new THREE.Group(), ceil = new THREE.Group(); main.name = 'L' + l; scene.add(main, ceil); return { main, ceil }; });
@@ -910,7 +960,7 @@ function buildRoofs() {
   // collar ceiling
   AB.box(kmap(2, 'ceil', { ny: 'ceiling', def: 'slab' }), 3.25, 9.0, COLLAR, COLLAR + 0.06, ATTIC_BRK[0], ATTIC_BRK[2]);
   // chimney stack
-  AB.box(K(2, 'ceil', 'brick'), 3.3, 3.85, 7.4, 9.9, 7.95, 8.55); AB.box(K(2, 'ceil', 'dark'), 3.25, 3.9, 9.9, 9.98, 7.9, 8.6);
+  AB.box(K(2, 'ceil', 'brick'), 3.3, 3.85, COLLAR + 0.08, 9.9, 7.95, 8.55); AB.box(K(2, 'ceil', 'dark'), 3.25, 3.9, 9.9, 9.98, 7.9, 8.6); // starts above the collar ceiling, not inside bedroom 3
   // left wing
   slope(1, -0.42, 3.95, -0.45, WR_Z, wingOut); slope(1, -0.42, 3.03, WR_Z, 8.07, wingOut); slope(1, 3.03, 3.95, WR_Z, 4.0, wingOut);
   AB.box(K(1, 'ceil', 'dark'), -0.42, 3.95, WR_Y - 0.05, WR_Y + 0.07, WR_Z - 0.1, WR_Z + 0.1);
@@ -1135,7 +1185,7 @@ const ITEMS = {
     ['vloerlamp', 'Vloerlamp', 0.35, 3.55, 0, P.floorlamp], ['planten', 'Plant', 0.32, 0.36, 0, f => P.plant(f, 1)],
     ['hanglampen', 'Hanglamp', 1.6, 4.9, 0, f => P.pendant(f, 0.7)], ['kunst', 'Wandkunst', 0.01, 4.9, HP, f => P.art(f, 1, 1.1, 0.75, 1.55)],
   ],
-  entree: [['bank', 'Halbankje', 7.3, 9.9, HP, f => P.bench(f, 1.1)], ['kunst', 'Wandkunst', 7.08, 9.9, HP, f => P.art(f, 2, 0.6, 0.8, 1.55)], ['planten', 'Plant', 8.42, 11.05, 0, f => P.plant(f, 0.9)], ['hanglampen', 'Hanglamp', 7.6, 10.6, 0, f => P.pendant(f, 0.3)]],
+  entree: [['bank', 'Halbankje', 7.3, 9.9, HP, f => P.bench(f, 1.1)], ['kunst', 'Wandkunst', 7.08, 9.9, HP, f => P.art(f, 2, 0.6, 0.8, 1.55)], ['planten', 'Plant', 8.42, 11.05, 0, f => P.plant(f, 0.9)], ['hanglampen', 'Hanglamp', 7.65, 9.3, 0, f => P.pendant(f, 0.3)]],
   sk1: [
     ['bed', 'Bed 180', 4.35, 6.4, HP, f => P.bed(f, 1.8, 2.1)], ['nachtkastjes', 'Nachtkastjes', 3.52, 5.05, HP, P.nightstand],
     ['kast', 'Kledingkast', 4.5, 8.86, PI, f => P.wardrobe(f, 2.2)], ['kleed', 'Vloerkleed', 4.7, 6.4, 0, (f, r) => P.rug(f, r.id, 2.6, 2.6)],
@@ -1229,16 +1279,18 @@ function buildFixtures() {
 }
 
 /* ================= LIGHTS & TIME OF DAY ================= */
-const hemi = new THREE.HemisphereLight('#cfe0ee', '#6d6450', 0.8); scene.add(hemi);
+const hemi = new THREE.HemisphereLight('#cfe0ee', '#a39d93', 0.8); scene.add(hemi);
 const sun = new THREE.DirectionalLight('#fff4e5', 3);
-sun.castShadow = true; { const sm = COARSE || isPhone() ? 1024 : 2048; sun.shadow.mapSize.set(sm, sm); }
+sun.castShadow = true; { const sm = LOWQ ? 1024 : 2048; sun.shadow.mapSize.set(sm, sm); }
 Object.assign(sun.shadow.camera, { left: -15, right: 15, top: 15, bottom: -15, near: 1, far: 90 });
-sun.shadow.bias = -0.0003; sun.shadow.normalBias = 0.035; sun.shadow.radius = 3;
+// normalBias scaled with texel size kills the acne speckle on the sloped roofs without peter-panning the furniture
+sun.shadow.bias = -0.00015; sun.shadow.normalBias = LOWQ ? 0.09 : 0.06; sun.shadow.radius = 4;
 const SUN_C = V(4.5, 0, 2); sun.target.position.copy(SUN_C); scene.add(sun, sun.target);
-const LAMPS = [['woonkamer', 5.15, 1.55, 1.25], ['woonkamer', 5.35, 1.75, 8.9], ['keuken', 7.55, 1.7, 2.0], ['zitkamer', 1.6, 1.7, 4.9], ['entree', 7.6, 1.9, 10.8],
+const LAMPS = [['woonkamer', 5.15, 1.55, 1.25], ['woonkamer', 5.35, 1.75, 8.9], ['keuken', 7.55, 1.7, 2.0], ['zitkamer', 1.6, 1.7, 4.9], ['entree', 7.65, 1.9, 9.3],
   ['sk1', 4.9, 4.45, 6.4], ['sk2', 4.6, 4.45, 10.6], ['badkamer', 7.7, 4.8, 6.2], ['sk3', 5.0, 7.3, 8.23], ['zolderL', 1.8, 4.9, 3.9]].map(([id, x, y, z]) => {
-  const p = new THREE.PointLight('#ffc98a', 0, 9, 2); p.position.set(x, y, z); scene.add(p); return { l: ROOM[id].lvl, p };
+  const p = new THREE.PointLight('#ffc27a', 0, 9, 2); p.position.set(x, y, z); scene.add(p); return { l: ROOM[id].lvl, p };
 });
+const C_SKY_DAY = new THREE.Color('#cfe0ee'), C_SKY_NIGHT = new THREE.Color('#2a3a5c'), C_SKY_GOLD = new THREE.Color('#e7b98f');
 let lampLevel = 0;
 const clamp = THREE.MathUtils.clamp, lerp = THREE.MathUtils.lerp, sstep = THREE.MathUtils.smoothstep;
 const C_DAY = new THREE.Color('#bdd2e0'), C_GOLD = new THREE.Color('#e9c7a2'), C_NIGHT = new THREE.Color('#0d1421'), bg = new THREE.Color();
@@ -1247,20 +1299,23 @@ function applyTime(h) {
   const t = (h - 6) / 15, el = Math.sin(Math.PI * clamp(t, -0.1, 1.12)) * THREE.MathUtils.degToRad(58), az = THREE.MathUtils.degToRad(lerp(-115, 115, clamp(t, 0, 1)));
   const dir = V(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el));
   sun.position.copy(SUN_C).addScaledVector(dir, 45);
-  const se = Math.sin(el), up = sstep(se, 0, 0.35), nf = 1 - sstep(se, -0.06, 0.14);
-  sun.intensity = 3.3 * sstep(se, 0, 0.12); sun.visible = sun.intensity > 0.01;
-  sun.color.setRGB(1, 0.6 + 0.36 * up, 0.36 + 0.56 * up);
-  hemi.intensity = lerp(0.85, 0.1, nf); hemi.color.set('#cfe0ee').lerp(new THREE.Color('#2a3a5c'), nf);
-  scene.environmentIntensity = lerp(0.6, 0.06, nf);
-  bg.copy(C_DAY).lerp(C_GOLD, (1 - up) * (1 - nf)).lerp(C_NIGHT, nf); scene.fog.color.copy(bg);
+  const se = Math.sin(el), up = sstep(se, 0, 0.35), nf = 1 - sstep(se, -0.06, 0.14), gold = (1 - up) * (1 - nf);
+  sun.intensity = 3.6 * sstep(se, 0, 0.12); sun.visible = sun.intensity > 0.01;
+  sun.color.setRGB(1, 0.58 + 0.38 * up, 0.3 + 0.6 * up);
+  // with the HDR sky most of the fill comes from the environment; the hemisphere light only carries the colour of the hour
+  hemi.intensity = lerp(skyTex ? 0.35 : 0.85, 0.08, nf); hemi.color.copy(C_SKY_DAY).lerp(C_SKY_GOLD, gold).lerp(C_SKY_NIGHT, nf);
+  scene.environmentIntensity = lerp(skyTex ? 1.0 : 0.6, 0.05, nf);
+  bg.copy(C_DAY).lerp(C_GOLD, gold).lerp(C_NIGHT, nf); scene.fog.color.copy(bg);
+  if (skyTex) { scene.background = skyTex; scene.backgroundIntensity = lerp(lerp(1.0, 0.55, gold), 0.03, nf); scene.backgroundBlurriness = 0.02; }
+  else scene.background = bg;
   const lf = h >= 17.5 ? clamp((h - 17.5) / 1.5, 0, 1) : clamp((7.5 - h) / 1.0, 0, 1);
   lampFactor = lf; updateLamps();
-  M('shade').emissiveIntensity = 1.3 * lf; M('bulb').emissiveIntensity = 4 * lf;
-  renderer.toneMappingExposure = lerp(1.0, 1.3, nf);
+  M('shade').emissiveIntensity = 1.6 * lf; M('bulb').emissiveIntensity = 5 * lf;
+  renderer.toneMappingExposure = lerp(lerp(1.0, 0.9, gold), 1.25, nf);
   $('#todOut').value = `${String(Math.floor(h) % 24).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
 }
 let lampFactor = 0;
-function updateLamps() { for (const L of LAMPS) L.p.intensity = (mode === 'walk' || view === 'out' || L.l <= view) ? 7.5 * lampFactor : 0; }
+function updateLamps() { for (const L of LAMPS) L.p.intensity = (mode === 'walk' || view === 'out' || L.l <= view) ? 11 * lampFactor : 0; }
 
 /* ================= VIEWS ================= */
 let mode = 'doll', view = 0;
@@ -1327,7 +1382,7 @@ function setMode(m) {
   mode = m;
   $('#btnDoll').setAttribute('aria-pressed', String(m === 'doll')); $('#btnWalk').setAttribute('aria-pressed', String(m === 'walk'));
   $('#cross').hidden = m !== 'walk'; $('#joy').hidden = !(m === 'walk' && COARSE); $('#walkStart').hidden = !(m === 'walk' && !COARSE);
-  $('#tag').hidden = true;
+  $('#tag').hidden = true; $('#roomTag').hidden = m !== 'walk';
   if (m === 'walk') {
     orbit.enabled = false; fly = null; camera.fov = 70; camera.updateProjectionMatrix();
     const s = view === 'out' ? TUIN.spawn : FLOOR_SPAWN[view]; placeWalker(view === 'out' ? 0 : view, s);
@@ -1500,7 +1555,7 @@ window.HOUSE = {
 /* ================= BOOT + LOOP ================= */
 buildArchitecture(); buildFixtures(); buildAllFurniture();
 buildPanel(); syncPanel(); applyTime(state.time); setHint();
-loadTextureFiles();
+loadTextureSets(); loadSky();
 function resize() { const w = stage.clientWidth || innerWidth, h = stage.clientHeight || innerHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
 view = ROOM[state.sel].lvl; applyVisibility();
@@ -1510,7 +1565,7 @@ renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05);
   updateDoors(dt);
   if (fly) { fly.k = Math.min(1, fly.k + dt / fly.dur); const e = fly.k < .5 ? 4 * fly.k ** 3 : 1 - (-2 * fly.k + 2) ** 3 / 2; camera.position.lerpVectors(fly.p0, fly.p1, e); orbit.target.lerpVectors(fly.t0, fly.t1, e); if (fly.k >= 1) fly = null; }
-  const tag = $('#tag');
+  const tag = $('#tag'), roomTag = $('#roomTag');
   if (mode === 'doll') {
     orbit.update();
     if (hover) { const h = pick(hover.x, hover.y, floorMeshes); if (h) { tag.hidden = false; tag.textContent = ROOM[h.object.userData.room].name; tag.style.left = hover.x + 'px'; tag.style.top = hover.y + 'px'; } else tag.hidden = true; hover = null; }
@@ -1520,9 +1575,12 @@ renderer.setAnimationLoop(() => {
     if (rid !== lastRoom) { lastRoom = rid; if (r && r.id !== state.sel) selectRoom(r.id); const v = r ? r.lvl : (walker.l === 0 ? 'out' : walker.l); if (v !== view) { view = v; document.querySelectorAll('#floorSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.floor === String(view)))); } }
     const rect = cvs.getBoundingClientRect(), hd = pick(rect.left + rect.width / 2, rect.top + rect.height / 2, doorMeshes, 2.5);
     aimDoor = hd ? hd.object.userData.door : null;
-    tag.hidden = false; tag.style.left = (rect.left + rect.width / 2) + 'px'; tag.style.top = (rect.top + rect.height / 2 + 6) + 'px';
-    tag.textContent = aimDoor ? (COARSE ? 'Tik: deur ' + (aimDoor.open ? 'sluiten' : 'openen') : 'E: deur ' + (aimDoor.open ? 'sluiten' : 'openen')) : (r ? r.name : walker.l === 0 ? 'Tuin' : '');
-    if (!tag.textContent) tag.hidden = true;
+    // door prompt sits under the crosshair; the room name lives in its own chip at the bottom so the view stays clean
+    tag.hidden = !aimDoor;
+    if (aimDoor) { tag.style.left = (rect.left + rect.width / 2) + 'px'; tag.style.top = (rect.top + rect.height / 2 + 6) + 'px'; tag.textContent = (COARSE ? 'Tik: deur ' : 'E: deur ') + (aimDoor.open ? 'sluiten' : 'openen'); }
+    const rn = r ? r.name : walker.l === 0 ? 'Tuin' : '';
+    if (rn !== roomTag.textContent) roomTag.textContent = rn;
+    roomTag.hidden = !rn;
   }
   if (flash) { flash.t += dt; const k = Math.max(0, 1 - flash.t / 0.9); flash.m.emissive.set('#3d7a66').multiplyScalar(0.35 * k); if (k <= 0) { flash.m.emissive.set(0); flash = null; } }
   for (const fn of tickFns) { try { fn(dt); } catch (e) { console.error(e); } }
