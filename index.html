@@ -1051,7 +1051,13 @@ function emitPiece(l, axis, s0, s1, bot, top, c0, c1, brk) {
   const keyAt = s => sideKey(l, ...pt(s, c0 - 0.12)) + '/' + sideKey(l, ...pt(s, c1 + 0.12));
   const cuts = [s0, s1, ...brk.filter(b => b > s0 + 1e-3 && b < s1 - 1e-3)];
   let prev = keyAt(Math.min(s1, s0 + 0.05));
-  for (let s = s0 + 0.1; s < s1 - 0.05; s += 0.1) { const k = keyAt(s); if (k !== prev) { cuts.push(s - 0.05); prev = k; } }
+  // sample every 10 cm, then bisect to the exact change (a room's edge), so a corner never shows a strip of the next face's material
+  for (let s = s0 + 0.1; s < s1 - 0.05; s += 0.1) {
+    const k = keyAt(s); if (k === prev) continue;
+    let lo = Math.max(s0, s - 0.1), hi = s;
+    for (let j = 0; j < 12; j++) { const m = (lo + hi) / 2; if (keyAt(m) === prev) lo = m; else hi = m; }
+    cuts.push(hi); prev = k;
+  }
   cuts.sort((a, b) => a - b);
   const fl = LV[l].floor;
   for (let i = 0; i < cuts.length - 1; i++) {
@@ -2198,7 +2204,7 @@ const SUN_C = V(4.5, 0, 2); sun.target.position.copy(SUN_C); scene.add(sun, sun.
 // A fixed pool of 10 point lights follows the camera to the nearest spots: more lights would make every material shader heavier.
 const LAMP_SPOTS = [['woonkamer', 5.15, 1.55, 1.25], ['woonkamer', 5.35, 1.75, 8.9], ['keuken', 7.55, 1.7, 2.0], ['zitkamer', 1.6, 2.2, 2.0], ['entree', 7.65, 1.9, 9.3],
   ['sk1', 4.9, 4.45, 6.4], ['sk2', 4.6, 4.45, 10.6], ['badkamer', 7.7, 4.8, 6.2], ['sk3', 5.0, 7.3, 8.23], ['zolderL', 1.8, 4.9, 3.9],
-  ['wc1', 0.45, 0, 8.43, 0.3], ['achterhal', 2.0, 0, 8.43, 0.5], ['wc2', 8.62, 0, 8.27, 0.3], ['overloop', 7.6, 0, 9.6, 0.55], ['wasruimte', 8.0, 0, 11.3, 0.7], ['zolderR', 7.55, 0, 9.8, 0.7]]
+  ['wc1', 0.45, 0, 8.43, 0.6], ['achterhal', 2.0, 0, 8.43, 0.5], ['wc2', 8.62, 0, 8.27, 0.6], ['overloop', 7.6, 0, 9.6, 0.55], ['wasruimte', 8.0, 0, 11.3, 0.7], ['zolderR', 7.55, 0, 9.8, 0.7]]
   .map(([id, x, y, z, k = 1]) => { const l = ROOM[id].lvl; return { l, k, pos: V(x, y || ceilAt(l, x, z) - 0.12, z) }; });
 const LAMPS = LAMP_SPOTS.slice(0, 10).map(() => { const p = new THREE.PointLight('#ffc27a', 0, 9, 2); scene.add(p); return { p }; });
 const C_SKY_DAY = new THREE.Color('#cfe0ee'), C_SKY_NIGHT = new THREE.Color('#2a3a5c'), C_SKY_GOLD = new THREE.Color('#e7b98f');

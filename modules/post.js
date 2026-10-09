@@ -99,6 +99,8 @@ float postAOFetch() {
 }
 uniform float postPLRoom[ 16 ];
 uniform float postRectRoom[ 4 ];
+uniform vec4 postFlA[ 4 ];
+uniform vec4 postFlB[ 4 ];
 float postCode;
 float postInK;
 float postInKs;
@@ -131,6 +133,12 @@ if ( postP0.x > 0.5 ) {
 	vec4 postCell = texture2D( postRoomMap, ( postQ.xz - postMapXf.xy ) * postMapXf.zw );
 	float postC = postQ.y < postP1.y ? postCell.r : ( postQ.y < postP1.z ? postCell.g : postCell.b );
 	postCode = floor( postC * 255.0 + 0.5 );
+	// the flight itself (treads, risers, the top of the stringers) is stair zone; what lies under its slope keeps the
+	// room code of the map (the toilet under the entree stair, the zitkamer under its open stair)
+	for ( int i = 0; i < 4; i ++ ) {
+		vec4 a = postFlA[ i ], b = postFlB[ i ];
+		if ( postQ.x > a.x && postQ.x < a.y && postQ.z > a.z && postQ.z < a.w && postQ.y < b.w && postQ.y > b.y + ( postQ.z - b.x ) * b.z - 0.12 ) postCode = 254.0;
+	}
 	postIn = postCode > 0.5 && postQ.y < postCell.a * 16.0 - postP1.w;
 	if ( postIn ) {
 		bool postZone = postCode > 252.5 && postCode < 253.5;
@@ -330,6 +338,11 @@ export function install(H) {
 
   /* ---- room map: room code per level (1..N rooms, 253 wall zone, 254 stairs), roof top in alpha ---- */
   const ROOMS = D.ROOMS || [];
+  // flights as (x0, x1, zMin, zMax) + (zBot, yBot, slope, top of their level): a point at most 0.12 under the stair line
+  const FLS = (D.FLIGHTS || []).slice(0, 4).map(f => [new THREE.Vector4(f.x0, f.x1, f.zMin, f.zMax),
+    new THREE.Vector4(f.zBot, f.yBot, (f.yTop - f.yBot) / (f.zTop - f.zBot), lvlY[f.l] ?? 99)]);
+  while (FLS.length < 4) FLS.push([new THREE.Vector4(1, 0, 1, 0), new THREE.Vector4(0, 0, 0, -99)]);
+  const onFlight = (x, y, z) => FLS.some(([a, b]) => x > a.x && x < a.y && z > a.z && z < a.w && y < b.w && y > b.y + (z - b.x) * b.z - 0.12);
   const MAP = (() => {
     let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
     for (const r of ROOMS) for (const q of r.rects) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[1]); z0 = Math.min(z0, q[2]); z1 = Math.max(z1, q[3]); }
@@ -343,7 +356,9 @@ export function install(H) {
       for (let j = j0; j < j1; j++) for (let i = i0; i < i1; i++) { const k = j * NX + i; if (over || !g[k]) g[k] = code; }
     };
     ROOMS.forEach((r, k) => { if (L[r.lvl]) for (const q of r.rects) fill(L[r.lvl], q, Math.min(250, k + 1), false); });
-    for (const f of D.FLIGHTS || []) { const q = [f.x0, f.x1, f.zMin, f.zMax]; if (L[f.l]) fill(L[f.l], q, 254, true); if (L[f.l + 1]) fill(L[f.l + 1], q, 254, true); }
+    // stairs: the whole footprint on the level above (the stairwell), on their own level only where no room is; there the
+    // shader (and code() below) marks just what sits on the slope, see FLS
+    for (const f of D.FLIGHTS || []) { const q = [f.x0, f.x1, f.zMin, f.zMax]; if (L[f.l]) fill(L[f.l], q, 254, false); if (L[f.l + 1]) fill(L[f.l + 1], q, 254, true); }
     // close the gaps that interior walls leave between rooms (<= 0.25 m), twice so wall junctions fill too
     const K = 5;
     for (let pass = 0; pass < 2; pass++) for (const g of L) {
@@ -378,7 +393,7 @@ export function install(H) {
     const cell = (x, z) => { const i = Math.floor((x - x0) / C), j = Math.floor((z - z0) / C); return i < 0 || j < 0 || i >= NX || j >= NZ ? -1 : j * NX + i; };
     return {
       x0, z0, x1, z1, NX, NZ, C, L, data, tex, cell,
-      code(x, y, z) { const k = cell(x, z); return k < 0 ? 0 : L[levelOfY(y)][k]; },
+      code(x, y, z) { const k = cell(x, z); return k < 0 ? 0 : onFlight(x, y, z) ? 254 : L[levelOfY(y)][k]; },
       roof(x, z) { const k = cell(x, z); return k < 0 ? 16 : data[k * 4 + 3] / 255 * 16; },
       inside(x, y, z) { const k = cell(x, z); if (k < 0) return false; const c = L[levelOfY(y)][k]; return c > 0 && y < data[k * 4 + 3] / 255 * 16 - 0.15; },
     };
@@ -451,6 +466,7 @@ export function install(H) {
     postTint: { value: new THREE.Vector3(1, 1, 1) }, // colour of indoor bounce light relative to the open sky
     postPLRoom: { value: new Float32Array(16).fill(-1) },
     postRectRoom: { value: new Float32Array(4).fill(-1) },
+    postFlA: { value: FLS.map(f => f[0]) }, postFlB: { value: FLS.map(f => f[1]) },
   };
   const setActive = on => { U.postP0.value.x = on ? 1 : 0; if (!on) { U.postWB.value.set(1, 1, 1); U.postAO.value = WHITE; U.postAODepth.value = WHITE; U.postAOInfo.value.x = 0; } };
 
