@@ -1283,9 +1283,41 @@ function buildExterior() {
   tb.build((k, g) => { const m = new THREE.Mesh(g, M(k === 'trunk' ? 'woodDark' : 'leaf2')); m.castShadow = m.receiveShadow = true; EXT.add(m); });
 }
 
+/* ---------- skirting boards (plinten): every wall face of a dry room, from the floor up, stopping at openings that go
+   down to the floor and over stair holes. Pieces break exactly where a room, opening or hole starts or ends ---------- */
+const SKIRT_H = 0.075, SKIRT_T = 0.014;
+function buildSkirting() {
+  for (const [l, axis, a0, a1, c0, c1, ops, o = {}] of WALLS) {
+    const fl = LV[l].floor, bot = o.bot || (() => fl), holes = HOLES[l - 1] || [], k = K(l, 'main', 'trim');
+    const gaps = (ops || []).filter(op => !(op[3] > 0.001)), pt = (s, c) => axis === 'x' ? [s, c] : [c, s], ia = axis === 'x' ? 0 : 2;
+    const cuts = new Set([a0, a1]);
+    for (const op of gaps) cuts.add(op[0]).add(op[1]);
+    for (const r of ROOMS) if (r.lvl === l) for (const q of r.rects) cuts.add(q[ia]).add(q[ia + 1]);
+    for (const q of holes) cuts.add(q[ia]).add(q[ia + 1]);
+    const cs = [...cuts].filter(u => u >= a0 && u <= a1).sort((p, q) => p - q);
+    for (const [face, dir] of [[Math.min(c0, c1), -1], [Math.max(c0, c1), 1]]) {
+      const ok = u => {
+        if (gaps.some(op => u > op[0] && u < op[1]) || bot(u) > fl + 0.01) return false;
+        const r = roomAt(l, ...pt(u, face + dir * 0.12));
+        return !!r && !r.wet && !inRects(holes, ...pt(u, face + dir * 0.05));
+      };
+      let start = null;
+      for (let i = 0; i < cs.length; i++) {
+        const good = i < cs.length - 1 && cs[i + 1] - cs[i] > 1e-4 && ok((cs[i] + cs[i + 1]) / 2);
+        if (good && start === null) start = cs[i];
+        if (!good && start !== null) { abox(k, axis, start, cs[i], fl, fl + SKIRT_H, dir < 0 ? face - SKIRT_T : face, dir < 0 ? face : face + SKIRT_T); start = null; }
+      }
+    }
+  }
+  // round the chimney breast in the living room
+  AB.box(K(0, 'main', 'trim'), 3.6, 3.6 + SKIRT_T, 0, SKIRT_H, 7.9 - SKIRT_T, 8.9 + SKIRT_T);
+  for (const z of [7.9 - SKIRT_T, 8.9]) AB.box(K(0, 'main', 'trim'), 3.25, 3.6, 0, SKIRT_H, z, z + SKIRT_T);
+}
+
 /* ---------- build everything ---------- */
 function buildArchitecture() {
   for (const w of WALLS) buildWall(w);
+  buildSkirting();
   buildFloorsAndSlabs(); buildRoofs(); buildStairs(); buildExterior();
   // chimney breast in the living room (with fireplace) + wing fireplace-free
   AB.box(K(0, 'main', 'wall:woonkamer'), 3.25, 3.6, 0, 2.51, 7.9, 8.9); addCol(0, 3.25, 3.6, 7.9, 8.9);
