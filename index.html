@@ -701,6 +701,17 @@ function texRug() {
   for (let i = 0; i < 7000; i++) { const x = R() * S, y = R() * S, a = R() * Math.PI * 2, l = 1.5 + R() * 3; ctx.strokeStyle = R() < 0.5 ? 'rgba(255,255,255,.08)' : 'rgba(40,30,20,.08)'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke(); }
   return c;
 }
+// woven wicker: horizontal weavers over and under vertical stakes
+function texWicker() {
+  const S = 256, c = mkCanvas(S), ctx = c.getContext('2d'), R = rng(41), rows = 16, cols = 16, rh = S / rows, cw = S / cols;
+  ctx.fillStyle = '#6e4f2c'; ctx.fillRect(0, 0, S, S);
+  for (let r = 0; r < rows; r++) for (let i = 0; i < cols; i++) {
+    const over = (r + i) % 2 === 0, x = i * cw, y = r * rh, l = 52 + (R() - .5) * 10;
+    const g = ctx.createLinearGradient(0, y, 0, y + rh); g.addColorStop(0, hsl(33, 45, l - 14)); g.addColorStop(0.5, hsl(34, 48, over ? l + 6 : l - 6)); g.addColorStop(1, hsl(33, 45, l - 16));
+    ctx.fillStyle = g; ctx.fillRect(x + (over ? 0 : 2), y + 1, over ? cw : cw - 4, rh - 2);
+  }
+  noise(ctx, S, 14, 43); return c;
+}
 function texLino() {
   const S = 1024, c = mkCanvas(S), ctx = c.getContext('2d'), R = rng(31);
   ctx.fillStyle = '#c3ad86'; ctx.fillRect(0, 0, S, S);
@@ -782,7 +793,7 @@ const T = {
   brick: canvasTex(texBrick(0), 0.88, 0.875), brick2: canvasTex(texBrick(1), 0.88, 0.875), roof: canvasTex(texRoof(), 1.5),
   grass: canvasTex(texGrass(), 2.5), paving: canvasTex(texTiles(4, () => [40, 5, 58], '#6f6c66', 4, 81), 1.2),
   fence: canvasTex(texBoards(25, 25, 24, 4), 0.6, 1.8), shed: canvasTex(texBoards(28, 20, 34, 5), 0.8, 2.4),
-  rug: canvasTex(texRug(), 0.7),
+  rug: canvasTex(texRug(), 0.7), wicker: canvasTex(texWicker(), 0.16),
   asphalt: canvasTex((() => { const c = mkCanvas(256), x = c.getContext('2d'); x.fillStyle = '#44464a'; x.fillRect(0, 0, 256, 256); noise(x, 256, 30, 3); return c; })(), 1.5),
 };
 // procedural canvases are the fallback diffuse of each photo set until (unless) the jpg arrives
@@ -827,9 +838,12 @@ const STATIC_MAT = {
   plastic: () => new MSM({ color: '#e6e9ea', roughness: 0.3, envMapIntensity: 1.3 }), // cooler than the plaster, so a white unit still reads against a white wall
   roofBoards: () => bindSet(new MSM({ color: '#a8998a', roughness: 0.75 }), 'eiken_licht', { rough: 0.75 }), // pine boards under the attic slope (photos)
   brickPaint: () => bindSet(new MSM({ color: '#ebe8e1', roughness: 0.92 }), 'brickPaint', { ns: 1.1, rmul: 1 }),
-  towel: () => bindSet(new MSM({ color: '#e6e1d6', roughness: 1 }), 'fabric', { ns: 1 }), paper: () => new MSM({ color: '#f4f3ef', roughness: 0.95 }),
+  towel: () => bindSet(new MSM({ color: '#e6e1d6', roughness: 1 }), 'fabric', { ns: 1 }),
+  towelNavy: () => bindSet(new MSM({ color: '#1f2a44', roughness: 1 }), 'fabric', { ns: 1 }), towelTaupe: () => bindSet(new MSM({ color: '#9d8f80', roughness: 1 }), 'fabric', { ns: 1 }),
+  towelBlue: () => bindSet(new MSM({ color: '#2c5d97', roughness: 1 }), 'fabric', { ns: 1 }), bathmat: () => bindSet(new MSM({ color: '#38393d', roughness: 1 }), 'fabric', { ns: 1.2 }),
+  wicker: () => new MSM({ map: T.wicker, roughness: 0.85 }), scaleGlass: () => new MSM({ color: '#1d1f22', roughness: 0.12, metalness: 0.2 }), paper: () => new MSM({ color: '#f4f3ef', roughness: 0.95 }),
   ceramicBeige: () => new MSM({ color: '#ddd0b6', roughness: 0.12 }), // the entree toilet is an old 'bahama beige' one (photos)
-  frosted: () => new MSM({ color: '#e4ecee', transparent: true, opacity: 0.72, roughness: 0.6, metalness: 0, envMapIntensity: 0.8, depthWrite: false }), // bathroom window: obscured glass
+  frosted: () => new MSM({ color: '#e4ecee', emissive: '#e3eaee', transparent: true, opacity: 0.9, roughness: 0.6, metalness: 0, envMapIntensity: 0.8, depthWrite: false }), // bathroom window: obscured glass, glows with the daylight it scatters (applyTime)
   hob: () => new MSM({ color: '#0e0f10', roughness: 0.08, metalness: 0.3 }),
   soot: () => new MSM({ color: '#1a1918', roughness: 1 }), mirror: () => new MSM({ color: '#e8eef0', metalness: 1, roughness: 0.03 }),
   screen: () => new MSM({ color: '#0b0c0e', roughness: 0.12, metalness: 0.4 }), dark: () => new MSM({ color: '#2b2c2d', roughness: 0.6 }),
@@ -859,7 +873,7 @@ const STATIC_MAT = {
   curtainDay: () => bindSet(new MSM({ color: '#d9d1c1', roughness: 0.95, side: THREE.DoubleSide }), 'fabric', { ns: 0.6 }),
   curtainEve: () => bindSet(new MSM({ color: '#d9d1c1', roughness: 0.95, side: THREE.DoubleSide, visible: false }), 'fabric', { ns: 0.6 }),
   curtainDark: () => bindSet(new MSM({ color: '#272d3b', roughness: 0.95, side: THREE.DoubleSide }), 'fabric', { ns: 0.6 }),
-  radiator: () => new MSM({ color: '#f2f1ec', roughness: 0.35 }), splash: () => new MSM({ color: '#2b2b2c', roughness: 0.3 }),
+  radiator: () => new MSM({ color: '#f2f1ec', roughness: 0.35 }), radCream: () => new MSM({ color: '#e9e0c9', roughness: 0.35 }), splash: () => new MSM({ color: '#2b2b2c', roughness: 0.3 }),
 };
 
 const STYLE_MAT = { fab: 0.95, fab2: 0.95, wood: 0.55, woodDark: 0.5, metal: 0.35, front: 0.4, kfront: 0.4, worktop: 0.45, shade: 0.8, bedding: 0.95, leather: 0.6, pot: 0.7 };
@@ -1522,6 +1536,44 @@ const P = {
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.box(legMat(), sx * (w / 2 - 0.05), 0.2, sz * (d / 2 - 0.05), 0.04, 0.4, 0.04);
     f.cyl('pot', 0.2, 0.47, 0.05, 0.06, 0.1, 14, 0.05); f.box('book2', -0.25, 0.435, -0.05, 0.28, 0.03, 0.2, 0.2);
   },
+  // bathroom (photos): tall white cabinet on wooden legs, closed at the top, open shelves with a basket and rolled towels below
+  bathCabinet(f) {
+    const w = 0.36, d = 0.3, H = 1.66, g = 0.1, c = 'doorleaf';
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.cyl('wood', sx * (w / 2 - 0.03), g / 2, sz * (d / 2 - 0.03), 0.012, g, 8, 0.016);
+    f.box(c, 0, g + 0.009, 0, w, 0.018, d); f.box(c, 0, g + H - 0.009, 0, w, 0.018, d); f.box(c, 0, g + H / 2, -d / 2 + 0.005, w, H, 0.01);
+    for (const sx of [-1, 1]) f.box(c, sx * (w / 2 - 0.009), g + H / 2, 0, 0.018, H, d);
+    for (const y of [0.4, 0.78]) f.box(c, 0, g + y, 0, w - 0.03, 0.016, d - 0.02);
+    f.box(c, 0, g + (0.78 + H) / 2, d / 2 - 0.01, w - 0.006, H - 0.786, 0.018); f.cyl('steel', w / 2 - 0.04, g + 0.95, d / 2 + 0.006, 0.008, 0.016, 10, 0.008, Math.PI / 2);
+    P.basket(f, 0, g + 0.408, 0, 0.3, 0.17, 0.25);
+    for (const [x, m] of [[-0.085, 'towel'], [0.085, 'towelTaupe']]) f.cyl(m, x, g + 0.075, 0.01, 0.06, 0.24, 16, 0.06, Math.PI / 2);
+  },
+  // open wicker basket (bottom at y), optional towels piled in it
+  basket(f, x, y, z, w, h, d, full = false) {
+    const t = 0.012;
+    f.box('wicker', x, y + 0.006, z, w - 0.02, 0.012, d - 0.02);
+    for (const sx of [-1, 1]) f.soft('wicker', x + sx * (w / 2 - t / 2), y + h / 2, z, t, h, d, 0, 0.005);
+    for (const sz of [-1, 1]) f.soft('wicker', x, y + h / 2, z + sz * (d / 2 - t / 2), w, h, t, 0, 0.005);
+    for (const sz of [-1, 1]) f.cyl('wicker', x, y + h - 0.005, z + sz * (d / 2 - t / 2), 0.011, w, 10, 0.011, 0, Math.PI / 2);
+    if (full) { f.soft('towel', x - 0.05, y + h - 0.06, z, w * 0.6, 0.1, d * 0.75, 0.1, 0.04); f.soft('towelTaupe', x + 0.07, y + h - 0.03, z + 0.03, w * 0.5, 0.08, d * 0.6, -0.2, 0.035); f.soft('towelNavy', x + 0.02, y + h + 0.01, z - 0.04, w * 0.45, 0.06, d * 0.4, 0.4, 0.025); }
+  },
+  laundry(f) {
+    P.basket(f, 0, 0, 0, 0.5, 0.3, 0.36, true);
+    for (const sx of [-1, 1]) f.cyl('wood', sx * 0.19, 0.31, 0, 0.012, 0.36, 8, 0.012, Math.PI / 2); // the two handle rods (photo)
+  },
+  // hooks on the wall beside the door with a bath towel and a hand towel hanging off them
+  hookTowels(f) {
+    for (const [x, W, H, m, seed] of [[0.2, 0.34, 0.74, 'towelTaupe', 3], [-0.18, 0.24, 0.5, 'towelBlue', 5]]) {
+      f.cyl('steel', x, 1.62, 0.02, 0.008, 0.04, 8, 0.008, Math.PI / 2);
+      f.geo(m, gCurtain(W, H, 0.085, 0.02, seed), x, 1.62 - H / 2 + 0.01, 0.045);
+      f.soft(m, x, 1.625, 0.04, W * 0.9, 0.03, 0.05, 0, 0.012);
+    }
+  },
+  // anthracite bath mat in front of the radiator, slippers and the bathroom scale beside it (photos)
+  bathMat(f) {
+    f.soft('bathmat', 0, 0.01, 0, 0.55, 0.02, 0.85, 0, 0.008);
+    for (const sx of [-1, 1]) { f.soft('black', -0.5 + sx * 0.06, 0.012, 0.55, 0.095, 0.022, 0.27, 0.12, 0.009); f.soft('black', -0.5 + sx * 0.06, 0.04, 0.5, 0.1, 0.03, 0.08, 0.12, 0.012); }
+    f.soft('scaleGlass', -0.42, 0.012, 0.05, 0.3, 0.022, 0.3, -0.15, 0.01);
+  },
   rug(f, id, w, d) { f.geo('rug:' + id, gRBox(w, 0.012, d, 0.005, 2), 0, 0.007, 0); },
   table(f, w = 1.9, d = 0.95) {
     f.box('wood', 0, 0.74, 0, w, 0.04, d);
@@ -1859,7 +1911,8 @@ const ITEMS = {
     ['hanglampen', 'Hanglamp', 5.0, 8.23, 0, f => P.pendant(f, 0.45, 2.63)], ['kunst', 'Wandkunst', 3.26, 8.23, HP, f => P.art(f, 6, 0.8, 0.8, 1.75)],
     ['gordijnen', 'Vouwgordijn', 0, 0, 0, P.sk3Blinds],
   ],
-  badkamer: [['planten', 'Plant', 6.95, 7.85, 0, f => P.plant(f, 0.7)]],
+  badkamer: [['planten', 'Plant', 6.95, 7.85, 0, f => P.plant(f, 0.7)], ['kast', 'Hoge kast', 6.84, 4.5, HP, P.bathCabinet],
+    ['handdoeken', 'Handdoeken', 6.68, 7.05, HP, P.hookTowels], ['wasmand', 'Wasmand', 6.97, 6.45, HP, P.laundry], ['badmat', 'Badmat', 7.62, 4.95, 0, P.bathMat]],
   zolderL: [
     ['kleed', 'Vloerkleed', 1.8, 3.9, 0, (f, r) => state.style !== 'huidig' && P.rug(f, r.id, 2.4, 2.0)], ['fauteuil', 'Fauteuil', 1.0, 3.3, 0.8, f => state.style !== 'huidig' && P.armchair(f)],
     ['boekenkast', 'Boekenkast', 3.44, 2.9, -HP, f => P.bookshelf(f, 1.2, 1.8)], ['vloerlamp', 'Vloerlamp', 0.45, 2.7, 0, f => state.style !== 'huidig' && P.floorlamp(f)],
@@ -2029,18 +2082,18 @@ function buildFixtures() {
     f.cyl(k(l, 'steel'), 0, 0.98, 0.05, 0.015, 0.16, 10); f.box(k(l, 'steel'), 0, 1.05, 0.1, 0.025, 0.025, 0.1);
     if (w > 0.55) { f.cyl(k(l, 'black'), e - 0.04, 0.96, 0.05, 0.028, 0.12, 14); f.cyl(k(l, 'steel'), e - 0.04, 1.03, 0.05, 0.008, 0.02, 8); f.box(k(l, 'steel'), e - 0.04, 1.04, 0.07, 0.01, 0.01, 0.04); // soap pump
       f.cyl(k(l, 'ceramic'), -e + 0.04, 0.95, 0.05, 0.032, 0.1, 14, 0.036); f.cyl(k(l, 'fruitGreen'), -e + 0.045, 1.03, 0.05, 0.005, 0.12, 6); f.cyl(k(l, 'plate'), -e + 0.035, 1.02, 0.045, 0.005, 0.12, 6); } // mug with toothbrushes
-    if (vanity) f.box(k(l, 'front'), 0, 0.5, 0.2, w, 0.56, 0.42);
+    if (vanity === 'ped') f.geo(c, gRBox(0.2, 0.36, 0.2, 0.07), 0, 0.57, 0.1); // half pedestal over the trap (photos)
+    else if (vanity) f.box(k(l, 'front'), 0, 0.5, 0.2, w, 0.56, 0.42);
     addMirror(l, x, z, ry, w + 0.1);
   };
   // rookmelders (required since 2022): on the ceiling of the escape route on every floor, with the little red status LED
   for (const [l, x, z] of [[0, 7.65, 10.6], [1, 7.6, 8.7], [2, 7.57, 9.0]]) {
     const f = kit(AB, x, ceilAt(l, x, z), z, 0); f.cyl(k(l, 'plate'), 0, -0.019, 0, 0.05, 0.032, 28, 0.056); f.cyl(k(l, 'plate'), 0, -0.002, 0, 0.06, 0.004, 28); f.cyl(k(l, 'ledRed'), 0.032, -0.0355, 0, 0.0028, 0.002, 8);
   }
-  basin(0, 0.0, 8.15, HP, 0.36); basin(0, 9.0, 8.5, -HP, 0.36); basin(1, 6.68, 5.4, HP, 0.8, true); basin(1, 7.03, 11.25, HP, 0.6, true);
-  // towel over the bathroom radiator, bath mat, toilet roll holders (on the walls without a door)
-  { const L = LV[1].floor, f = kit(AB, 0, 0, 0), t = k(1, 'towel');
-    f.box(t, 7.75, L + 0.585, 4.305, 0.55, 0.36, 0.014); f.soft(t, 7.75, L + 0.765, 4.255, 0.55, 0.032, 0.105, 0, 0.012);
-    f.soft(t, 7.95, L + 0.006, 5.97, 0.5, 0.012, 0.8, 0, 0.005); }
+  basin(0, 0.0, 8.15, HP, 0.36); basin(0, 9.0, 8.5, -HP, 0.36); basin(1, 6.68, 5.4, HP, 0.6, 'ped'); basin(1, 7.03, 11.25, HP, 0.6, true);
+  // navy towel over the bathroom radiator, toilet roll holders (on the walls without a door)
+  { const L = LV[1].floor, f = kit(AB, 0, 0, 0), t = k(1, 'towelNavy');
+    f.box(t, 8.3, L + 0.585, 4.305, 0.42, 0.36, 0.014); f.soft(t, 8.3, L + 0.765, 4.255, 0.42, 0.032, 0.105, 0, 0.012); }
   for (const [x, z, dx] of [[0.0, 8.55, 1], [9.0, 8.2, -1]]) {
     const f = kit(AB, 0, 0, 0); f.box(k(0, 'steel'), x + dx * 0.004, 0.72, z, 0.008, 0.05, 0.05); f.box(k(0, 'steel'), x + dx * 0.035, 0.72, z - 0.06, 0.06, 0.01, 0.01);
     f.cyl(k(0, 'paper'), x + dx * 0.065, 0.72, z, 0.055, 0.1, 18, 0.055, HP); f.cyl(k(0, 'steel'), x + dx * 0.065, 0.72, z, 0.022, 0.104, 12, 0.022, HP);
@@ -2056,21 +2109,21 @@ function buildFixtures() {
   bx(1, 'boiler', 0, 0.35, L1 + 1.0, L1 + 1.75, 4.68, 5.15); bx(2, 'boiler', 7.95, 8.4, LV[2].floor, LV[2].floor + 1.75, 7.75, 8.17); addCol(2, 7.95, 8.4, 7.75, 8.17);
   bx(0, 'frame', 8.6, 9.0, 0, 2.3, 11.35, 12.25); bx(0, 'metal', 8.585, 8.6, 1.0, 1.2, 11.5, 11.52); addCol(0, 8.6, 9.0, 11.35, 12.25);
   // radiators (photos): column radiator + floor-convector grille in the woonkamer, panel radiators, a low convector in the entree
-  const rad = (l, x0, x1, y0, y1, z0, z1, ribs = true) => {
-    const y = LV[l].floor, alongX = x1 - x0 > z1 - z0; bx(l, 'radiator', x0, x1, y + y0, y + y1, z0, z1);
+  const rad = (l, x0, x1, y0, y1, z0, z1, ribs = true, mat = 'radiator') => {
+    const y = LV[l].floor, alongX = x1 - x0 > z1 - z0, rib = mat === 'radiator' ? 'trim' : mat; bx(l, mat, x0, x1, y + y0, y + y1, z0, z1);
     if (!ribs) return;
     const n = Math.floor((alongX ? x1 - x0 : z1 - z0) / 0.06);
     for (let i = 1; i < n; i++) {
       const s = (alongX ? x0 : z0) + i * 0.06;
-      if (alongX) bx(l, 'trim', s - 0.004, s + 0.004, y + y0 + 0.03, y + y1 - 0.03, z0 - 0.004, z1 + 0.004);
-      else bx(l, 'trim', x0 - 0.004, x1 + 0.004, y + y0 + 0.03, y + y1 - 0.03, s - 0.004, s + 0.004);
+      if (alongX) bx(l, rib, s - 0.004, s + 0.004, y + y0 + 0.03, y + y1 - 0.03, z0 - 0.004, z1 + 0.004);
+      else bx(l, rib, x0 - 0.004, x1 + 0.004, y + y0 + 0.03, y + y1 - 0.03, s - 0.004, s + 0.004);
     }
   };
   rad(0, 3.25, 3.35, 0.12, 1.0, 11.2, 11.9); // column radiator near the front window (x = 3.25 wall)
   bx(0, 'soot', 3.6, 6.4, 0, 0.004, 11.95, 12.18); for (let x = 3.62; x < 6.39; x += 0.05) bx(0, 'dark', x, x + 0.014, 0.004, 0.007, 11.97, 12.16); // floor-convector grille
   rad(0, 6.47, 6.57, 0.15, 0.75, 0.45, 1.65); // panel radiator by the dining window
   rad(0, 7.07, 7.15, 0.08, 0.4, 10.55, 11.85, false); // long low convector in the entree
-  rad(1, 7.3, 8.6, 0.15, 0.75, 4.21, 4.29); // badkamer, under the window
+  rad(1, 7.3, 8.6, 0.15, 0.75, 4.21, 4.29, true, 'radCream'); // badkamer, under the window: the old cream panel (photos)
 
   flushAB();
 }
@@ -2110,6 +2163,7 @@ function applyTime(h) {
   lampFactor = lf; updateLamps();
   M('shade').emissiveIntensity = 1.6 * lf; M('bulb').emissiveIntensity = 5 * lf; M('globeAmber').emissiveIntensity = M('globeSmoke').emissiveIntensity = 0.9 * lf;
   for (const k of ['rgbRed', 'rgbPurple', 'rgbGreen', 'rgbOrange']) for (const [kk, op] of [[k, 1], [k + 'G', 0.3]]) { const m = M(kk); m.opacity = op * lf; m.visible = lf > 0.01; }
+  M('frosted').emissiveIntensity = 0.5 * (1 - nf) * lerp(1, 0.75, gold);
   M('curtainDay').visible = lf < 0.5; M('curtainEve').visible = lf >= 0.5;
   renderer.toneMappingExposure = lerp(lerp(1.0, 0.9, gold), 1.25, nf);
   $('#todOut').value = `${String(Math.floor(h) % 24).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
