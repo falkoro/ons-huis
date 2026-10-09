@@ -811,6 +811,7 @@ const STATIC_MAT = {
   plaster: () => bindSet(new MSM({ color: '#eeece6', roughness: 0.92 }), 'plaster', { ns: 0.45 }), ceiling: () => bindSet(new MSM({ color: '#f5f4f0', roughness: 0.95 }), 'plaster', { ns: 0.3 }),
   slab: () => new MSM({ color: '#a29f97', roughness: 1 }), trim: () => new MSM({ color: '#e7e5df', roughness: 0.7 }),
   frame: () => new MSM({ color: '#f2f1ec', roughness: 0.45 }), plate: () => new MSM({ color: '#fbfbfa', roughness: 0.28 }), // switch/socket plastic
+  dorpelStone: () => new MSM({ color: '#d3d0c9', roughness: 0.3 }), dorpelWood: () => new MSM({ color: '#a47d55', roughness: 0.55 }), ledRed: () => new MSM({ color: '#ff3020', emissive: '#ff2010', emissiveIntensity: 2.5 }),
   fruitRed: () => new MSM({ color: '#9e1f1a', roughness: 0.35 }), fruitOrange: () => new MSM({ color: '#e07a1c', roughness: 0.55 }), fruitYellow: () => new MSM({ color: '#e8c53a', roughness: 0.5 }), fruitGreen: () => new MSM({ color: '#6e9a2c', roughness: 0.3 }),
   glass: () => new MSM({ color: '#c9dde6', transparent: true, opacity: 0.16, roughness: 0.04, metalness: 0.1, envMapIntensity: 2, depthWrite: false }),
   ribbed: () => new MSM({ color: '#b9c4c6', transparent: true, opacity: 0.38, roughness: 0.25, metalness: 0.05, envMapIntensity: 1.5, depthWrite: false }), // reeded door glass: light through, no view
@@ -1086,6 +1087,9 @@ function buildDoor(l, axis, op, c0, c1) {
   const fk = K(l, 'main', 'frame'), e0 = Math.min(c0, c1) - 0.012, e1 = Math.max(c0, c1) + 0.012;
   abox(fk, axis, a, a + 0.05, fl, fl + head, e0, e1); abox(fk, axis, b - 0.05, b, fl, fl + head, e0, e1); abox(fk, axis, a, b, fl + head - 0.05, fl + head + 0.01, e0, e1);
   if (type !== 'd') abox(fk, axis, a, b, fl, fl + 0.02, e0, e1);
+  // dorpel under interior doors: light natural stone next to a wet room, a thin oak strip elsewhere (stays under the leaf)
+  else { const mid = (a + b) / 2, at = c => axis === 'x' ? roomAt(l, mid, c) : roomAt(l, c, mid), wet = [at(e0 - 0.15), at(e1 + 0.15)].some(r => r && r.wet);
+    abox(K(l, 'main', wet ? 'dorpelStone' : 'dorpelWood'), axis, a + 0.05, b - 0.05, fl, fl + 0.008, e0 - 0.006, e1 + 0.006); }
   const W = b - a - 0.106, H = head - 0.06 - (type === 'd' ? 0.01 : 0.03), th = 0.042;
   const grp = new THREE.Group();
   const hp = axis === 'x' ? V(a + 0.053, fl + (type === 'd' ? 0.01 : 0.025), cm) : V(cm, fl + (type === 'd' ? 0.01 : 0.025), a + 0.053);
@@ -2028,6 +2032,10 @@ function buildFixtures() {
     if (vanity) f.box(k(l, 'front'), 0, 0.5, 0.2, w, 0.56, 0.42);
     addMirror(l, x, z, ry, w + 0.1);
   };
+  // rookmelders (required since 2022): on the ceiling of the escape route on every floor, with the little red status LED
+  for (const [l, x, z] of [[0, 7.65, 10.6], [1, 7.6, 8.7], [2, 7.57, 9.0]]) {
+    const f = kit(AB, x, ceilAt(l, x, z), z, 0); f.cyl(k(l, 'plate'), 0, -0.019, 0, 0.05, 0.032, 28, 0.056); f.cyl(k(l, 'plate'), 0, -0.002, 0, 0.06, 0.004, 28); f.cyl(k(l, 'ledRed'), 0.032, -0.0355, 0, 0.0028, 0.002, 8);
+  }
   basin(0, 0.0, 8.15, HP, 0.36); basin(0, 9.0, 8.5, -HP, 0.36); basin(1, 6.68, 5.4, HP, 0.8, true); basin(1, 7.03, 11.25, HP, 0.6, true);
   // towel over the bathroom radiator, bath mat, toilet roll holders (on the walls without a door)
   { const L = LV[1].floor, f = kit(AB, 0, 0, 0), t = k(1, 'towel');
