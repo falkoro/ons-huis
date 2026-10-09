@@ -1642,6 +1642,35 @@ const P = {
     f.box('wood', 0, 0.3, 0, 0.46, 0.4, 0.38); f.box(legMat(), 0, 0.05, 0, 0.4, 0.1, 0.32);
     f.cyl('pot', 0.06, 0.6, -0.04, 0.06, 0.2, 12, 0.04); f.cyl('shade', 0.06, 0.78, -0.04, 0.13, 0.18, 20, 0.1);
   },
+  // sk1 now (photos): round cream side table, a hook floor lamp behind it whose drum shade hangs towards the bed (+x);
+  // on the near one a stack of paperbacks with a gamepad and headphones on top
+  sideRound(f, stuff) {
+    f.cyl('radCream', 0, 0.515, 0, 0.21, 0.025, 28); f.cyl('radCream', 0, 0.26, 0, 0.022, 0.49, 10); f.cyl('radCream', 0, 0.012, 0, 0.15, 0.024, 24);
+    P.hookLamp(f, -0.26, 0.04);
+    if (!stuff) return;
+    let y = 0.528;
+    for (const [k, w, h, d, rot, dx] of [['book3', 0.2, 0.03, 0.14, 0.1, 0], ['book1', 0.21, 0.026, 0.15, -0.08, 0.01], ['book4', 0.19, 0.032, 0.13, 0.22, -0.01], ['book2', 0.2, 0.024, 0.14, 0.04, 0.005]]) {
+      f.box(k, 0.02 + dx, y + h / 2, 0.03, w, h, d, rot); f.box('book3', 0.02 + dx + 0.004, y + h / 2, 0.03, w - 0.012, h - 0.006, d + 0.002, rot); y += h;
+    }
+    f.soft('anthracite', 0.03, y + 0.016, 0.0, 0.13, 0.03, 0.07, 0.35, 0.014);
+    for (const sx of [-1, 1]) f.sph('anthracite', 0.03 + sx * 0.05 * Math.cos(0.35) + 0.03 * Math.sin(0.35), y + 0.012, sx * -0.05 * Math.sin(0.35) + 0.03 * Math.cos(0.35), 0.028, 0.02, 0.04, 0, 0.35, 0, 10);
+    f.geo('black', GEO.phones ||= new THREE.TorusGeometry(0.085, 0.011, 8, 28, Math.PI), -0.01, y + 0.01, 0.06, -HP, 0, 0.5);
+    for (const s of [-1, 1]) f.sph('black', -0.01 + s * 0.085 * Math.cos(0.5), y + 0.025, 0.06 - s * 0.085 * Math.sin(0.5), 0.045, 0.028, 0.05, 0, 0.5, 0, 12);
+  },
+  hookLamp(f, x, z) {
+    const H = 1.86, R = 0.19, low = 1.24; // top of the pole, bend radius, top of the shade
+    f.cyl('radCream', x, 0.012, z, 0.14, 0.024, 24);
+    f.geo('radCream', GEO.hook ||= (() => {
+      const pts = [];
+      for (let y = 0.02; y < H - R; y += 0.08) pts.push(V(0, y, 0));
+      for (let i = 0; i <= 16; i++) { const t = Math.PI * i / 16; pts.push(V(R - R * Math.cos(t), H - R + R * Math.sin(t), 0)); }
+      for (let y = H - R - 0.08; y > low; y -= 0.08) pts.push(V(2 * R, y, 0));
+      pts.push(V(2 * R, low, 0));
+      return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'centripetal'), 96, 0.012, 8);
+    })(), x, 0, z);
+    f.cyl('radCream', x + 2 * R, low - 0.015, z, 0.03, 0.04, 12, 0.02);
+    f.geo('shade', gCyl(0.2, 0.2, 0.25, 32, true), x + 2 * R, low - 0.125, z); f.sph('bulb', x + 2 * R, low - 0.09, z, 0.045, 0.06, 0.045);
+  },
   wardrobe(f, w = 2.0, d = 0.6, h = 2.2) {
     f.box('front', 0, h / 2 + 0.05, 0, w, h, d); f.box('dark', 0, 0.025, -0.02, w - 0.04, 0.05, d - 0.06);
     const n = Math.round(w / 0.5);
@@ -1901,7 +1930,7 @@ const ITEMS = {
   entree: [['bank', 'Halbankje', 7.3, 9.9, HP, f => P.bench(f, 1.1)], ['kunst', 'Wandkunst', 7.08, 9.9, HP, f => P.art(f, 2, 0.6, 0.8, 1.55)], ['planten', 'Plant', 8.42, 11.05, 0, f => P.plant(f, 0.9)], ['hanglampen', 'Hanglamp', 7.65, 9.3, 0, f => P.pendant(f, 0.3)]],
   sk1: [
     ['bed', 'Bed 180', 4.35, 6.4, HP, f => P.bed(f, 1.8, 2.1, state.style === 'huidig' ? 'dark' : 'wood')],
-    ['ladekast', 'Ladekast + tv (nu)', 3.5, 5.95, HP, f => state.style === 'huidig' && P.dresser(f)], ['gordijnen', 'Gordijnen', 0, 0, 0, P.sk1Curtains], ['nachtkastjes', 'Nachtkastjes', 3.52, 5.05, HP, P.nightstand],
+    ['ladekast', 'Ladekast + tv (nu)', 3.5, 5.95, HP, f => state.style === 'huidig' && P.dresser(f)], ['gordijnen', 'Gordijnen', 0, 0, 0, P.sk1Curtains], ['nachtkastjes', 'Nachtkastjes', 3.52, 5.05, HP, f => state.style === 'huidig' ? P.sideRound(f) : P.nightstand(f)],
     ['kast', 'Kledingkast', 4.5, 8.86, PI, f => P.wardrobe(f, 2.2)], ['kleed', 'Vloerkleed', 4.7, 6.4, 0, (f, r) => P.rug(f, r.id, 2.6, 2.6)],
     ['fauteuil', 'Fauteuil', 6.1, 4.85, -0.76, P.armchair], ['planten', 'Plant', 3.5, 4.5, 0, f => P.plant(f, 1)],
     ['hanglampen', 'Hanglamp', 4.9, 6.4, 0, f => P.pendant(f, 0.55, 2.38)], ['kunst', 'Wandkunst', 3.26, 6.4, HP, f => P.art(f, 4, 1.0, 0.7, 1.55)],
@@ -1939,7 +1968,7 @@ const EXTRA = {
   'woonkamer/hanglampen': [[5.15, 1.65, 0, f => state.style !== 'huidig' && P.pendant(f, 0.8)], [5.35, 8.9, 0, f => P.pendant(f, 0.6)]],
   'woonkamer/vloerlamp': [[8.75, 4.4, 0, P.floorlamp]], 'woonkamer/planten': [[3.62, 4.45, 0, f => P.plant(f, 0.8)], [8.7, 7.2, 0, f => P.plant(f, 1.2)]],
   'woonkamer/kunst': [[6.99, 11.2, -HP, f => P.art(f, 7, 0.9, 0.6, 1.5)]],
-  'sk1/nachtkastjes': [[3.52, 7.75, HP, P.nightstand]], 'sk2/nachtkastjes': [[5.65, 9.55, 0, P.nightstand]], 'sk3/nachtkastjes': [[3.5, 9.26, HP, P.nightstand]],
+  'sk1/nachtkastjes': [[3.52, 7.75, HP, f => state.style === 'huidig' ? P.sideRound(f, true) : P.nightstand(f)]], 'sk2/nachtkastjes': [[5.65, 9.55, 0, P.nightstand]], 'sk3/nachtkastjes': [[3.5, 9.26, HP, P.nightstand]],
   'sk2/bureau': [[4.15, 11.72, -HP, P.chair]], 'sk3/bureau': [[4.98, 5.5, PI, P.chair]],
 };
 // photoreal models (models/models.js, Poly Haven CC0): item -> model kind + the footprint the P.* builder uses
@@ -1960,7 +1989,7 @@ const MODEL_MAP = {
   'keuken/hanglampen': LAMP(0.7), 'keuken/planten': { kind: 'plant', variant: 'small', y: 0.9, h: 0.3 }, // on the worktop
   'zitkamer/salontafel': () => state.style !== 'huidig' && { kind: 'coffee', w: 0.9, d: 0.5, h: 0.42 }, 'zitkamer/planten': () => state.style !== 'huidig' && PLANT(0.9),
   'entree/planten': PLANT(0.9), 'entree/hanglampen': LAMP(0.3),
-  'sk1/nachtkastjes': NIGHT, 'sk1/fauteuil': ARM, 'sk1/planten': PLANT(1, 0.48), 'sk1/hanglampen': LAMP(0.55, 2.38),
+  'sk1/nachtkastjes': () => state.style !== 'huidig' && NIGHT, 'sk1/fauteuil': ARM, 'sk1/planten': PLANT(1, 0.48), 'sk1/hanglampen': LAMP(0.55, 2.38),
   'sk2/nachtkastjes': NIGHT, 'sk2/bureau': { kind: 'desk', w: 1.0, d: 0.6, h: 0.76 }, 'sk2/planten': PLANT(0.9), 'sk2/hanglampen': LAMP(0.55, 2.38),
   'sk3/nachtkastjes': NIGHT, 'sk3/bureau': { kind: 'desk', w: 1.3, d: 0.6, h: 0.76 }, 'sk3/planten': PLANT(0.9), 'sk3/hanglampen': LAMP(0.45, 2.63),
   'badkamer/planten': PLANT(0.7, 0.5),
@@ -1970,7 +1999,7 @@ const MODEL_MAP = {
 // EXTRA pieces: one spec for all of an item's extras, or an array in EXTRA order
 const MODEL_EXTRA = {
   'woonkamer/hanglampen': [() => state.style !== 'huidig' && LAMP(0.8)(), LAMP(0.6)], 'woonkamer/planten': [PLANT(0.8), PLANT(1.2, 0.56)],
-  'sk1/nachtkastjes': NIGHT, 'sk2/nachtkastjes': NIGHT, 'sk3/nachtkastjes': NIGHT,
+  'sk1/nachtkastjes': () => state.style !== 'huidig' && NIGHT, 'sk2/nachtkastjes': NIGHT, 'sk3/nachtkastjes': NIGHT,
 };
 function placeModel(g, spec, x, fl, z, ry) {
   const lib = window.HOUSE?.models;
@@ -1987,7 +2016,7 @@ const ITEM_POS = { huidig: {
   'sk1/bed': [5.5, 6.3, -HP], 'sk1/nachtkastjes': [6.38, 5.12, -HP], 'sk1/kleed': [5.0, 6.3, 0], 'sk1/fauteuil': [3.85, 4.75, 0.6],
   'sk1/planten': [6.3, 4.5, 0], 'sk1/kunst': [6.58, 6.3, -HP],
 } };
-const EXTRA_POS = { huidig: { 'sk1/nachtkastjes': [[6.38, 7.48, -HP]] } };
+const EXTRA_POS = { huidig: { 'sk1/nachtkastjes': [[6.38, 7.48, HP]] } }; // turned round so its lamp also hangs over the bed
 const furnGroups = {};
 function buildRoomFurniture(id) {
   const r = ROOM[id], fl = LV[r.lvl].floor, rs = state.rooms[id];
