@@ -475,7 +475,7 @@ const KWALLS = {
     [0, 'z', 3.95, 4.05, 6.57, 6.63]],
 };
 // holes in slabs (stairs): HOLES[l] is cut from the ceiling of level l and from the floor of level l + 1
-const HOLES = { 0: [[8.16, 9.0, 8.3, 10.34], [0, 0.97, 6.2, 7.73]], 1: [[8.09, 9.0, 8.3, 10.3]], 2: [] };
+const HOLES = { 0: [[8.16, 9.0, 8.3, 10.34], [0, 0.92, 6.2, 7.73]], 1: [[8.09, 9.0, 8.3, 10.3]], 2: [] };
 // Stair B turns twice (1e and 2e plans, zolderR_3.jpg): from the landing heading +X, five winders round a newel at (BT.x, BT.zb)
 // to heading -Z, three straight treads, five winders round a newel at (BT.x, BT.zt), out heading -X onto the attic floor.
 // stepB(x, z) = the step coordinate 0..13: tread k (1..13) covers k - 1..k, risers lie on the whole numbers, 14 risers in all.
@@ -530,6 +530,7 @@ const FLOORS = {
   lamelparket: { name: 'Lamelparket (roodbruin)', size: 1.3, rough: 0.42 },
   tegels_wit: { name: 'Witte tegels 30×30', size: 1.2, rough: 0.3 },
   lino_spikkel: { name: 'Linoleum gespikkeld', size: 1.0, rough: 0.5 },
+  berber: { name: 'Berber tapijt', size: 0.5, rough: 1 }, verf: { name: 'Geverfde vloer', size: 2, rough: 0.5 },
 };
 
 // Photo texture sets (CC0, see assets/CREDITS.txt): assets/<base>_diff.jpg (sRGB), _nor.jpg (OpenGL), _rough.jpg.
@@ -542,7 +543,7 @@ const TEX_SETS = {
   brick: { base: 'brick', size: 0.9 }, roof: { base: 'roof_tiles', size: 3.0 }, grass: { base: 'grass', size: 1.4 }, paving: { base: 'paving', size: 2.0 },
   plaster: { base: 'plaster', size: 2.0, detail: true }, fabric: { base: 'fabric', size: 0.5, detail: true },
   // floors seen in the photos that have no photo set yet: procedural canvas only (base: null = nothing to download)
-  lamelparket: { base: null, size: 1.3 }, tegels_wit: { base: null, size: 1.2 }, lino_spikkel: { base: null, size: 1.0 },
+  lamelparket: { base: null, size: 1.3 }, tegels_wit: { base: null, size: 1.2 }, lino_spikkel: { base: null, size: 1.0 }, berber: { base: null, size: 0.5 }, verf: { base: null, size: 2 },
   brickPaint: { base: 'brick', size: 0.9, detail: true }, // white-painted brick: relief only, no colour map
   wandtegels: { base: null, size: 0.9 }, // wet-room walls (photos: toilets + bathroom tiled to the ceiling, 15 x 15 cm)
 };
@@ -557,7 +558,7 @@ const STYLES = {
     rooms: {
       woonkamer: { floor: 'lamelparket' }, keuken: { floor: 'lino_spikkel', wall: '#f1efe9' }, zitkamer: { tint: '#efe4cf', wall: '#f2f0ec' },
       entree: { floor: 'tegels_wit' }, achterhal: { floor: 'tegels_wit' }, sk1: { tint: '#c8c8c6', wall: '#f1f0ec' }, overloop: { tint: '#c8c8c6', wall: '#f1f0ec' },
-      zolderL: { floor: 'linoleum', tint: '#d3dcc6', wall: '#d9c8a9' }, sk3: { floor: 'tapijt', tint: '#d4bfad', wall: '#efede6' }, zolderR: { floor: 'tapijt', tint: '#d4bfad', wall: '#efede6' },
+      zolderL: { floor: 'verf', tint: '#b7c6ad', wall: '#ebe8e1' }, sk3: { floor: 'berber', tint: '#ffffff', wall: '#efede6' }, zolderR: { floor: 'berber', tint: '#ffffff', wall: '#efede6' },
     } },
 
   scandi: { name: 'Scandinavisch', wall: '#f3f1ea', wallWet: '#f3f1ea', floor: 'eiken_licht', tint: '#ffffff', wetFloor: 'keramisch', accent: { sk2: '#9eabb5' },
@@ -783,12 +784,12 @@ function texCarpet() {
   return c;
 }
 // stained walnut (stair treads, handrails, photos): one wide board, grain along u, seamless both ways (whole sine periods)
-function texWalnut() {
-  const S = 512, c = mkCanvas(S), ctx = c.getContext('2d'), R = rng(37), P = Math.PI * 2 / S;
-  ctx.fillStyle = hsl(24, 42, 21); ctx.fillRect(0, 0, S, S);
+function texWalnut(h = 24, sat = 42, l = 21) { // (hue, sat, light): walnut by default; honey oak (34, 52, 44) and merbau (14, 55, 31) reuse the grain
+  const S = 512, c = mkCanvas(S), ctx = c.getContext('2d'), R = rng(37), P = Math.PI * 2 / S, dl = l - 21;
+  ctx.fillStyle = hsl(h, sat, l); ctx.fillRect(0, 0, S, S);
   for (let i = 0; i < 170; i++) {
     const off = R() * S, amp = 2 + R() * 12, k = 1 + (R() * 5 | 0), ph = R() * 6, dark = R() < 0.6;
-    ctx.strokeStyle = hsl(20 + R() * 10, 36 + R() * 12, dark ? 8 + R() * 8 : 27 + R() * 10, 0.08 + R() * 0.2); ctx.lineWidth = 0.8 + R() * (dark ? 3 : 1.5);
+    ctx.strokeStyle = hsl(h - 4 + R() * 10, sat - 6 + R() * 12, (dark ? 8 + R() * 8 : 27 + R() * 10) + dl, 0.08 + R() * 0.2); ctx.lineWidth = 0.8 + R() * (dark ? 3 : 1.5);
     for (const dy of [-S, 0, S]) { ctx.beginPath(); for (let s = 0; s <= S; s += 6) ctx.lineTo(s, off + dy + Math.sin(s * P * k + ph) * amp + Math.sin(s * P * k * 3 + ph * 2) * amp * 0.3); ctx.stroke(); }
   }
   noise(ctx, S, 9, 37); return c;
@@ -895,6 +896,7 @@ const FLOOR_CANVAS = {
   zwartwit: () => texTiles(4, (i, j) => (i + j) % 2 ? [220, 4, 12] : [40, 14, 92], '#b9b4aa', 4, 12),
   keramisch: () => texTiles(3, () => [35, 7, 66], '#8e8980', 3, 13), tapijt: texCarpet, linoleum: texLino,
   lamelparket: texStrips, tegels_wit: () => texTiles(4, () => [40, 8, 90], '#b3afa7', 4, 14), lino_spikkel: texSpeckle,
+  berber: texStairCarpet, verf: () => { const S = 256, c = mkCanvas(S), ctx = c.getContext('2d'); ctx.fillStyle = '#f4f4f0'; ctx.fillRect(0, 0, S, S); noise(ctx, S, 8, 3); return c; },
 };
 // narrow-strip parquet (lamelparket, merbau look): ~6.5 cm strips running front to back in short staggered lengths
 function texStrips() {
@@ -913,8 +915,8 @@ function texStrips() {
 // fine brown / beige speckle: stair B's carpet (photos zolderR_*; the shared 'tapijt' weave was far too coarse)
 function texStairCarpet() {
   const S = 256, c = mkCanvas(S), ctx = c.getContext('2d'), R = rng(58);
-  ctx.fillStyle = '#9a8266'; ctx.fillRect(0, 0, S, S);
-  for (let i = 0; i < 14000; i++) { const x = R() * S, y = R() * S, r = 0.7 + R() * 1.1, k = R(); ctx.fillStyle = k < 0.4 ? 'rgba(60,40,28,.5)' : k < 0.75 ? 'rgba(225,205,175,.55)' : 'rgba(150,110,80,.5)'; ctx.fillRect(x, y, r, r); }
+  ctx.fillStyle = '#8b7866'; ctx.fillRect(0, 0, S, S);
+  for (let i = 0; i < 14000; i++) { const x = R() * S, y = R() * S, r = 0.7 + R() * 1.1, k = R(); ctx.fillStyle = k < 0.4 ? 'rgba(55,40,30,.5)' : k < 0.75 ? 'rgba(215,200,180,.55)' : 'rgba(140,110,85,.5)'; ctx.fillRect(x, y, r, r); }
   return c;
 }
 // pink-beige speckled linoleum (keuken)
@@ -932,7 +934,7 @@ for (const [k, make] of Object.entries({
   brick: () => canvasTex(texBrick(0), 0.88, 0.875), brick2: () => canvasTex(texBrick(1), 0.88, 0.875), roof: () => canvasTex(texRoof(), 1.5),
   grass: () => canvasTex(texGrass(), 2.5), paving: () => canvasTex(texTiles(4, () => [40, 5, 58], '#6f6c66', 4, 81), 1.2),
   fence: () => canvasTex(texBoards(25, 25, 24, 4), 0.6, 1.8), shed: () => canvasTex(texBoards(28, 20, 34, 5), 0.8, 2.4),
-  rug: () => canvasTex(texRug(), 0.7), reeds: () => canvasTex(texReeds(), 0.18), wicker: () => canvasTex(texWicker(), 0.16), paisley: () => canvasTex(texPaisley(), 0.5), walnut: () => canvasTex(texWalnut(), 1.2, 0.5),
+  rug: () => canvasTex(texRug(), 0.7), reeds: () => canvasTex(texReeds(), 0.18), wicker: () => canvasTex(texWicker(), 0.16), paisley: () => canvasTex(texPaisley(), 0.5), walnut: () => canvasTex(texWalnut(), 1.2, 0.5), oakHoney: () => canvasTex(texWalnut(34, 52, 44), 1.2, 0.5), merbau: () => canvasTex(texWalnut(14, 55, 31), 1.2, 0.5), plywood: () => canvasTex(texWalnut(40, 34, 68), 1.2, 0.5),
   asphalt: () => canvasTex((() => { const c = mkCanvas(256), x = c.getContext('2d'); x.fillStyle = '#44464a'; x.fillRect(0, 0, 256, 256); noise(x, 256, 30, 3); return c; })(), 1.5),
 })) { T[k] = make(); await breathe(); }
 // procedural canvases are the fallback diffuse of each photo set until (unless) the jpg arrives
@@ -974,13 +976,13 @@ const STATIC_MAT = {
   roofTile: () => bindSet(new MSM({ roughness: 0.72 }), 'roof', { ns: 0.9 }), bitumen: () => new MSM({ color: '#4b4c4e', roughness: 0.95 }),
   stair: () => new MSM({ color: '#b98f62', roughness: 0.55 }),
   // stairs (photos): A has stained walnut treads with a satin sheen, B is carpeted like the attic floor, C is dark wood; everything painted is cream
-  treadA: () => new MSM({ map: T.walnut, roughness: 0.4 }), treadB: () => new MSM({ map: canvasTex(texStairCarpet(), 0.35), roughness: 1 }),
-  treadC: () => new MSM({ map: T.walnut, color: '#e8d6c8', roughness: 0.45 }), handrail: () => new MSM({ map: T.walnut, roughness: 0.4 }),
+  treadA: () => new MSM({ map: T.walnut, roughness: 0.4 }), treadB: () => new MSM({ map: floorTex.berber, roughness: 1 }),
+  treadC: () => new MSM({ map: T.merbau, roughness: 0.45 }), handrail: () => new MSM({ map: T.oakHoney, roughness: 0.4 }),
   trapwit: () => new MSM({ color: '#ece6d6', roughness: 0.4 }),
  steel: () => new MSM({ color: '#c9cbcc', metalness: 0.9, roughness: 0.3 }),
   ceramic: () => new MSM({ color: '#f8f8f6', roughness: 0.12 }), anthracite: () => new MSM({ color: '#3c3e40', roughness: 0.6 }),
   plastic: () => new MSM({ color: '#e6e9ea', roughness: 0.3, envMapIntensity: 1.3 }), // cooler than the plaster, so a white unit still reads against a white wall
-  roofBoards: () => bindSet(new MSM({ color: '#a8998a', roughness: 0.75 }), 'eiken_licht', { rough: 0.75 }), // pine boards under the attic slope (photos)
+  roofBoards: () => new MSM({ map: T.plywood, roughness: 0.8, envMapIntensity: 0.2 }), // plywood boards; low env: seen along the slope the eave strip mirrored the sky as a bright line under the attic slope (photos)
   brickPaint: () => bindSet(new MSM({ color: '#ebe8e1', roughness: 0.92 }), 'brickPaint', { ns: 1.1, rmul: 1 }),
   towel: () => bindSet(new MSM({ color: '#e6e1d6', roughness: 1 }), 'fabric', { ns: 1 }),
   towelNavy: () => bindSet(new MSM({ color: '#1f2a44', roughness: 1 }), 'fabric', { ns: 1 }), towelTaupe: () => bindSet(new MSM({ color: '#9d8f80', roughness: 1 }), 'fabric', { ns: 1 }),
@@ -997,7 +999,7 @@ const STATIC_MAT = {
   asphalt: () => new MSM({ map: T.asphalt, roughness: 0.95 }), hedge: () => new MSM({ color: '#22331a', roughness: 1 }),
   meadow: () => new MSM({ color: '#6c7f55', roughness: 1 }), soil: () => new MSM({ color: '#4a3b2c', roughness: 1 }),
   leaf: () => new MSM({ color: '#4f6d3a', roughness: 0.8, side: THREE.DoubleSide }), leaf2: () => new MSM({ color: '#6f8f4c', roughness: 0.8 }),
-  canvasBack: () => new MSM({ color: '#e9e5dc', roughness: 0.9 }), blanket: () => new MSM({ color: '#b8694b', roughness: 0.95 }),
+  canvasBack: () => new MSM({ color: '#e9e5dc', roughness: 0.9 }), crate: () => new MSM({ color: '#2a63b8', roughness: 0.45 }), blanket: () => new MSM({ color: '#b8694b', roughness: 0.95 }),
   book1: () => new MSM({ color: '#2f3b50', roughness: 0.8 }), book2: () => new MSM({ color: '#b8694b', roughness: 0.8 }), book3: () => new MSM({ color: '#d8cfbd', roughness: 0.8 }), book4: () => new MSM({ color: '#6f7752', roughness: 0.8 }),
   bulb: () => new MSM({ color: '#fff7e6', emissive: '#ffd9a0', emissiveIntensity: 0 }),
   walnut: () => new MSM({ color: '#4b3427', roughness: 0.38 }), taupe: () => bindSet(new MSM({ color: '#a89886', roughness: 0.97 }), 'fabric', { ns: 0.8 }),
@@ -1400,7 +1402,7 @@ function buildFloorsAndSlabs() {
     // slab + ceiling above this room
     if (l === 2 || r.roof) continue; // roof: true = open to the roof, no slab (post.js reads it too)
     const y0 = LV[l].ceil, y1 = LV[l].top - 0.022;
-    for (const q of r.rects) for (const p of cutRect(q, [...HOLES[l], SKY_OUT])) AB.box(kmap(l, 'ceil', { ny: 'ceiling', def: 'slab' }), p[0], p[1], y0, y1, p[2], p[3]);
+    for (const q of r.rects) for (const p of cutRect(q, [...HOLES[l], SKY_OUT])) AB.box(kmap(l, 'ceil', { ny: 'ceiling', def: 'ceiling' }), p[0], p[1], y0, y1, p[2], p[3]); // def: the stairwell edges, plastered like the ceiling (they read as grey concrete)
   }
   // skylight shaft
   // lining up to the roof deck (2.98), the trim curb above it; its underside is the ceiling's own material
@@ -1497,8 +1499,8 @@ function bal(l, xa, za, xb, zb, y0, o = {}) {
 // walls and on the open side between the two newels, a plaster underside that follows the treads, wooden wall handrail
 function buildTurnB(f) {
   const { l, yBot, x1, zMin, zMax } = f, rise = (f.yTop - yBot) / f.n, tk = K(l, 'main', 'treadB'), sk = K(l, 'main', 'trapwit');
-  const ramp = s => yBot + s / (f.n - 1) * (f.yTop - yBot), soff = s => Math.max(LV[0].ceil, ramp(s) - 0.3);
   const nose = s => Math.min(f.yTop, yBot + (s + 1) * rise); // nosing line: tread k's nosing sits on riser line k - 1
+  const soff = s => Math.max(LV[0].ceil, nose(s) - 0.25); // underside 25 cm under the nosing line, so it meets the attic ceiling at the top step (it hung 5 cm below it: a 'beam')
   const P = (x, y, z) => new THREE.Vector3(x, y, z), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), UP = P(0, 1, 0), ONE = P(1, 1, 1);
   // riser line k (0..13): [inner end, outer end, unit normal towards the higher treads]
   const line = k => {
@@ -1519,16 +1521,16 @@ function buildTurnB(f) {
     const d = P(b0[0] - a0[0], 0, b0[1] - a0[1]), len = d.length(); d.normalize();
     m4.compose(P((a0[0] + b0[0]) / 2, yt - 0.02, (a0[1] + b0[1]) / 2), q.setFromUnitVectors(UP, d), ONE); AB.geo(tk, gCyl(0.02, 0.02, len, 10), m4);
     const r0 = k === 1 ? soff(0) : yt - rise - 0.02, o = (p, t) => [p[0] + n0[0] * t, p[1] + n0[1] * t];
-    const rq = [o(a0, 0.005), o(b0, 0.005), o(b0, 0.025), o(a0, 0.025)];
+    const rq = [a0, o(b0, 0.005), o(b0, 0.025), a0]; // inner end on the newel axis: offset there it poked out beside the newel
     AB.prism(tk, [...rq.map(([x, z]) => P(x, r0, z)), ...rq.map(([x, z]) => P(x, yt - 0.04, z))]);
   }
   { const [a0, b0] = line(13), d = P(b0[0] - a0[0], 0, b0[1] - a0[1]), len = d.length(); d.normalize(); // the top nosing on the attic floor's edge
     m4.compose(P((a0[0] + b0[0]) / 2, f.yTop - 0.02, (a0[1] + b0[1]) / 2), q.setFromUnitVectors(UP, d), ONE); AB.geo(tk, gCyl(0.02, 0.02, len, 10), m4); }
-  // plaster underside: one ruled strip per tread between its riser lines at their ramp height, so neighbours share their edges;
+  // plaster underside: ruled strips between the riser lines at their soffit height (one per straight tread, 24 per winder), so neighbours share their edges;
   // the winders meet in a point at each newel, which the newel posts cover
   const sk2 = K(l, 'main', 'plaster'), above = P(8.6, 9, 9.3);
-  for (let k = 1; k <= 13; k++) {
-    const [a0, b0] = line(k - 1), [a1, b1] = line(k), h0 = soff(k - 1), h1 = soff(k);
+  for (let k = 1; k <= 13; k++) for (let j = 0, M = k > 5 && k <= 8 ? 1 : 24; j < M; j++) { // winders in 24 slices: the helicoid is steep near the newel, one quad per winder left a 19 cm vertical fin there
+    const s0 = k - 1 + j / M, s1 = k - 1 + (j + 1) / M, [a0, b0] = line(s0), [a1, b1] = line(s1), h0 = soff(s0), h1 = soff(s1);
     if (onX1(b0) !== onX1(b1)) {
       const c = corner(k), hc = soff(stepB(c[0], c[1]));
       AB.quad(sk2, P(a0[0], h0, a0[1]), P(b0[0], h0, b0[1]), P(c[0], hc, c[1]), P(a0[0], hc, a0[1]), above);
@@ -1540,7 +1542,7 @@ function buildTurnB(f) {
   const sides = [[t => [8.2 + 0.8 * t, 10.3], [0, -1], [8.2, 10.34]], [t => [9.0, 10.3 - 2 * t], [-1, 0], [9.0, 0]], [t => [9.0 - 0.8 * t, 8.3], [0, 1], [0, 8.26]]];
   for (const [at, [nx, nz], [ox, oz]] of sides) {
     const N = 24, pts = [];
-    for (let i = 0; i <= N; i++) { const [x, z] = at(i / N), s = stepB(x, z), px = nx ? (ox || x) : x, pz = nz ? (oz || z) : z; pts.push([px, pz, Math.max(yBot, nose(s) - 0.3), nose(s) + 0.07]); }
+    for (let i = 0; i <= N; i++) { const [x, z] = at(i / N), s = stepB(x, z), px = nx ? (ox || x) : x, pz = nz ? (oz || z) : z; pts.push([px, pz, Math.max(yBot, nose(s) - 0.25), nose(s) + 0.07]); }
     const t = 0.03 + (nz ? Math.abs((oz || 0) - at(0)[1]) : Math.abs((ox || 0) - at(0)[0]));
     for (let i = 0; i < N; i++) {
       const [xa, za, ba, ta] = pts[i], [xb, zb, bb, tb] = pts[i + 1];
@@ -1548,11 +1550,11 @@ function buildTurnB(f) {
     }
   }
   slab3(sk, BT.x - 0.01, BT.x + 0.03, BT.zb, BT.zt, soff(5) - 0.02, nose(5) + 0.07, soff(8) - 0.02, nose(8) + 0.07);
-  // wall handrail on brackets along the long wall, 90 cm above the nosings
+  // wall handrail (photos): a flat oak board, 4 x 9 cm, on short wooden spacers close to the long wall, 90 cm above the nosings
   const hr = K(l, 'main', 'handrail'), hz = [];
   for (let i = 0; i <= 20; i++) hz.push(10.15 - 1.7 * i / 20);
-  for (let i = 0; i < 20; i++) { const ya = nose(stepB(9.0, hz[i])) + 0.9, yb = nose(stepB(9.0, hz[i + 1])) + 0.9; slab3(hr, 8.95, 8.98, hz[i], hz[i + 1], ya - 0.07, ya, yb - 0.07, yb); }
-  for (const z of [9.95, 9.2, 8.45]) { const y = nose(stepB(9.0, z)) + 0.9 - 0.07; AB.box(K(l, 'main', 'hardware'), 8.975, 9.0, y - 0.03, y, z - 0.015, z + 0.015); }
+  for (let i = 0; i < 20; i++) { const ya = nose(stepB(9.0, hz[i])) + 0.9, yb = nose(stepB(9.0, hz[i + 1])) + 0.9; slab3(hr, 8.955, 8.995, hz[i], hz[i + 1], ya - 0.09, ya, yb - 0.09, yb); }
+  for (const z of [9.95, 9.2, 8.45]) { const y = nose(stepB(9.0, z)) + 0.9 - 0.015; AB.box(hr, 8.995, 9.0, y - 0.06, y, z - 0.03, z + 0.03); }
   return { nose, soff };
 }
 function buildStairs() {
@@ -1575,19 +1577,22 @@ function buildStairs() {
   // C, zitkamer -> linkervleugel: open risers, dark wood, horizontal-rail balustrade
   buildFlight(C, { tread: 'treadC', stringer: 'treadC', nose: 0.008 });
   const ck = K(0, 'main', 'treadC');
-  for (const z of [7.15, 6.3]) AB.box(ck, 0.92, 0.96, lineY(C, z), lineY(C, z) + 0.95, z - 0.02, z + 0.02);
-  for (const h of [0.32, 0.62, 0.92]) slab3(ck, 0.925, 0.955, 7.15, 6.3, lineY(C, 7.15) + h, lineY(C, 7.15) + h + 0.035, lineY(C, 6.3) + h, lineY(C, 6.3) + h + 0.035);
+  const treadTop = z => C.yBot + (C.yTop - C.yBot) / C.n * Math.ceil((C.zBot - z) / ((C.zBot - C.zTop) / C.n)); // top of the tread under z
+  for (const z of [7.15, 6.3]) AB.box(ck, 0.885, 0.925, treadTop(z), lineY(C, z) + 1.18, z - 0.02, z + 0.02); // posts stand on the treads, inside the stringer line (they floated in the gap and stuck out under the open treads)
+  for (const h of [0.58, 0.85, 1.13]) slab3(ck, 0.89, 0.92, 7.15, 6.3, lineY(C, 7.15) + h, lineY(C, 7.15) + h + 0.035, lineY(C, 6.3) + h, lineY(C, 6.3) + h + 0.035);
   // landing strips that no room rect covers, in the landing's own floor
   AB.box(K(1, 'main', 'floor:overloop'), 8.16, 8.24, f1 - 0.04, f1, 8.23, BT.zb);
   AB.box(K(1, 'main', 'floor:overloop'), 8.16, 8.2, f1 - 0.04, f1, BT.zb, 10.34); AB.box(K(1, 'main', 'floor:overloop'), 8.2, 9.0, f1 - 0.04, f1, 10.3, 10.34);
   AB.box(kmap(1, 'ceil', { def: 'ceiling' }), 8.09, 8.2, TB.soff(13), f2 - 0.04, 8.3, 10.3); // the attic floor's edge along the hole, down to the soffit
   AB.box(K(2, 'main', 'floor:zolderR'), 8.09, 8.2, f2 - 0.04, f2, 8.26, 10.3);
-  AB.box(kmap(1, 'main', { py: 'floor:zolderL', ny: 'ceiling', def: 'slab' }), 0, 0.88, LV[0].ceil, f1 + 0.004, 7.73, 7.85); // rim behind stair C's hole: the wall top below showed as a lit strip
+  AB.box(kmap(1, 'main', { py: 'floor:zolderL', ny: 'ceiling', def: 'ceiling' }), 0, 0.88, LV[0].ceil, f1 + 0.004, 7.73, 7.85); // rim behind stair C's hole: the wall top below showed as a lit strip
+  slab3(K(1, 'main', 'trim'), 0.88, 1.95, 7.7, 7.85, f1 - 0.06, f1 + 0.07, f1 - 0.06, f1 - 0.053); // eave plinth, top parallel to and just under the roof: a flat top showed as a lit sliver: the wedge between the floor edge and the roof underside read as a bright line
+  // guard along the hole on the attic floor: rails from the top newel, level, into the roof slope (no room for posts under it); the bottom one is the upstand
+  for (const h of [0.95, 0.4, 0.08]) AB.box(ck, 0.89, 0.92, f1 + h - 0.035, f1 + h, 6.32, Math.min(7.73, WR_Z + (WR_Y - 0.28 - f1 - h + 0.065) / WR_K + 0.04));
   // railings along the open side of the stairwell: 1e landing (A's top newel to B's bottom newel), up B, round the attic hole, wing
   bal(1, X, 8.82, X, BT.zb, () => f1, { p0: null, p1: null });
   bal(1, X, BT.zb, X, BT.zt, yIn, { h: 0.85, p0: [LV[0].ceil, yIn(BT.zb) + 0.93], p1: [TB.soff(8) - 0.06, f2 + 0.98] }); // floor-standing and hanging newel
   bal(2, X, BT.zt, X, 10.27, () => f2, { p0: null }); bal(2, X, 10.27, 9.0, 10.27, () => f2, { p0: null });
-  bal(1, 0.945, 6.5, 0.945, 6.75, () => f1, { h: 0.7 });
   // colliders: under-stair spaces, railings (the flights themselves are handled by the walker, see stepState)
   addCol(0, 8.17, 9.0, 8.9, 10.25); addCol(0, 0, 0.97, 6.2, 7.2);
   addCol(1, 8.16, 8.3, 8.8, BT.zb); addCol(1, 0.92, 0.97, 6.5, 6.75); addCol(1, 0, 1.95, 6.75, 7.85);
@@ -2208,6 +2213,32 @@ const P = {
       const L = Math.hypot(z1 - z0, y(z1) - y(z0)), zm = (z0 + z1) / 2;
       f.geo('roofBoards', GEO[k] ||= plank(x1 - x0, L), (x0 + x1) / 2, y(zm) + n[1] * 0.012, zm + n[0] * 0.012, PI / 2 - a, 0, 0);
     }
+    // back slope (mirrored about the ridge), down to the eave plinth behind stair C; honey purlins under the boards, above head height
+    const yb = z => y(2 * WR_Z - z), z0 = 3.97, z1 = 7.85, zm = (z0 + z1) / 2;
+    f.geo('roofBoards', GEO.gL3 ||= plank(3.03, Math.hypot(z1 - z0, yb(z1) - yb(z0))), 1.515, yb(zm) + n[1] * 0.012, zm - n[0] * 0.012, PI / 2 + a, 0, 0);
+    f.box('handrail', 1.8, y(2.6) - 0.1, 2.6, 3.6, 0.18, 0.08); f.box('handrail', 1.515, yb(4.9) - 0.1, 4.9, 3.03, 0.18, 0.08);
+  },
+  // zolderL (photos, "Huidig"): white-painted brick on the other walls (the gable is in workbench()) and the stored stuff: the oak
+  // module boxes with finger holes, blue crates, bags, a dark cabinet with a box on top; the stair top -> door -> front line stays free
+  zolderStore(f) {
+    const yF = z => 0.82 * z - 0.05, yB = z => yF(2 * WR_Z - z); // roof underside at the front / back slope
+    const skin = (k, x, dir, pts) => f.geo('brickPaint', GEO[k] ||= new THREE.ShapeGeometry(new THREE.Shape(pts.map(([z, y]) => new THREE.Vector2(-dir * z, y)))), x + dir * 0.012, 0, 0, 0, dir * PI / 2, 0);
+    skin('zsG', 0, 1, [[3.99, 0], [7.76, 0], [7.76, yB(7.76)], [3.99, yB(3.99)]]); skin('zsP', 3.03, -1, [[3.99, 0], [5.72, 0], [5.72, yB(5.72)], [3.99, yB(3.99)]]);
+    skin('zsF', 3.6, -1, [[0.03, 0], [3.97, 0], [3.97, yF(3.97)], [0.07, 0]]); skin('zsS', 1.95, -1, [[5.82, 0], [7.76, 0], [7.76, yB(7.76)], [5.82, yB(5.82)]]);
+    for (const [z, xa, xb] of [[5.708, 0, 2.05], [5.832, 0.92, 1.95]]) { // door wall, both faces: beside and above the low door
+      f.box('brickPaint', (xa + 1.06) / 2, 0.81, z, 1.06 - xa, 1.62, 0.012); f.box('brickPaint', (1.7 + xb) / 2, 0.81, z, xb - 1.7, 1.62, 0.012); f.box('brickPaint', 1.38, 1.6, z, 0.64, 0.04, 0.012);
+    }
+    for (let i = 0; i < 6; i++) { // oak module boxes, 2 wide x 3 high against the party wall, a loose lid board on top
+      const z = 2.2 + (i % 2) * 0.6, y = 0.15 + ((i / 2) | 0) * 0.3;
+      f.box('handrail', 3.375, y, z, 0.44, 0.29, 0.59); f.cyl('dark', 3.152, y + 0.02, z, 0.035, 0.006, 16, 0.035, 0, HP);
+    }
+    f.box('handrail', 3.37, 0.91, 2.5, 0.46, 0.02, 1.24);
+    f.soft('black', 3.3, 0.22, 1.35, 0.5, 0.44, 0.42, 0.3, 0.08); f.soft('black', 3.25, 0.18, 3.5, 0.44, 0.36, 0.5, -0.2, 0.08); // bags
+    for (const y of [0.17, 0.53]) { f.box('crate', 2.76, y, 5.38, 0.38, 0.34, 0.52, 0.1); f.box('crate', 2.76, y + 0.165, 5.38, 0.42, 0.02, 0.56, 0.1); }
+    f.box('plastic', 2.72, 0.18, 4.6, 0.42, 0.36, 0.6, -0.15); f.box('anthracite', 2.72, 0.37, 4.6, 0.46, 0.02, 0.64, -0.15); // grey tub with a dark lid
+    f.soft('black', 2.7, 0.2, 3.95, 0.4, 0.4, 0.46, 0.5, 0.08);
+    f.box('anthracite', 0.245, 0.575, 4.31, 0.45, 1.15, 0.62); for (const y of [0.4, 0.75, 1.1]) f.box('dark', 0.47, y, 4.31, 0.012, 0.03, 0.4); // dark cabinet
+    f.box('canvasBack', 0.25, 1.3, 4.3, 0.4, 0.3, 0.5); f.box('dark', 0.26, 1.48, 4.3, 0.3, 0.06, 0.3);
   },
   // zolderR (photos, "Huidig"): the wall behind stair B's top winders is white-painted brick on the stair side
   stairWallB(f) {
@@ -2232,9 +2263,9 @@ const P = {
     // kettle on its base
     f.cyl('black', 8.83, W + 0.006, 1.02, 0.085, 0.012, 20); f.cyl('steel', 8.83, W + 0.11, 1.02, 0.08, 0.19, 20, 0.066); f.cyl('black', 8.83, W + 0.208, 1.02, 0.045, 0.012, 16);
     f.box('black', 8.925, W + 0.11, 1.02, 0.02, 0.15, 0.03); f.box('black', 8.895, W + 0.19, 1.02, 0.07, 0.02, 0.03); f.box('steel', 8.74, W + 0.16, 1.02, 0.05, 0.03, 0.035);
-    // espresso machine with a cup under the spout
+    // espresso machine with a cup under the spout (the cup is coffeeSpot's: you can make and drink coffee, see INTERACTIONS)
     f.soft('black', 8.83, W + 0.165, 1.36, 0.3, 0.33, 0.21, 0, 0.02); f.soft('black', 8.655, W + 0.255, 1.36, 0.08, 0.06, 0.13, 0, 0.012);
-    f.box('steel', 8.645, W + 0.015, 1.36, 0.1, 0.03, 0.17); f.cyl('ceramic', 8.645, W + 0.065, 1.36, 0.032, 0.07, 14, 0.04);
+    f.box('steel', 8.645, W + 0.015, 1.36, 0.1, 0.03, 0.17); coffeeSpot(f, 8.645, W + 0.03, 1.36);
     // washing-up liquid by the sink, chopping board and a knife block
     f.cyl('fruitGreen', 8.93, W + 0.08, 1.58, 0.026, 0.16, 12, 0.02);
     f.soft('wood', 8.74, W + 0.011, 2.58, 0.27, 0.022, 0.4, 0.06, 0.008);
@@ -2481,9 +2512,9 @@ const ITEMS = {
     ['handdoeken', 'Handdoeken', 6.68, 7.05, HP, P.hookTowels], ['wasmand', 'Wasmand', 6.97, 6.45, HP, P.laundry], ['badmat', 'Badmat', 7.62, 4.95, 0, P.bathMat]],
   zolderL: [
     ['kleed', 'Vloerkleed', 1.8, 3.9, 0, (f, r) => state.style !== 'huidig' && P.rug(f, r.id, 2.4, 2.0)], ['fauteuil', 'Fauteuil', 1.0, 3.3, 0.8, f => state.style !== 'huidig' && P.armchair(f)],
-    ['boekenkast', 'Boekenkast', 3.44, 2.9, -HP, f => P.bookshelf(f, 1.2, 1.8)], ['vloerlamp', 'Vloerlamp', 0.45, 2.7, 0, f => state.style !== 'huidig' && P.floorlamp(f)],
+    ['boekenkast', 'Boekenkast', 3.44, 2.9, -HP, f => state.style !== 'huidig' && P.bookshelf(f, 1.2, 1.8)], ['vloerlamp', 'Vloerlamp', 0.45, 2.7, 0, f => state.style !== 'huidig' && P.floorlamp(f)],
     ['werkbank', 'Werkbank (nu)', 0, 0, 0, f => state.style === 'huidig' && P.workbench(f)], ['dakbeschot', 'Houten dakbeschot (nu)', 0, 0, 0, f => state.style === 'huidig' && P.roofBoards(f)],
-    ['planten', 'Plant', 2.6, 5.2, 0, f => P.plant(f, 0.9)], ['hanglampen', 'Hanglamp', 1.8, 3.9, 0, f => P.pendant(f, 0.9, 3.15)],
+    ['opslag', 'Opslag (nu)', 0, 0, 0, f => state.style === 'huidig' && P.zolderStore(f)], ['planten', 'Plant', 2.6, 5.2, 0, f => state.style !== 'huidig' && P.plant(f, 0.9)], ['hanglampen', 'Hanglamp', 1.8, 3.9, 0, f => P.pendant(f, 0.9, 3.15)],
   ],
   // the plant stands in the back nook's west corner, out of the corridor -> nook walking line
   zolderR: [['planten', 'Plant', 7.25, 6.5, 0, f => P.plant(f, 0.9)], ['gevel', 'Geschilderde bakstenen muur (nu)', 0, 0, 0, f => state.style === 'huidig' && P.stairWallB(f)]],
@@ -2523,7 +2554,7 @@ const MODEL_MAP = {
   'sk3/nachtkastjes': NIGHT, 'sk3/bureau': { kind: 'desk', w: 1.3, d: 0.6, h: 0.76 }, 'sk3/planten': PLANT(0.9), 'sk3/hanglampen': LAMP(0.45, 2.63),
   'badkamer/planten': PLANT(0.7, 0.5),
   'zolderL/fauteuil': () => state.style !== 'huidig' && { ...ARM, variant: 'lounge' }, 'zolderL/boekenkast': () => state.style === 'industrieel' && { kind: 'bookshelf', w: 1.2, d: 0.32, h: 1.8 },
-  'zolderL/planten': PLANT(0.9), 'zolderL/hanglampen': LAMP(0.9, 3.15), 'zolderR/planten': PLANT(0.9), 'overloop/hanglampen': LAMP(0.28, 2.38),
+  'zolderL/planten': () => state.style !== 'huidig' && PLANT(0.9), 'zolderL/hanglampen': LAMP(0.9, 3.15), 'zolderR/planten': PLANT(0.9), 'overloop/hanglampen': LAMP(0.28, 2.38),
 };
 // EXTRA pieces: one spec for all of an item's extras, or an array in EXTRA order
 const MODEL_EXTRA = {
@@ -2752,7 +2783,7 @@ function buildAllFurniture() {
   })();
 }
 
-/* ================= INTERACTIONS (walk mode, E / click / tap): drawers, cabinet doors, tvs, toilets ================= */
+/* ================= INTERACTIONS (walk mode, E / click / tap): drawers, cabinet doors, tvs, toilets, coffee ================= */
 // Anything carrying userData.interact = { label: () => '...', act: () => {}, room?, on?: () => bool } (on the mesh or an
 // ancestor below its 'furn:' group) is aimed at like a door. Drawers and doors are drawn closed into one mover set per room
 // (one mesh per material for all of the room's moving parts); opening one rewrites only its own vertex range, so a room
@@ -2837,6 +2868,7 @@ function finishMovers(g) {
     hitBox(g, off(-0.02).scale(V(tv.w, tv.h, 0.05)), { room: tv.room, on: () => TV_ON.has(tv.key), label: () => TV_ON.has(tv.key) ? 'tv uitzetten' : 'tv aanzetten',
       act: () => { if (!TV_ON.delete(tv.key)) TV_ON.add(tv.key); show(); } });
   }
+  if (R.coffee) addCoffee(g, R.coffee, R.room);
 }
 // the tv picture: a calm, self-drawn landscape (hills drifting by under a slowly changing sky), 15 fps while a tv is on
 let TVM = null, tvT = 0, tvAcc = 1;
@@ -2901,9 +2933,148 @@ function flushSound() {
     o.connect(og).connect(AC.destination); o.start(t0 - 0.02); o.stop(t0 + 0.12);
   } catch (e) { /* no audio: the bowl still swirls */ }
 }
+// coffee (keuken): the espresso machine on the right worktop, in both kitchens (P.kitchenProps puts its cup in through
+// coffeeSpot). E or a tap makes a cup: pump hum, the lamp on, a thin stream from the spout, the level rising under a crema,
+// a wisp of steam. Once it is full the next E drinks it: the cup comes up into view, tips for a sip and goes back empty under
+// the spout. The state lives in CUP, so a rebuild (style, look, new kitchen) mid-brew carries on; it only ticks while busy.
+// MUG is the mug on the office desk (office.js asks for it through HOUSE.coffee.mug): full, steaming, drunk the same way, and
+// filled again a minute later or as soon as you make coffee at the machine.
+const CUP = { phase: 0, t: 0, level: 0, full: 1, crema: 0, steam: 0, said: false, m: null }; // phase 0 empty, 1 brewing, 2 full, 3 drinking
+const MUG = { phase: 2, t: 0, level: 0.6, full: 0.6, steam: Infinity, said: false, m: null, to: 0 }, CUPS = [CUP, MUG];
+const BREW = 3.6, DRINK = 2.9, SPOUT = 0.195, XAX = V(1, 0, 0), _cp = new THREE.Vector3(), _cv = new THREE.Vector3(), _cs = new THREE.Vector3(), _cq = new THREE.Quaternion(), _cq2 = new THREE.Quaternion(), _cm = new THREE.Matrix4(), _ce = new THREE.Euler();
+const cupR = y => 0.0245 + (y - 0.009) * 0.183, mugR = y => 0.0335 + (y - 0.008) * 0.0357; // inside radius at height y
+let COFM = null;
+// the cup's spot on the drip tray (its bottom centre, in the item's frame); outside a room build just a static cup
+function coffeeSpot(f, x, y, z) {
+  if (MOV) MOV.coffee = f.base.clone().multiply(new THREE.Matrix4().makeTranslation(x, y, z));
+  else f.cyl('ceramic', x, y + 0.036, z, 0.028, 0.072, 14, 0.039);
+}
+const cofm = () => COFM ||= (() => {
+    const c = mkCanvas(128), x = c.getContext('2d'), gr = x.createRadialGradient(60, 67, 3, 64, 64, 64);
+    gr.addColorStop(0, '#d9a66c'); gr.addColorStop(0.5, '#bf874f'); gr.addColorStop(0.8, '#8a5429'); gr.addColorStop(1, '#3e2213');
+    x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+    for (let i = 0; i < 260; i++) { x.fillStyle = `rgba(${i % 2 ? '250,214,168' : '92,52,24'},${0.06 + 0.1 * Math.random()})`; x.beginPath(); x.arc(18 + Math.random() * 92, 18 + Math.random() * 92, 0.6 + Math.random() * 1.8, 0, 7); x.fill(); } // crema speckle
+    const t = new THREE.CanvasTexture(c), puff = new THREE.MeshBasicMaterial({ map: washTexture(), color: '#f6f3ee', transparent: true, opacity: 0, depthWrite: false });
+    t.colorSpace = THREE.SRGBColorSpace;
+    return { coffee: new MSM({ map: t, roughness: 0.16 }), black: new MSM({ color: '#22120a', roughness: 0.08 }), stream: new MSM({ color: '#4a2812', roughness: 0.12 }), led: new MSM({ color: '#161616', roughness: 0.3, emissive: '#ffb25a', emissiveIntensity: 0 }),
+      puffs: [0, 1, 2].map(() => puff.clone()), mugPuffs: [0, 1, 2].map(() => puff.clone()) };
+  })();
+// a cup in group g standing at rest (its bottom centre): body, the coffee surface (R: inside radius at height y, liquid from y0
+// up to y0 + dy when full, rim: the lip you drink from) and three steam puffs rising from top
+function cupParts(g, body, coffeeMat, puffMats, rest, top, R, y0, dy, rim) {
+  const mk = (geo, mat, p = g) => { const o = new THREE.Mesh(geo, mat); o.matrixAutoUpdate = false; o.userData.sharedGeo = true; p.add(o); return o; };
+  const cup = new THREE.Group(); cup.name = 'koffie:kop'; cup.matrixAutoUpdate = false; g.add(cup);
+  for (const geo of body) { const o = mk(geo, M('ceramic'), cup); o.castShadow = o.receiveShadow = true; }
+  const coffee = mk(GEO.disc1, coffeeMat, cup); coffee.name = 'koffie:koffie'; coffee.receiveShadow = true;
+  const rp = new THREE.Vector3(), rq = new THREE.Quaternion(); rest.decompose(rp, rq, _cs);
+  return { mk, rest, rp, rq, cup, coffee, top, R, y0, dy, rim, puffs: puffMats.map(mt => { const o = mk(GEO.puff, mt); o.renderOrder = 3; return o; }) };
+}
+const drinkIt = C => () => { if (C.phase === 2) Object.assign(C, { phase: 3, t: 0, said: false, steam: 0 }); };
+function addCoffee(g, at, room) {
+  cofm();
+  // a turned cup (wall 3.5 mm, foot ring) with an ear on its +x side
+  GEO.cup ||= new THREE.LatheGeometry([[0, 0], [0.024, 0], [0.0272, 0.0025], [0.028, 0.007], [0.039, 0.069], [0.0392, 0.0712], [0.0377, 0.0722], [0.0362, 0.0711],
+    [0.0355, 0.069], [0.0245, 0.009], [0.021, 0.0075], [0, 0.0075]].map(([r, y]) => new THREE.Vector2(r, y)), 28);
+  GEO.cupEar ||= new THREE.TorusGeometry(0.014, 0.0036, 6, 14, PI).rotateZ(-HP).translate(0.031, 0.037, 0);
+  GEO.disc1 ||= new THREE.CircleGeometry(1, 28).rotateX(-HP);
+  GEO.stream ||= new THREE.CylinderGeometry(0.0011, 0.0017, 1, 6, 1, true).translate(0, -0.5, 0);
+  GEO.led ||= new THREE.CylinderGeometry(0.005, 0.005, 0.003, 12).rotateZ(HP);
+  GEO.puff ||= new THREE.PlaneGeometry(1, 1);
+  const m = CUP.m = cupParts(g, [GEO.cup, GEO.cupEar], COFM.coffee, COFM.puffs, at.clone().multiply(_cm.makeRotationY(-2.36)), 0.074, cupR, 0.0095, 0.0515, 0.069); // ear to the room
+  m.at = at; m.led = m.mk(GEO.led, COFM.led); m.led.matrix.copy(at).multiply(_cm.makeTranslation(0.033, 0.272, 0.065)); // on the front, above the spout
+  m.streams = [-1, 1].map(() => m.mk(GEO.stream, COFM.stream));
+  // the machine with its cup: one hit box over both (local +z, its front, faces the room)
+  hitBox(g, at.clone().multiply(new THREE.Matrix4().compose(V(0.145, 0.135, 0), new THREE.Quaternion().setFromAxisAngle(UP, -HP), V(0.22, 0.33, 0.38))), {
+    room, on: () => CUP.phase === 1 || CUP.phase === 2, label: () => ['koffie zetten', 'koffie loopt…', 'koffie drinken', ''][CUP.phase], // '': no tag over the cup while you drink
+    act: () => {
+      if (CUP.phase === 0) { Object.assign(CUP, { phase: 1, t: 0, level: 0, crema: 0, steam: BREW + 12 }); pumpSound(BREW - 0.3); refillMug(); }
+      else drinkIt(CUP)();
+    } });
+  poseCoffee(CUP);
+}
+// the office mug (x, y, z: its bottom centre on the desk, ear to the right of whoever sits there); g is office.js's group
+function addMug(g, x, y, z, room) {
+  cofm();
+  GEO.mug ||= new THREE.LatheGeometry([[0, 0], [0.034, 0], [0.036, 0.003], [0.0398, 0.092], [0.0396, 0.095], [0.0372, 0.095], [0.0365, 0.092], [0.0335, 0.008], [0, 0.008]]
+    .map(([r, h]) => new THREE.Vector2(r, h)), 28);
+  GEO.mugEar ||= new THREE.TorusGeometry(0.024, 0.0062, 8, 16, PI).rotateZ(-HP).translate(0.04, 0.048, 0);
+  MUG.m = cupParts(g, [GEO.mug, GEO.mugEar], COFM.black, COFM.mugPuffs, new THREE.Matrix4().makeTranslation(x, y, z).multiply(_cm.makeRotationY(1.2)), 0.095, mugR, 0.009, 0.076, 0.092);
+  MUG.m.cup.name = 'koffie:mok'; MUG.m.coffee.name = 'koffie:mok-koffie';
+  hitBox(g, _cm.compose(V(x, y + 0.05, z), new THREE.Quaternion().setFromAxisAngle(UP, HP), V(0.13, 0.12, 0.13)), {
+    room, on: () => MUG.phase === 2, label: () => MUG.phase === 2 ? 'koffie drinken' : '', act: drinkIt(MUG) });
+  poseCoffee(MUG);
+}
+function refillMug() { clearTimeout(MUG.to); if (MUG.phase === 0) Object.assign(MUG, { phase: 2, level: MUG.full, steam: Infinity }); if (MUG.m) poseCoffee(MUG); }
+function poseCoffee(C) {
+  const m = C.m, S = THREE.MathUtils.smoothstep, L = THREE.MathUtils.lerp;
+  let tilt = 0;
+  if (C.phase === 3) {
+    // in the hand, in front of the chest (half the head's pitch), so it sits in the lower centre of the view and is seen from
+    // above; upright, ear to the right. Out from under the spout first, then up; for the sip it comes to your lips, tipping
+    // towards you. The way back is the same in reverse (rest and hand share one frame: both cups sit in level-0 groups at the origin)
+    const k = C.t, u = k < 0.7 ? k / 0.7 : k < 2.2 ? 1 : (DRINK - k) / 0.7, eh = S(u, 0, 0.6), ev = S(u, 0.25, 1), sip = S(k, 0.75, 1.2) * (1 - S(k, 1.8, 2.2));
+    tilt = 0.55 * sip;
+    _cv.set(0, 0, -1).applyQuaternion(camera.quaternion);
+    const yaw = Math.atan2(-_cv.x, -_cv.z), pitch = Math.asin(THREE.MathUtils.clamp(_cv.y, -1, 1));
+    _cq.setFromEuler(_ce.set(pitch / 2, yaw, 0, 'YXZ'));
+    const d = Math.max(1, Math.sqrt(1 / camera.aspect)); // a phone held upright sees a narrow view: the cup a bit further off
+    _cv.set(0, (-0.13 + 0.012 * sip) * d, (-0.34 + 0.09 * sip) * d).applyQuaternion(_cq).add(camera.position);
+    _cq.setFromEuler(_ce.set(tilt, yaw, 0, 'YXZ'));
+    _cp.set(L(m.rp.x, _cv.x, eh), L(m.rp.y, _cv.y, ev), L(m.rp.z, _cv.z, eh));
+    m.cup.matrix.compose(_cp, _cq2.copy(m.rq).slerp(_cq, S(u, 0, 1)), _cs.set(1, 1, 1));
+  } else m.cup.matrix.copy(m.rest);
+  m.cup.matrixWorldNeedsUpdate = true;
+  // the surface stays level when the cup tips: an ellipse on the axis, no higher than the rim you drink from
+  const tn = Math.tan(tilt), y0 = m.y0 + m.dy * C.level, h = Math.min(y0, m.rim - m.R(y0) * tn), r = m.R(h) + 0.0008;
+  m.coffee.visible = C.level > 0.01 && h - r * tn > m.y0;
+  m.coffee.matrix.compose(_cp.set(0, h, 0), _cq.setFromAxisAngle(XAX, -tilt), _cs.set(r, 1, r / Math.cos(tilt))); m.coffee.matrixWorldNeedsUpdate = true;
+  if (m.streams) { // the machine: crema, the streams and its lamp
+    COFM.coffee.color.setScalar(0.32 + 0.68 * C.crema); // dark at first, the crema comes up with it
+    // two thin streams from the spout into the cup while the pump runs, wavering a little
+    const run = C.phase === 1 && C.t > 0.5 && C.t < BREW - 0.35;
+    m.streams.forEach((o, i) => {
+      o.visible = run; if (!run) return;
+      const w = 1 + 0.25 * Math.sin(C.t * 37 + i * 2.3);
+      o.matrix.copy(m.at).multiply(_cm.compose(_cp.set(0, SPOUT, i ? 0.006 : -0.006), _cq.identity(), _cs.set(w, SPOUT - h + 0.002, w))); o.matrixWorldNeedsUpdate = true;
+    });
+    COFM.led.emissiveIntensity = C.phase === 1 ? 2.5 + 0.8 * Math.sin(C.t * 6) : 0;
+  }
+  // a wisp of steam off the hot cup: three soft puffs rising and fading, turned to the camera
+  const st = C.phase === 1 ? S(C.t, 1, 2.5) : C.phase === 2 ? Math.min(1, C.steam / 3) : 0;
+  m.puffs.forEach((o, i) => {
+    o.visible = st > 0; if (!st) return;
+    const p = (C.t * 0.42 + i / 3) % 1, s = 0.02 + 0.05 * p;
+    _cp.set(0.012 * Math.sin(p * 5 + i * 2), m.top + 0.12 * p, 0.01 * Math.cos(p * 4 + i)).applyMatrix4(m.rest);
+    o.matrix.compose(_cp, camera.quaternion, _cs.set(s, s * 1.4, s)); o.matrixWorldNeedsUpdate = true;
+    o.material.opacity = 0.15 * Math.sin(PI * p) * st;
+  });
+}
+function coffeeTick(C, dt) {
+  const S = THREE.MathUtils.smoothstep; C.t += dt; C.steam = Math.max(0, C.steam - dt);
+  if (C.phase === 1) { C.level = S(C.t, 0.6, BREW - 0.35); C.crema = S(C.t, 1, BREW); if (C.t >= BREW) C.phase = 2; }
+  else if (C.phase === 3) {
+    if (mode !== 'walk') C.t = DRINK; // the dollhouse or a fly-over: straight back on the tray
+    C.level = C.full * (1 - S(C.t, 0.9, 1.9));
+    if (C.t >= 2 && !C.said) { C.said = true; toast('Mmm, lekker bakkie.'); }
+    if (C.t >= DRINK) { C.phase = 0; C.level = 0; if (C === MUG) MUG.to = setTimeout(refillMug, 60000); }
+  }
+  poseCoffee(C);
+}
+// a vibration pump: a buzz at the mains frequency that firms up as the pressure builds (only after the E or tap that started it)
+function pumpSound(dur) {
+  try {
+    AC ||= new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
+    const t0 = AC.currentTime + 0.02, o = AC.createOscillator(), lp = AC.createBiquadFilter(), g = AC.createGain();
+    o.type = 'sawtooth'; o.frequency.value = 50; lp.type = 'lowpass'; lp.Q.value = 2;
+    lp.frequency.setValueAtTime(240, t0); lp.frequency.exponentialRampToValueAtTime(640, t0 + 1.2);
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.12, t0 + 0.15); g.gain.setValueAtTime(0.12, t0 + dur - 0.25); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(lp).connect(g).connect(AC.destination); o.start(t0); o.stop(t0 + dur + 0.05);
+  } catch (e) { /* no audio: it still pours */ }
+}
 function interactTick(dt) {
   for (const p of MOVING) { const d = dt / (p.dur || 0.45); p.t = p.goal > p.t ? Math.min(p.goal, p.t + d) : Math.max(p.goal, p.t - d); posePart(p); if (p.t === p.goal) MOVING.delete(p); }
   for (const T of FLUSH) if (T.t >= 0) { T.t += dt; T.spin += dt * 9 * (1 - Math.min(1, T.t / 3.2)); if (T.t > 3.2) T.t = -1; poseWater(T); }
+  for (const C of CUPS) if (C.m && (C.phase === 1 || C.phase === 3 || (C.steam > 0 && C.m.cup.parent.parent && camera.position.distanceToSquared(C.m.rp) < 9))) coffeeTick(C, dt);
   if (TVM && TV_ON.size) { TVM.halo.opacity = 0.3 * (0.2 + 0.8 * lampFactor); tvT += dt; if ((tvAcc += dt) > 1 / 15) { tvAcc = 0; drawTv(tvT); } }
 }
 
@@ -3507,7 +3678,7 @@ function hitLabel(h, walking) {
   if (k === 'door') return `${verb}: deur ${d.open ? 'sluiten' : 'openen'}`;
   if (k === 'klink') return `${verb} · klink: ${d.open ? 'sluiten' : 'openen'}`;
   if (k === 'dog') return `${walking && !COARSE ? 'Klik' : verb}: ${dogOf(h.object)?.name || 'hond'} aaien`;
-  if (k === 'interact') return walking ? `${verb}: ${interactOf(h.object).label()}` : '';
+  if (k === 'interact') { const t = walking && interactOf(h.object).label(); return t ? `${verb}: ${t}` : ''; }
   if (k === 'piece') return `${verb}: ${h.name} oppakken`;
   if (!walking) { const id = roomOfHit(h); return id && ROOM[id] ? ROOM[id].name : ''; }
   return '';
@@ -3804,7 +3975,7 @@ const HOUSE = { // published as window.HOUSE once the house is built (end of the
   walker, setWalker: (a, x, z, yaw) => setWalker(a && typeof a === 'object' ? a : { l: a, x, z, yaw }), walkMove, invalidatePicks, ceilAt: (l, x, z) => ceilAt(l, x, z),
   roomAt: (level, x, z) => roomAt(level, x, z)?.id || null,
   pickables, colliders, doors, toggleDoor: d => toggleDoor(d),
-  // everything you can use in walk mode (drawers, cabinet doors, tvs, toilets, the pc): where it is and what it does now
+  // everything you can use in walk mode (drawers, cabinet doors, tvs, toilets, the coffee machine, the pc): where it is and what it does now
   // every interactable: x, y, z = the centre of its hit box's front face (where to aim), nx, nz = the way that face looks
   interact: { list: () => { const out = []; G.forEach((g, l) => g.main.traverse(o => {
     const it = o.isMesh && o.userData.interact; if (!it) return;
@@ -3815,6 +3986,7 @@ const HOUSE = { // published as window.HOUSE once the house is built (end of the
   setMode: m => setMode(m), setInteractive(on) { interactive = !!on; },
   get mode() { return mode; }, get view() { return view; },
   ui: { addTool, toast },
+  coffee: { mug: addMug }, // office.js: the mug on the desk, drinkable like the machine's cup
   lights: { get state() { return { ...LIGHT }; }, level: id => ROOM[id] ? lightOf(id) : null, lit: id => litOf(id), toggle: id => toggleLight(id),
     set(id, s) { setLight(id, s); applyLights(); }, all: s => allLights(s) },
   setTime: h => glideTime(+h),

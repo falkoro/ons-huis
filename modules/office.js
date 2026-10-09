@@ -609,30 +609,39 @@ function monitor(b, w, h, x, y, z, ry, top, arm) {
   else { b.box('metal', '#1d1d20', 0.05, -dy - h * 0.4, 0.03, 0, (dy - h * 0.4) / 2, -0.075); b.box('metal', '#1d1d20', 0.24, 0.012, 0.18, 0, dy + 0.006, -0.07); }
   b.pop();
 }
-// gamestoel (foto): zwart PU-leer, grijze panelen, ronde chroomknop op de rug, 4D-armleggers, zwarte nylon stervoet, hoofdkussen
+// gamestoel (foto, achterhal_1.jpg): zwart PU-leer met donkergrijze panelen en een blauw accent, hoge rug met zijwangen en
+// hoofdkussen, 4D-armleggers op stijlen, gasveer, zwarte nylon stervoet met wieltjes. Lokaal: zit kijkt naar -z, oorsprong op de vloer.
 function gamingChair(b, x, z, ry) {
-  const L = '#121214', L2 = '#2b2c31';
+  const L = '#1a1a1e', L2 = '#34353b', BLUE = '#2d5fd0';
   b.push(x, 0, z, 0, ry, 0);
   for (let k = 0; k < 5; k++) {
     const a = k * PI * 2 / 5;
-    b.box('solid', '#1a1a1d', 0.045, 0.035, 0.30, Math.sin(a) * 0.15, 0.085, Math.cos(a) * 0.15, 0, a, 0);
-    b.cyl('solid', '#0e0e10', 0.028, 0.028, 0.03, 8, Math.sin(a) * 0.29, 0.03, Math.cos(a) * 0.29, 0, a, HP);
+    b.box('solid', '#1a1a1d', 0.05, 0.035, 0.32, Math.sin(a) * 0.16, 0.075, Math.cos(a) * 0.16, 0, a, 0);
+    b.box('solid', '#1a1a1d', 0.03, 0.025, 0.1, Math.sin(a) * 0.31, 0.05, Math.cos(a) * 0.31, 0, a, 0);
+    b.cyl('solid', '#0e0e10', 0.03, 0.03, 0.03, 10, Math.sin(a) * 0.32, 0.03, Math.cos(a) * 0.32, 0, a, HP);
   }
-  b.cyl('metal', '#1a1a1d', 0.05, 0.05, 0.06, 10, 0, 0.10, 0); b.cyl('metal', '#2a2a2e', 0.025, 0.03, 0.30, 10, 0, 0.27, 0);
-  b.push(0, 0.49, 0);
-  b.box('leather', L, 0.52, 0.10, 0.50, 0, 0, 0);
-  for (const sx of [-1, 1]) b.box('leather', L2, 0.07, 0.08, 0.46, sx * 0.25, 0.05, 0);
+  b.cyl('solid', '#1a1a1d', 0.06, 0.07, 0.05, 12, 0, 0.1, 0); b.cyl('metal', '#2a2a2e', 0.028, 0.032, 0.3, 10, 0, 0.27, 0); b.cyl('solid', '#141416', 0.05, 0.05, 0.08, 12, 0, 0.43, 0);
+  b.push(0, 0.5, 0);                                                                                           // zitting op 0.5 m
+  b.box('leather', L, 0.46, 0.1, 0.5, 0, 0, 0); b.box('solid', '#111113', 0.5, 0.03, 0.52, 0, -0.06, 0);
+  for (const sx of [-1, 1]) { b.cyl('leather', L2, 0.05, 0.05, 0.46, 10, sx * 0.245, 0.04, 0.02, HP, 0, 0); b.cyl('leather', L2, 0.05, 0.05, 0.12, 10, sx * 0.245, 0.04, -0.21, 0, 0, HP); }
+  b.cyl('leather', L, 0.05, 0.05, 0.4, 10, 0, 0.02, -0.25, 0, 0, HP);                                       // ronde voorrand
+  b.box('leather', L2, 0.2, 0.004, 0.36, 0, 0.052, 0.03); b.box('solid', BLUE, 0.22, 0.004, 0.012, 0, 0.053, -0.16);  // grijze baan, blauwe bies
   b.pop();
-  for (const sx of [-1, 1]) { b.box('metal', '#1a1a1d', 0.04, 0.20, 0.05, sx * 0.29, 0.60, 0.05); b.box('solid', '#111113', 0.08, 0.03, 0.24, sx * 0.29, 0.71, 0.0); }
-  b.push(0, 0.54, 0.24, 0.14, 0, 0);
-  b.box('leather', L, 0.50, 0.84, 0.10, 0, 0.42, 0);
-  for (const sx of [-1, 1]) {
-    b.box('leather', L2, 0.08, 0.60, 0.14, sx * 0.25, 0.36, -0.02);
-    b.box('solid', '#060607', 0.05, 0.11, 0.102, sx * 0.12, 0.70, 0);
-    b.cyl('metal', '#d6d8dc', 0.045, 0.045, 0.006, 16, sx * 0.292, 0.3, 0.0, 0, 0, HP);
+  for (const sx of [-1, 1]) {                                                                                  // 4D-armleggers
+    b.box('metal', '#1a1a1d', 0.035, 0.22, 0.06, sx * 0.3, 0.59, 0.06); b.box('solid', '#111113', 0.06, 0.04, 0.06, sx * 0.3, 0.68, 0.06);
+    b.box('solid', '#1f1f23', 0.09, 0.03, 0.27, sx * 0.3, 0.715, 0.0); b.box('solid', '#2b2c31', 0.08, 0.004, 0.25, sx * 0.3, 0.732, 0.0);
   }
-  b.box('leather', L2, 0.26, 0.12, 0.06, 0, 0.66, -0.07); b.box('leather', L2, 0.30, 0.14, 0.05, 0, 0.22, -0.065);
-  b.box('leather', L, 0.3, 0.1, 0.07, 0, 0.8, -0.06);                                                         // hoofdkussen
+  b.push(0, 0.5, 0.25, 0.16, 0, 0);                                                                            // rug, ~9 graden achterover
+  b.box('leather', L, 0.5, 0.9, 0.08, 0, 0.45, 0); b.box('solid', '#111113', 0.52, 0.86, 0.02, 0, 0.45, 0.05);
+  for (const sx of [-1, 1]) {
+    b.box('leather', L2, 0.08, 0.6, 0.15, sx * 0.25, 0.32, -0.03, 0, 0, sx * 0.08);                            // zijwangen onder
+    b.box('leather', L2, 0.07, 0.22, 0.12, sx * 0.21, 0.74, -0.02, 0, 0, sx * 0.25);                           // schouderwangen
+    b.box('solid', '#060607', 0.055, 0.1, 0.09, sx * 0.1, 0.62, -0.005);                                      // gordelsleuven
+  }
+  b.box('leather', L2, 0.26, 0.56, 0.004, 0, 0.34, -0.042); b.box('solid', BLUE, 0.26, 0.012, 0.005, 0, 0.5, -0.043); b.box('solid', BLUE, 0.1, 0.03, 0.005, 0, 0.74, -0.043);  // grijs paneel, blauw accent + logo
+  b.cyl('metal', '#d6d8dc', 0.045, 0.045, 0.006, 16, 0.25, 0.3, 0.0, 0, 0, HP);                                // chroom kantelknop
+  b.cyl('leather', L, 0.055, 0.055, 0.28, 12, 0, 0.84, -0.055, 0, 0, HP); b.box('solid', BLUE, 0.1, 0.02, 0.004, 0, 0.84, -0.111);  // hoofdkussen
+  b.cyl('leather', L, 0.05, 0.05, 0.3, 10, 0, 0.9, 0.0, 0, 0, HP);                                              // afgeronde bovenrand
   b.pop(); b.pop();
 }
 // flightsim-rig (foto): zilvergrijs aluminium buisframe (lage liggers, schuine achterbuizen tot op de vloer, zitrails), hoge zwarte
@@ -640,7 +649,7 @@ function gamingChair(b, x, z, ry) {
 // groen verlichte MOZA-paneel, trimwiel en een grijs schakelkastje, pedalen op de ligger.
 // Lokaal: piloot op (0, 0, 0), kijkt naar -z; zijn linkerhand (en de zijplaat) zit op -x.
 function rig(T, b, x, z, ry) {
-  const S = '#141417', S2 = '#1f2024', G = '#3dff7a', AL = '#b4b7bd', E = '#6a6d73';
+  const S = '#141417', S2 = '#2a2b30', G = '#3dff7a', AL = '#b4b7bd', E = '#8a8d93';
   b.push(x, 0, z, 0, ry, 0);
   // frame: twee lage liggers, dwarsbalken, schuine achterbuizen, zitrails
   for (const sx of [-0.28, 0.28]) b.box('metal', AL, 0.05, 0.05, 1.25, sx, 0.025, -0.4);
@@ -652,20 +661,20 @@ function rig(T, b, x, z, ry) {
   // met afgeronde rand (X = naar voren, Y = omhoog), ry = HP legt X op -z (de piloot kijkt naar -z) en de extrusie op x
   const prof = (pts, depth) => { const sh = new T.Shape(); sh.moveTo(pts[0][0], pts[0][1]); for (const [x, y] of pts.slice(1)) sh.lineTo(x, y); sh.closePath();
     const g = new T.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2, curveSegments: 4 }); g.translate(0, 0, -depth / 2); return g; };
-  const SIDE = [[0.27, 0], [0.27, 0.13], [0.16, 0.19], [-0.1, 0.17], [-0.2, 0.2], [-0.52, 0.82], [-0.56, 0.89], [-0.67, 0.86], [-0.3, 0.02], [-0.28, 0]];   // wang: hoge rand, loopt door tot de hoofdsteun
-  const MID = [[0.26, 0.01], [0.26, 0.08], [-0.14, 0.09], [-0.2, 0.14], [-0.53, 0.78], [-0.56, 0.86], [-0.64, 0.84], [-0.3, 0.03], [-0.28, 0.01]];       // middenbaan: lage zitting, rugleuning, hoofdsteun
+  const SIDE = [[0.27, 0], [0.27, 0.13], [0.16, 0.19], [-0.1, 0.17], [-0.18, 0.2], [-0.40, 0.72], [-0.43, 0.78], [-0.52, 0.76], [-0.3, 0.02], [-0.28, 0]];   // wang: hoge rand, loopt door tot de hoofdsteun
+  const MID = [[0.26, 0.01], [0.26, 0.08], [-0.14, 0.09], [-0.18, 0.14], [-0.41, 0.68], [-0.43, 0.75], [-0.49, 0.74], [-0.3, 0.03], [-0.28, 0.01]];       // middenbaan: lage zitting, rugleuning, hoofdsteun
   b.push(0, 0.285, 0);
   b.geo('fabric', S, prof(MID, 0.44), 0, 0, 0, 0, HP, 0);
   for (const sx of [-1, 1]) b.geo('fabric', S2, prof(SIDE, 0.05), sx * 0.245, 0, 0, 0, HP, 0);
-  b.push(0, 0.14, 0.2, 0.47, 0, 0);                                                                           // vlak van de rugleuning (voorkant)
-  b.box('fabric', '#3a3c40', 0.2, 0.56, 0.006, 0, 0.3, -0.003);                                                   // grijze middenbaan
-  for (const sx of [-1, 1]) { b.box('solid', '#08080a', 0.055, 0.03, 0.03, sx * 0.08, 0.6, -0.012); b.box('solid', E, 0.012, 0.6, 0.008, sx * 0.21, 0.32, -0.004); }   // gordelsleuven, lichte bies
+  b.push(0, 0.14, 0.18, 0.40, 0, 0);                                                                           // vlak van de rugleuning (voorkant), ~23 graden achterover
+  b.box('fabric', '#3a3c40', 0.2, 0.46, 0.006, 0, 0.26, -0.003);                                                   // grijze middenbaan
+  for (const sx of [-1, 1]) { b.box('solid', '#08080a', 0.055, 0.03, 0.03, sx * 0.08, 0.5, -0.012); b.box('solid', E, 0.012, 0.5, 0.008, sx * 0.21, 0.27, -0.004); }   // gordelsleuven, lichte bies
   b.pop();
   b.box('fabric', '#3a3c40', 0.2, 0.004, 0.36, 0, 0.09, 0.0);                                                    // grijze baan op de zitting
   b.pop();
   // sporttas (donker petrol) over de zitting, leunt tegen de rug
-  b.box('fabric', '#1d4a46', 0.36, 0.26, 0.16, 0.03, 0.47, 0.1, 0.47, 0.15, 0); b.box('fabric', '#16383a', 0.3, 0.1, 0.17, 0.03, 0.4, 0.05, 0.47, 0.15, 0);
-  b.box('solid', '#101012', 0.012, 0.3, 0.03, 0.03, 0.5, 0.0, 0.47, 0.15, 0);
+  b.box('fabric', '#1d4a46', 0.36, 0.26, 0.16, 0.03, 0.45, 0.1, 0.40, 0.15, 0); b.box('fabric', '#16383a', 0.3, 0.1, 0.17, 0.03, 0.38, 0.05, 0.40, 0.15, 0);
+  b.box('solid', '#101012', 0.012, 0.3, 0.03, 0.03, 0.48, 0.0, 0.40, 0.15, 0);
   // kolom + plaat (yoke, gasquadrant, keyboard-tray aan de muurkant)
   b.box('metal', AL, 0.06, 0.9, 0.06, 0, 0.45, -0.8); b.box('metal', AL, 0.3, 0.04, 0.04, 0, 0.9, -0.95);
   b.box('solid', BLK, 0.56, 0.025, 0.5, -0.05, 0.925, -0.85);
@@ -754,59 +763,63 @@ function roundBed(b, x, z, r = 0.5) {
 }
 
 /* ---------- "Huidig" (kantoor_1.jpg): alles langs de linkerwand (x = 0), kasten rechts ----------
- *  Foto, van voor (hal) naar achter: het zit-stabureau staat haaks op de muur voor de trapkop (x 0.08-1.24, z 5.5-6.24), de gebruiker zit
- *  met de rug naar de hal, het 27"-scherm kijkt naar de hal; daarachter de glazen pc op een laag zwart kastje met het 32"-scherm aan een
- *  wandarm erboven; de tweede toren ligt op een kastje bij de muur; de rig staat schuin (piloot kijkt naar de hoek muur/tuin) met de
- *  draadkruk ervoor en het hondenbed tussen rig en gamestoel. */
+ *  Linkerwand, van de trap (z 7.73-5.82) naar de tuin: het zit-stabureau met de lange zijde langs de muur (x 0.03-0.75, z 4.3-5.75):
+ *  27"-scherm op het hal-einde naar de kamer gedraaid, glazen pc op het tuin-einde met het (uitstaande) 32"-scherm aan een wandarm
+ *  erboven; de tweede toren op zijn kastje net voorbij het bureau; dan de rig, haaks op de muur, piloot kijkt naar de muur met het
+ *  simscherm hoog op een voet onder de posters. Gamestoel voor het bureau, draadkruk naast de rig, hondenbed ervoor. Het midden
+ *  (x 1.6-2.5) blijft vrij van de haldeur tot de bank; niets staat op de trap, in de trapstrook of in de deurzwaai. */
 function buildHuidig(T, b) {
-  // bureau: zwart blad met lichtgrijze rand op een lichtgrijs zit-sta-frame (twee T-poten met voeten langs z, dwarsbalk, kabelgoot)
-  const DK = '#141416', FR = '#a3a6ab';
-  b.box('solid', DK, 1.16, 0.025, 0.74, 0.66, 0.735, 5.87);
-  b.box('metal', FR, 1.16, 0.025, 0.014, 0.66, 0.735, 6.247); b.box('metal', FR, 1.16, 0.025, 0.014, 0.66, 0.735, 5.493);
-  b.box('metal', FR, 0.014, 0.025, 0.74, 1.233, 0.735, 5.87);
-  for (const x of [0.34, 0.98]) { b.box('metal', FR, 0.075, 0.42, 0.075, x, 0.25, 5.87); b.box('metal', FR, 0.06, 0.28, 0.06, x, 0.6, 5.87); b.box('metal', FR, 0.07, 0.04, 0.62, x, 0.02, 5.87); b.box('metal', FR, 0.3, 0.03, 0.05, x, 0.705, 5.87); }
-  b.box('metal', FR, 0.6, 0.05, 0.05, 0.66, 0.66, 5.87); b.box('solid', '#1b1b1e', 1.0, 0.08, 0.3, 0.66, 0.68, 5.68);
-  // op het bureau: witte controller, donkerrode muismat, muis met blauw lampje, mok, papier, zwart kastje onder het 27"-scherm
-  b.box('solid', '#e8e8ea', 0.16, 0.05, 0.1, 0.2, 0.775, 6.12, 0, 0.6, 0);
-  b.box('fabric', '#4d1a1e', 0.45, 0.004, 0.38, 0.6, 0.75, 6.03); for (let i = 0; i < 12; i++) b.box('fabric', '#7a3a2a', 0.02, 0.001, 0.02, 0.42 + hash(i, 1, 31) * 0.36, 0.7525, 5.86 + hash(i, 2, 31) * 0.34);
-  b.box('solid', '#1a1a1d', 0.06, 0.03, 0.1, 0.7, 0.766, 6.1); b.box('glow', '#3a7bff', 0.004, 0.004, 0.05, 0.7, 0.783, 6.09);
-  b.cyl('solid', '#efefef', 0.04, 0.036, 0.095, 12, 1.08, 0.796, 5.72);
-  b.box('solid', '#f2f2ee', 0.21, 0.003, 0.3, 0.25, 0.75, 5.62, 0, 0.1, 0);
-  b.box('solid', '#141416', 0.26, 0.05, 0.09, 0.5, 0.773, 5.56);
-  // monitor 1 (27", kijkt naar de hal, iets naar de kamer gedraaid)
-  monitor(b, 0.597, 0.336, 0.5, 1.0, 5.6, 0.3, 0.748, false);
-  // laag zwart kastje (open vak met witte afstandsbediening) met de glazen pc erop; 32"-scherm aan een wandarm erboven
-  b.box('solid', '#121214', 0.5, 0.025, 0.55, 0.42, 0.338, 4.78); b.box('solid', '#121214', 0.5, 0.025, 0.55, 0.42, 0.04, 4.78);
-  for (const z of [4.52, 5.04]) b.box('solid', '#121214', 0.5, 0.3, 0.025, 0.42, 0.19, z);
-  b.box('solid', '#121214', 0.025, 0.3, 0.55, 0.18, 0.19, 4.78);
-  b.box('solid', '#eeeeee', 0.05, 0.02, 0.16, 0.5, 0.062, 4.9, 0, 0.3, 0);
-  glassPc(T, b, 0.42, 0.35, 4.78);
-  monitor(b, 0.705, 0.397, 0.46, 1.1, 4.45, PI / 4, null, false);
-  b.box('metal', '#232326', 0.36, 0.04, 0.04, 0.22, 1.1, 4.35); b.box('metal', '#232326', 0.02, 0.2, 0.12, 0.03, 1.1, 4.35);
-  // tweede toren op zijn kastje bij de muur
-  tower2(b, 0.95, 0.75, 4.2);
-  // rig (schuin, piloot kijkt naar de hoek muur/tuin), draadkruk ervoor, hondenbed, gamestoel naar de kamer gedraaid
-  rig(T, b, 1.35, 5.1, 0.95);
-  wireStool(T, b, 1.1, 5.9);
-  roundBed(b, 1.65, 6.3, 0.42);
-  gamingChair(b, 1.0, 6.75, -1.9);
-  // kabels (zwarte slierten onder het bureau), rode pantoffel in het looppad, beige knuffel bij de bank
-  for (let i = 0; i < 4; i++) b.box('solid', '#0c0c0e', 1.0 + hash(i, 1, 21) * 0.2, 0.012, 0.012, 0.6, 0.012, 5.6 + hash(i, 2, 21) * 0.4, 0, hash(i, 3, 21) * 0.3 - 0.15, 0);
-  b.box('fabric', '#8a1a24', 0.27, 0.05, 0.11, 2.25, 0.025, 7.25, 0, 0.5, 0); b.box('fabric', '#8a1a24', 0.13, 0.07, 0.1, 2.3, 0.08, 7.22, 0, 0.5, 0);
-  b.cyl('fabric', '#d8c7a8', 0.06, 0.06, 0.2, 10, 2.0, 0.06, 3.2, 0, 0, HP); b.cyl('fabric', '#d8c7a8', 0.05, 0.05, 0.08, 10, 2.14, 0.08, 3.2, 0, 0, HP);
-  // rechterwand: hoge zwarte kast met lichtgrijze randen en glazen deuren in de sprong van de wand (x 3.05–3.6, z 2.95–3.8)
-  b.box('solid', '#121214', 0.55, 0.76, 0.85, 3.325, 0.38, 3.365);
-  b.box('solid', '#121214', 0.04, 1.2, 0.85, 3.58, 1.36, 3.365); b.box('solid', '#121214', 0.55, 0.04, 0.85, 3.325, 1.94, 3.365);
-  for (const z of [2.955, 3.775]) { b.box('solid', '#121214', 0.55, 1.2, 0.03, 3.325, 1.36, z); b.box('solid', '#c9cacc', 0.01, 1.2, 0.03, 3.052, 1.36, z); }
-  b.box('solid', '#c9cacc', 0.01, 0.04, 0.85, 3.052, 1.94, 3.365); b.box('solid', '#c9cacc', 0.01, 0.76, 0.02, 3.052, 0.38, 2.96); b.box('solid', '#c9cacc', 0.01, 0.76, 0.02, 3.052, 0.38, 3.77);
-  for (const y of [1.14, 1.52]) b.box('solid', '#1b1b1e', 0.5, 0.02, 0.78, 3.33, y, 3.365);
-  b.box('glow', '#1e4a8a', 0.2, 0.26, 0.004, 3.3, 1.35, 3.1); b.box('glow', '#7fb8e8', 0.08, 0.04, 0.004, 3.26, 1.42, 3.102);              // verlicht blauw plaatje
-  [['#2f6bff', 3.5, 1.21], ['#e8e8e8', 3.3, 0.88], ['#f0b429', 3.55, 1.6], ['#2bd17e', 3.25, 1.6]].forEach(([c, z, y]) => b.box('solid', c, 0.12, 0.12, 0.08, 3.4, y + 0.06, z));
-  b.cyl('solid', '#1a3a8a', 0.035, 0.035, 0.26, 10, 3.45, 1.3, 3.6);
-  b.box('glass', '#a8c0d0', 0.004, 1.16, 0.8, 3.056, 1.36, 3.365); b.box('solid', '#1a1a1d', 0.01, 1.16, 0.02, 3.054, 1.36, 3.365);
-  b.box('solid', '#1a1a1d', 0.56, 0.02, 0.86, 3.325, 0.77, 3.365);
-  b.box('solid', '#ececea', 0.42, 0.3, 0.46, 3.33, 2.11, 3.25); b.box('solid', '#c0392b', 0.42, 0.08, 0.462, 3.33, 2.2, 3.25); b.box('solid', '#1d1d20', 0.4, 0.06, 0.3, 3.32, 1.99, 3.65);
-  // zwart ladenblok (2 kolommen × 3 laden naar de kamer) met printer, laptop, bidon, deo, luchtreiniger, toetsenbord en etui erop
+  // bureau: zwart blad met lichtgrijze rand op een lichtgrijs zit-sta-frame (twee T-poten met voeten dwars op de muur, dwarsbalk, kabelgoot)
+  const DK = '#141416', FR = '#a3a6ab', DX = 0.39, DZ = 5.02;
+  b.box('solid', DK, 0.72, 0.025, 1.45, DX, 0.735, DZ);
+  b.box('metal', FR, 0.014, 0.025, 1.45, 0.757, 0.735, DZ); b.box('metal', FR, 0.72, 0.025, 0.014, DX, 0.735, 5.752); b.box('metal', FR, 0.72, 0.025, 0.014, DX, 0.735, 4.288);
+  for (const z of [4.5, 5.55]) { b.box('metal', FR, 0.075, 0.42, 0.075, DX, 0.25, z); b.box('metal', FR, 0.06, 0.28, 0.06, DX, 0.6, z); b.box('metal', FR, 0.62, 0.04, 0.07, DX, 0.02, z); b.box('metal', FR, 0.05, 0.03, 0.3, DX, 0.705, z); }
+  b.box('metal', FR, 0.05, 0.05, 0.8, DX, 0.66, DZ); b.box('solid', '#1b1b1e', 0.3, 0.08, 1.0, 0.2, 0.68, DZ);
+  // op het bureau: witte controller, donkerrode muismat, muis met blauw lampje, papier (de mok komt van de host: H.coffee.mug, je kunt eruit drinken)
+  b.box('solid', '#e8e8ea', 0.1, 0.05, 0.16, 0.5, 0.775, 5.62, 0, 0.5, 0);
+  b.box('fabric', '#4d1a1e', 0.38, 0.004, 0.45, 0.5, 0.75, 5.28); for (let i = 0; i < 12; i++) b.box('fabric', '#7a3a2a', 0.02, 0.001, 0.02, 0.34 + hash(i, 1, 31) * 0.3, 0.7525, 5.08 + hash(i, 2, 31) * 0.4);
+  b.box('solid', '#1a1a1d', 0.1, 0.03, 0.06, 0.62, 0.766, 5.22); b.box('glow', '#3a7bff', 0.05, 0.004, 0.004, 0.62, 0.783, 5.2);
+  b.box('solid', '#f2f2ee', 0.3, 0.003, 0.21, 0.3, 0.75, 4.78, 0, 0.1, 0);
+  // monitor 1 (27", op het hal-einde, naar de stoel en iets naar de kamer gedraaid)
+  const R1 = HP - 0.6;
+  monitor(b, 0.597, 0.336, 0.25, 0.98, 5.32, R1, 0.748, false);
+  // glazen pc op het tuin-einde van het bureau; het 32"-scherm (uit) aan een wandarm erboven, zijn onderrand achter de pc
+  glassPc(T, b, 0.35, 0.75, 4.55);
+  const R2 = HP - 0.15;
+  monitor(b, 0.705, 0.397, 0.1, 1.32, 4.6, R2, null, false); b.box('solid', '#08080a', 0.7, 0.39, 0.002, 0.1 + Math.sin(R2) * 0.002, 1.32, 4.6 + Math.cos(R2) * 0.002, 0, R2, 0);
+  b.box('metal', '#232326', 0.1, 0.04, 0.04, 0.05, 1.32, 4.6); b.box('metal', '#232326', 0.02, 0.2, 0.12, 0.01, 1.32, 4.6);
+  // tweede toren op zijn kastje net voorbij het bureau (z 3.95-4.25), glas naar de hal
+  tower2(b, 0.3, 0.75, 4.1);
+  // rig: haaks op de muur, piloot kijkt naar de muur (-x); simscherm hoog op een voet tegen de muur, onder de posters
+  rig(T, b, 1.2, 3.2, HP);
+  b.box('metal', '#1d1d20', 0.26, 0.02, 0.3, 0.14, 0.01, 3.2); b.cyl('metal', '#1d1d20', 0.018, 0.018, 1.05, 10, 0.04, 0.53, 3.2);
+  monitor(b, 0.705, 0.397, 0.075, 1.25, 3.2, HP, null, false);
+  // draadkruk naast de rig (kamerkant), hondenbed voor het tuin-einde van het bureau, gamestoel voor het bureau (kijkt naar het bureau)
+  wireStool(T, b, 1.55, 3.75);
+  roundBed(b, 1.6, 4.4, 0.42);
+  gamingChair(b, 1.1, 5.2, HP);
+  // kabels (zwarte slierten onder het bureau), rode pantoffel in het looppad (buiten de deurzwaai), beige knuffel bij de bank
+  for (let i = 0; i < 4; i++) b.box('solid', '#0c0c0e', 0.012, 0.012, 0.9 + hash(i, 1, 21) * 0.3, 0.25 + hash(i, 2, 21) * 0.35, 0.012, 5.0, 0, hash(i, 3, 21) * 0.3 - 0.15, 0);
+  b.box('fabric', '#8a1a24', 0.27, 0.05, 0.11, 2.3, 0.025, 6.75, 0, 0.5, 0); b.box('fabric', '#8a1a24', 0.13, 0.07, 0.1, 2.35, 0.08, 6.72, 0, 0.5, 0);
+  b.cyl('fabric', '#d8c7a8', 0.06, 0.06, 0.2, 10, 2.2, 0.06, 2.7, 0, 0, HP); b.cyl('fabric', '#d8c7a8', 0.05, 0.05, 0.08, 10, 2.34, 0.08, 2.7, 0, 0, HP);
+  // rechterwand: hoge zwarte open kast met lichtgrijze randen in de sprong van de wand (x 3.05-3.6, z 2.95-3.8): boeken, dozen, lijst, spel bovenop
+  const SX = 3.325, SZ = 3.365, LT = '#c9cacc';
+  b.box('solid', '#121214', 0.55, 0.06, 0.85, SX, 0.03, SZ); b.box('solid', '#121214', 0.03, 1.98, 0.85, 3.585, 0.99, SZ);
+  for (const z of [2.955, 3.775]) { b.box('solid', '#121214', 0.55, 1.98, 0.03, SX, 0.99, z); b.box('solid', LT, 0.012, 1.98, 0.03, 3.054, 0.99, z); }
+  b.box('solid', '#121214', 0.55, 0.03, 0.85, SX, 1.985, SZ); b.box('solid', LT, 0.012, 0.03, 0.85, 3.054, 1.985, SZ);
+  for (const y of [0.42, 0.82, 1.22, 1.62]) { b.box('solid', '#121214', 0.52, 0.02, 0.79, SX, y, SZ); b.box('solid', LT, 0.012, 0.02, 0.79, 3.054, y, SZ); }
+  b.box('solid', '#b08a5a', 0.3, 0.22, 0.34, 3.42, 0.17, 3.2); b.box('solid', '#9a7a4e', 0.3, 0.12, 0.22, 3.42, 0.12, 3.6); b.box('solid', '#2a2a2e', 0.26, 0.05, 0.2, 3.4, 0.085, 3.6, 0, 0.2, 0);
+  [['#6b4a3a', 0.24], ['#2f4a6b', 0.26], ['#8a8a80', 0.22], ['#4a6b4a', 0.25], ['#b5a27a', 0.23], ['#3a3a3e', 0.27], ['#7a3a3a', 0.21], ['#5a6b8a', 0.24], ['#d9d0b8', 0.22]]
+    .forEach(([c, h], i) => b.box('solid', c, 0.2, h, 0.035 + hash(i, 1, 51) * 0.02, 3.42, 0.43 + h / 2, 3.03 + i * 0.05));
+  b.box('solid', '#1d1d20', 0.26, 0.3, 0.45, 3.44, 0.98, 3.2); b.box('solid', '#d9d0b8', 0.02, 0.26, 0.4, 3.3, 0.98, 3.2);
+  [['#8a8a80', 0.18], ['#2f4a6b', 0.22], ['#b5a27a', 0.2], ['#3a3a3e', 0.24]].forEach(([c, h], i) => b.box('solid', c, 0.2, h, 0.04, 3.42, 0.83 + h / 2, 3.52 + i * 0.055));
+  b.box('solid', '#111114', 0.02, 0.42, 0.32, 3.5, 1.45, 3.5, 0, 0, 0.12); b.box('solid', '#e8e4da', 0.004, 0.36, 0.26, 3.489, 1.45, 3.5, 0, 0, 0.12); b.box('solid', '#4a6b8a', 0.004, 0.2, 0.18, 3.486, 1.42, 3.5, 0, 0, 0.12);
+  b.box('solid', '#b08a5a', 0.26, 0.2, 0.2, 3.44, 1.33, 3.12); b.box('fabric', '#2c4a3e', 0.18, 0.16, 0.18, 3.44, 1.31, 3.66);
+  b.box('solid', '#1a1a1d', 0.18, 0.3, 0.14, 3.44, 1.78, 3.62); b.box('solid', '#d9d0b8', 0.004, 0.24, 0.1, 3.349, 1.78, 3.62);
+  for (let i = 0; i < 3; i++) b.box('solid', ['#2f4a6b', '#7a3a3a', '#8a8a80'][i], 0.16, 0.12, 0.04, 3.4, 1.69, 3.1 + i * 0.05);
+  b.box('solid', '#2a2a2e', 0.04, 0.3, 0.24, 3.33, 2.15, 3.3, 0, 0, -0.12); b.box('solid', '#e4e0d4', 0.004, 0.26, 0.2, 3.308, 2.15, 3.3, 0, 0, -0.12); b.box('solid', '#c0392b', 0.004, 0.06, 0.2, 3.307, 2.25, 3.3, 0, 0, -0.12);
+  b.box('solid', '#1d1d20', 0.3, 0.06, 0.36, 3.42, 2.03, 3.6);
+  // zwart ladenblok (2 kolommen x 3 laden naar de kamer) met printer, laptop, bidon, deo, luchtreiniger, toetsenbord en etui erop
   b.box('solid', '#141416', 0.52, 0.72, 1.05, 2.74, 0.36, 5.475); b.box('solid', '#1b1b1e', 0.53, 0.02, 1.06, 2.74, 0.725, 5.475);
   for (let r = 0; r < 3; r++) for (const z of [5.21, 5.74]) { b.box('solid', '#1b1b1e', 0.01, 0.2, 0.5, 2.477, 0.14 + r * 0.23, z); b.box('metal', '#c8cacf', 0.008, 0.012, 0.16, 2.47, 0.14 + r * 0.23, z); }
   b.box('solid', '#eeeeee', 0.4, 0.28, 0.4, 2.78, 0.875, 5.15); b.box('solid', '#3a3b40', 0.38, 0.06, 0.32, 2.78, 1.045, 5.15); b.box('solid', '#dcdcdc', 0.28, 0.02, 0.18, 2.72, 0.89, 4.93); b.box('solid', '#c0392b', 0.03, 0.03, 0.002, 2.6, 0.9, 5.351); b.box('glow', '#4aa3ff', 0.004, 0.004, 0.004, 2.58, 0.98, 5.1);
@@ -824,28 +837,30 @@ function buildHuidig(T, b) {
   b.box('solid', '#111114', 0.012, 0.18, 0.25, 0, 0, 0); b.box('glow', '#16203a', 0.003, 0.165, 0.235, 0.007, 0, 0);
   for (let i = 0; i < 8; i++) b.box('glow', i % 3 ? '#4f8fe6' : '#e6eef8', 0.002, 0.012 + hash(i, 1, 41) * 0.03, 0.025, 0.009, -0.03 + hash(i, 2, 41) * 0.05, -0.095 + i * 0.028);
   b.pop();
-  const sn = Math.sin(PI / 4) * 0.012, cs = Math.cos(PI / 4) * 0.012;
+  // landkaart (pastel, zonder tekst) in een zwarte lijst op de rechterwand naast het ladenblok (achterhal_1.jpg)
+  b.box('solid', '#111114', 0.016, 0.98, 0.7, 3.0, 1.55, 4.5);
   return {
-    stream: [0.5 + Math.sin(0.3) * 0.012, 1.0, 5.6 + Math.cos(0.3) * 0.012, 0.3], sim: [0.46 + sn, 1.1, 4.45 + cs, PI / 4],
-    pc: [[0.42, 0.59, 4.78, 0.46, 0.48, 0.25], [0.95, 0.98, 4.2, 0.47, 0.46, 0.22]],
-    spill: [[0.7, 0.42, 0.5, 0.75, 5.85, -HP, 0, 'warm'], [1.3, 1.0, 0.012, 0.9, 4.7, 0, HP, 'rgb']],
-    cols: [[0, 1.28, 5.45, 6.3], [0, 0.72, 4.45, 5.1], [0.68, 1.22, 4.03, 4.38], [0.6, 2.0, 4.35, 5.65], [0.88, 1.32, 5.68, 6.12], [0.62, 1.38, 6.38, 7.1], [3.02, 3.62, 2.94, 3.8], [2.48, 3.0, 4.9, 6.42]],
-    dogBed: { x: 1.65, z: 6.3, r: 0.42, top: 0.16 }, chair: { x: 1.0, z: 6.75, y: 0.52 },
+    stream: [0.25 + Math.sin(R1) * 0.012, 0.98, 5.32 + Math.cos(R1) * 0.012, R1], sim: [0.087, 1.25, 3.2, HP],
+    pc: [[0.35, 0.99, 4.55, 0.46, 0.48, 0.25], [0.3, 0.98, 4.1, 0.47, 0.46, 0.22]],
+    spill: [[0.7, 0.42, 0.45, 0.75, 5.3, -HP, 0, 'warm'], [1.3, 1.0, 0.012, 0.9, 4.55, 0, HP, 'rgb']],
+    map: [2.992, 1.55, 4.5], mug: [0.6, 0.7485, 4.92],
+    cols: [[0, 0.8, 4.28, 5.76], [0, 0.58, 3.93, 4.28], [0.8, 1.42, 4.86, 5.54], [0, 1.52, 2.85, 3.92], [1.33, 1.77, 3.53, 3.97], [3.02, 3.62, 2.94, 3.8], [2.46, 3.0, 4.92, 6.4]],
+    dogBed: { x: 1.6, z: 4.4, r: 0.42, top: 0.16 }, chair: { x: 1.1, z: 5.2, y: 0.52 },
   };
 }
 
-/* ---------- andere stijlen: opgeruimde designerversie (eiken bureau, mesh-bureaustoel, één monitor, rig netjes achterin) ---------- */
+/* ---------- andere stijlen: opgeruimde designerversie (eiken bureau langs de muur, mesh-bureaustoel, één monitor, rig netjes achterin) ---------- */
 function buildTidy(T, b) {
-  b.box('wood', '#c9a977', 1.6, 0.03, 0.75, 0.405, 0.745, 5.8);
-  for (const z of [5.1, 6.5]) { for (const x of [0.1, 0.72]) b.box('gloss', '#e9e9e6', 0.04, 0.70, 0.04, x, 0.365, z); b.box('gloss', '#e9e9e6', 0.66, 0.03, 0.04, 0.41, 0.015, z); b.box('gloss', '#e9e9e6', 0.66, 0.03, 0.04, 0.41, 0.715, z); }
-  monitor(b, 0.597, 0.336, 0.33, 1.1, 5.8, HP, 0.76, true);
-  b.box('solid', '#15151a', 0.35, 0.38, 0.16, 0.3, 0.19, 5.15);
-  b.cyl('solid', '#1a1a1d', 0.07, 0.08, 0.02, 16, 0.2, 0.77, 5.2); b.box('solid', '#1a1a1d', 0.02, 0.38, 0.02, 0.2, 0.96, 5.2, 0, 0, -0.35); b.cyl('solid', '#1a1a1d', 0.05, 0.03, 0.08, 12, 0.33, 1.13, 5.2, 0, 0, 1.2); b.box('glow', '#ffd9a0', 0.03, 0.004, 0.03, 0.34, 1.09, 5.2);
-  b.cyl('solid', '#d8d4cc', 0.06, 0.05, 0.1, 12, 0.18, 0.81, 6.42); b.cyl('fabric', '#3f7a3a', 0.1, 0.06, 0.12, 10, 0.18, 0.92, 6.42);
-  b.cyl('solid', '#efefef', 0.04, 0.036, 0.095, 12, 0.55, 0.8, 6.2); b.box('solid', '#2b2b30', 0.2, 0.012, 0.27, 0.5, 0.766, 5.85);
-  b.box('solid', '#1a1a1d', 0.12, 0.018, 0.36, 0.5, 0.769, 5.5); b.box('solid', '#1a1a1d', 0.06, 0.03, 0.1, 0.62, 0.775, 5.8);
+  b.box('wood', '#c9a977', 0.72, 0.03, 1.5, 0.39, 0.745, 5.0);
+  for (const z of [4.45, 5.55]) { for (const x of [0.1, 0.68]) b.box('gloss', '#e9e9e6', 0.04, 0.70, 0.04, x, 0.365, z); b.box('gloss', '#e9e9e6', 0.62, 0.03, 0.04, 0.39, 0.015, z); b.box('gloss', '#e9e9e6', 0.62, 0.03, 0.04, 0.39, 0.715, z); }
+  monitor(b, 0.597, 0.336, 0.3, 1.1, 5.0, HP, 0.76, true);
+  b.box('solid', '#15151a', 0.16, 0.38, 0.35, 0.2, 0.19, 4.55);
+  b.cyl('solid', '#1a1a1d', 0.07, 0.08, 0.02, 16, 0.2, 0.77, 4.45); b.box('solid', '#1a1a1d', 0.02, 0.38, 0.02, 0.2, 0.96, 4.45, 0, 0, -0.35); b.cyl('solid', '#1a1a1d', 0.05, 0.03, 0.08, 12, 0.33, 1.13, 4.45, 0, 0, 1.2); b.box('glow', '#ffd9a0', 0.03, 0.004, 0.03, 0.34, 1.09, 4.45);
+  b.cyl('solid', '#d8d4cc', 0.06, 0.05, 0.1, 12, 0.18, 0.81, 5.6); b.cyl('fabric', '#3f7a3a', 0.1, 0.06, 0.12, 10, 0.18, 0.92, 5.6);
+  b.cyl('solid', '#efefef', 0.04, 0.036, 0.095, 12, 0.55, 0.8, 5.35); b.box('solid', '#2b2b30', 0.27, 0.012, 0.2, 0.5, 0.766, 5.0);
+  b.box('solid', '#1a1a1d', 0.36, 0.018, 0.12, 0.5, 0.769, 5.0); b.box('solid', '#1a1a1d', 0.1, 0.03, 0.06, 0.62, 0.775, 4.8);
   // mesh-bureaustoel, naar het bureau gekeerd
-  b.push(0.98, 0, 5.8, 0, HP, 0);
+  b.push(1.0, 0, 5.0, 0, HP, 0);
   for (let k = 0; k < 5; k++) { const a = k * PI * 2 / 5; b.box('solid', '#1a1a1d', 0.04, 0.03, 0.28, Math.sin(a) * 0.14, 0.06, Math.cos(a) * 0.14, 0, a, 0); b.cyl('solid', '#0e0e10', 0.025, 0.025, 0.03, 8, Math.sin(a) * 0.27, 0.03, Math.cos(a) * 0.27, 0, a, HP); }
   b.cyl('metal', '#2a2a2e', 0.025, 0.03, 0.36, 10, 0, 0.27, 0);
   b.box('fabric', '#3a3d44', 0.48, 0.07, 0.46, 0, 0.47, 0.02);
@@ -853,14 +868,33 @@ function buildTidy(T, b) {
   b.push(0, 0.5, 0.22, 0.12, 0, 0);
   b.box('fabric', '#2c2f36', 0.46, 0.6, 0.03, 0, 0.36, 0); b.box('solid', '#111113', 0.48, 0.62, 0.012, 0, 0.36, -0.012); b.box('solid', '#111113', 0.04, 0.3, 0.04, 0, 0.1, -0.02);
   b.pop(); b.pop();
-  // rig netjes achterin, scherm aan de muur
-  rig(T, b, 1.45, 4.1, HP);
-  monitor(b, 0.705, 0.397, 0.05, 1.45, 4.1, HP, null, false);
+  // rig netjes achterin, haaks op de muur, scherm aan de muur
+  rig(T, b, 1.2, 3.2, HP);
+  monitor(b, 0.705, 0.397, 0.05, 1.3, 3.2, HP, null, false);
   return {
-    stream: [0.342, 1.1, 5.8, HP], sim: [0.062, 1.45, 4.1, HP], pc: [[0.3, 0.19, 5.15, 0.35, 0.38, 0.16]],
-    spill: [[0.7, 0.42, 0.4, 0.764, 5.8, -HP, 0, 'warm'], [0.5, 0.5, 0.26, 0.764, 5.2, -HP, 0, 'lamp']],
-    cols: [[0, 0.82, 4.95, 6.65], [0.3, 1.8, 3.76, 4.7]], dogBed: null, chair: { x: 0.98, z: 5.8, y: 0.5 },
+    stream: [0.312, 1.1, 5.0, HP], sim: [0.062, 1.3, 3.2, HP], pc: [[0.2, 0.19, 4.55, 0.16, 0.38, 0.35]],
+    spill: [[0.7, 0.42, 0.4, 0.764, 5.0, -HP, 0, 'warm'], [0.5, 0.5, 0.26, 0.764, 4.45, -HP, 0, 'lamp']],
+    cols: [[0, 0.8, 4.28, 5.72], [0.75, 1.3, 4.72, 5.28], [0, 1.52, 2.85, 3.92]], dogBed: null, chair: { x: 1.0, z: 5.0, y: 0.5 },
   };
+}
+
+/* landkaart zonder tekst: pastel vlakken op een gejitterd raster, dunne grenzen, een paar blauwe lijnen, rij vlaggetjes onderaan */
+function mapTexture(T) {
+  const W = 256, H = 352, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'); g.fillStyle = '#f3efe4'; g.fillRect(0, 0, W, H);
+  const NX = 7, NY = 9, cw = (W - 24) / NX, ch = (H - 60) / NY, P = (i, j) => [12 + i * cw + (i && i < NX ? (hash(i, j, 61) - 0.5) * cw * 0.7 : 0), 12 + j * ch + (j && j < NY ? (hash(i, j, 62) - 0.5) * ch * 0.7 : 0)];
+  const PAL = ['#f4c7c3', '#f9e2a9', '#c9e4c5', '#bfd8ec', '#e4cdea', '#f6d5b5', '#d6e8d4', '#f2d7df', '#dcd6ef', '#cfe6e4'];
+  g.lineJoin = 'round'; g.strokeStyle = 'rgba(80,70,60,.55)'; g.lineWidth = 1;
+  for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
+    const q = [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)];
+    g.beginPath(); g.moveTo(q[0][0], q[0][1]); for (const [x, y] of q.slice(1)) g.lineTo(x, y); g.closePath();
+    g.fillStyle = PAL[(hash(i, j, 63) * PAL.length) | 0]; g.fill(); g.stroke();
+  }
+  g.strokeStyle = '#7fb0d8'; g.lineWidth = 1.5;
+  for (let k = 0; k < 3; k++) { let x = 40 + k * 70; g.beginPath(); g.moveTo(x, 12); for (let y = 40; y < H - 48; y += 28) { x += (hash(k, y, 64) - 0.5) * 36; g.lineTo(x, y); } g.stroke(); }
+  for (let i = 0; i < 12; i++) { g.fillStyle = PAL[(i * 3) % PAL.length]; g.fillRect(14 + i * 19.5, H - 36, 14, 10); g.fillStyle = ['#c0392b', '#2457c5', '#2e9c6a', '#f0b429'][i % 4]; g.fillRect(14 + i * 19.5, H - 26, 14, 8); }
+  g.strokeStyle = 'rgba(60,50,40,.6)'; g.lineWidth = 2; g.strokeRect(8, 8, W - 16, H - 16);
+  const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 
 function haloTexture(T) {
@@ -967,19 +1001,21 @@ export function install(H) {
   }
   const pcInteract = { room: ROOM_ID, on: () => pcOn, label: () => (pcOn ? 'pc uitzetten' : 'pc aanzetten'), act: () => setPc(!pcOn) };
 
-  let group = null, lay = null, builtStyle = null, cols = [], api = null;
+  let group = null, lay = null, builtStyle = null, cols = [], api = null, mapMesh = null;
   const styleOf = () => { try { return H.state?.style || 'huidig'; } catch (e) { return 'huidig'; } };
   function rebuild() {
     const style = styleOf(); if (group && style === builtStyle) return; builtStyle = style;
-    if (group) { group.traverse(o => { if (o.isMesh && o !== simScreen && o !== streamScreen) o.geometry.dispose(); }); group.removeFromParent(); }
+    if (group) { group.traverse(o => { if (o.isMesh && !o.userData.sharedGeo && o !== simScreen && o !== streamScreen && o !== mapMesh) o.geometry.dispose(); }); group.removeFromParent(); }
     if (H.colliders?.[0]) { for (const c of cols) { const i = H.colliders[0].indexOf(c); if (i >= 0) H.colliders[0].splice(i, 1); } }
     const b = makeBuilder(T);
     lay = style === 'huidig' ? buildHuidig(T, b) : buildTidy(T, b);
     group = b.build(mats); group.name = 'office-' + (style === 'huidig' ? 'huidig' : 'tidy');
     for (const [m, p] of [[simScreen, lay.sim], [streamScreen, lay.stream]]) { m.position.set(p[0], p[1], p[2]); m.rotation.set(0, p[3], 0); group.add(m); }
+    if (lay.map) { mapMesh ||= new T.Mesh(new T.PlaneGeometry(0.62, 0.9), new T.MeshStandardMaterial({ map: mapTexture(T), roughness: 0.5 })); mapMesh.name = 'office-map'; mapMesh.position.set(...lay.map); mapMesh.rotation.set(0, -HP, 0); group.add(mapMesh); }
     for (const [w, h, x, y, z, rx, ry, k] of lay.spill) { const m = new T.Mesh(new T.PlaneGeometry(w, h), spillMats[k]); m.position.set(x, y, z); m.rotation.set(rx, ry, 0); m.renderOrder = 2; m.name = 'office-spill'; group.add(m); }
     // turned so its +z (the side you aim from) faces the room (+x), like the glass front of the pc
     for (const [x, y, z, sx, sy, sz] of lay.pc) { const m = new T.Mesh(new T.BoxGeometry(sz, sy, sx), hitMat); m.position.set(x, y, z); m.rotation.y = HP; m.name = 'office-pc-hit'; m.userData.interact = pcInteract; group.add(m); }
+    if (lay.mug) H.coffee?.mug(group, ...lay.mug, ROOM_ID);
     cols = H.colliders?.[0] ? lay.cols.map(c => { const q = c.slice(); H.colliders[0].push(q); return q; }) : [];
     addToRoom(group); group.updateMatrixWorld(true);
     if (api) { api.group = group; api.dogBed = lay.dogBed; api.obstacles = lay.cols; api.chair = lay.chair; }
