@@ -720,6 +720,23 @@ function texReeds() {
   for (let i = 0; i < 40; i++) { const x = R() * S, w = 2 + R() * 5, v = R() < 0.5 ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.16)'; ctx.fillStyle = v; ctx.fillRect(x, 0, w, S); ctx.fillRect(x - S, 0, w, S); }
   return c;
 }
+// their duvet (photos sk1): beige with a pale paisley print
+function texPaisley() {
+  const S = 256, c = mkCanvas(S), ctx = c.getContext('2d'), R = rng(77);
+  ctx.fillStyle = '#cdbcae'; ctx.fillRect(0, 0, S, S);
+  const drop = (x, y, s, a, fill, line) => {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.scale(s, s); ctx.beginPath();
+    ctx.moveTo(0, -1); ctx.bezierCurveTo(1.1, -0.5, 0.9, 1.0, 0, 1.0); ctx.bezierCurveTo(-0.8, 1.0, -0.9, 0.2, -0.2, 0.0); ctx.bezierCurveTo(0.2, -0.2, 0.3, -0.6, 0, -1);
+    ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 0.12; ctx.strokeStyle = line; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0.25, 0.45, 0.28, 0, 6.283); ctx.fillStyle = line; ctx.fill(); ctx.restore();
+  };
+  for (let i = 0; i < 110; i++) {
+    const x = R() * S, y = R() * S, sc = 6 + R() * 8, a = R() * 6.283, light = R() < 0.6;
+    for (const dx of [-S, 0, S]) for (const dy of [-S, 0, S]) drop(x + dx, y + dy, sc, a, light ? 'rgba(232,222,211,.7)' : 'rgba(208,192,180,.75)', 'rgba(176,156,142,.35)');
+  }
+  for (let i = 0; i < 260; i++) { const x = R() * S, y = R() * S; ctx.fillStyle = R() < .5 ? 'rgba(240,232,222,.6)' : 'rgba(160,138,124,.35)'; ctx.fillRect(x, y, 2, 2); }
+  noise(ctx, S, 8, 79); return c;
+}
 function texLino() {
   const S = 1024, c = mkCanvas(S), ctx = c.getContext('2d'), R = rng(31);
   ctx.fillStyle = '#c3ad86'; ctx.fillRect(0, 0, S, S);
@@ -801,7 +818,7 @@ const T = {
   brick: canvasTex(texBrick(0), 0.88, 0.875), brick2: canvasTex(texBrick(1), 0.88, 0.875), roof: canvasTex(texRoof(), 1.5),
   grass: canvasTex(texGrass(), 2.5), paving: canvasTex(texTiles(4, () => [40, 5, 58], '#6f6c66', 4, 81), 1.2),
   fence: canvasTex(texBoards(25, 25, 24, 4), 0.6, 1.8), shed: canvasTex(texBoards(28, 20, 34, 5), 0.8, 2.4),
-  rug: canvasTex(texRug(), 0.7), reeds: canvasTex(texReeds(), 0.18), wicker: canvasTex(texWicker(), 0.16),
+  rug: canvasTex(texRug(), 0.7), reeds: canvasTex(texReeds(), 0.18), wicker: canvasTex(texWicker(), 0.16), paisley: canvasTex(texPaisley(), 0.5),
   asphalt: canvasTex((() => { const c = mkCanvas(256), x = c.getContext('2d'); x.fillStyle = '#44464a'; x.fillRect(0, 0, 256, 256); noise(x, 256, 30, 3); return c; })(), 1.5),
 };
 // procedural canvases are the fallback diffuse of each photo set until (unless) the jpg arrives
@@ -826,6 +843,7 @@ function bindSet(mat, set, o = {}) {
 const MSM = THREE.MeshStandardMaterial;
 const MAT = new Map();
 const STATIC_MAT = {
+  duvet: () => bindSet(new MSM({ map: T.paisley, roughness: 0.95 }), 'fabric', { ns: 0.7 }),
   brick: () => bindSet(new MSM({ roughness: 0.9 }), 'brick', { ns: 0.8 }), brick2: () => bindSet(new MSM({ color: '#d8cdc0', roughness: 0.9 }), 'brick', { ns: 0.8 }),
   plaster: () => bindSet(new MSM({ color: '#eeece6', roughness: 0.92 }), 'plaster', { ns: 0.45 }), ceiling: () => bindSet(new MSM({ color: '#f5f4f0', roughness: 0.95 }), 'plaster', { ns: 0.3 }),
   slab: () => new MSM({ color: '#a29f97', roughness: 1 }), trim: () => new MSM({ color: '#e7e5df', roughness: 0.7 }),
@@ -1629,14 +1647,14 @@ const P = {
   },
   // head end at -z. Rounded frame and mattress, a duvet that rolls over the mattress edge and hangs down, its top turned
   // back over the pillows, a plaid across the foot and a channel-tufted upholstered headboard
-  bed(f, w = 1.8, L = 2.1, base = 'wood') {
+  bed(f, w = 1.8, L = 2.1, base = 'wood', cover = 'bedding') {
     const T = 0.51, a = w / 2 - 0.04, r = 0.085, Y = T + 0.045, z0 = -L / 2 + 0.62, z1 = L / 2 - 0.04, W = w + 0.14;
     f.geo(base, gRBox(w + 0.06, 0.24, L + 0.06, 0.02), 0, 0.18, 0);
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.cyl(legMat(), sx * (w / 2 - 0.08), 0.03, sz * (L / 2 - 0.1), 0.025, 0.06, 10);
     f.geo('bedding', gRBox(w, 0.22, L - 0.04, 0.04), 0, T - 0.11, 0.02);
-    f.geo('bedding', gDrape({ a, z0, z1, r, ds: 0.2, rh: 0.022, seed: w, floor: 0.02 - Y }), 0, Y, 0);
-    f.geo('bedding', gDrape({ a, z0, z1: z0 + 0.32, r: r + 0.03, ds: 0.17, df: 0, rh: 0.028, seed: w + 2, floor: 0.02 - Y }), 0, Y + 0.03, 0);
-    f.geo('fab2', gDrape({ a, z0: z1 - 0.62, z1: z1 - 0.16, r: r + 0.02, ds: 0.3, df: 0, rh: 0.012, seed: w + 4, amp: 0.6, floor: 0.02 - Y }), 0, Y + 0.02, 0);
+    f.geo(cover, gDrape({ a, z0, z1, r, ds: 0.2, rh: 0.022, seed: w, floor: 0.02 - Y }), 0, Y, 0);
+    f.geo(cover, gDrape({ a, z0, z1: z0 + 0.32, r: r + 0.03, ds: 0.17, df: 0, rh: 0.028, seed: w + 2, floor: 0.02 - Y }), 0, Y + 0.03, 0);
+    if (cover === 'bedding') f.geo('fab2', gDrape({ a, z0: z1 - 0.62, z1: z1 - 0.16, r: r + 0.02, ds: 0.3, df: 0, rh: 0.012, seed: w + 4, amp: 0.6, floor: 0.02 - Y }), 0, Y + 0.02, 0);
     const pw = w > 1.7 ? 0.72 : 0.68, px = w > 1.7 ? 0.43 : 0.39;
     for (const sx of [-1, 1]) f.geo('bedding', gPillow(pw, 0.17, 0.5), sx * px, T + 0.125, -L / 2 + 0.31, 0.25, sx * 0.03, 0);
     if (state.style !== 'huidig') for (const sx of [-1, 1]) f.geo('fab2', gPillow(0.46, 0.13, 0.46, 0.05), sx * 0.26, T + 0.23, -L / 2 + 0.5, 1.1, -sx * 0.08, sx * 0.03);
@@ -1935,7 +1953,7 @@ const ITEMS = {
   ],
   entree: [['bank', 'Halbankje', 7.3, 9.9, HP, f => P.bench(f, 1.1)], ['kunst', 'Wandkunst', 7.08, 9.9, HP, f => P.art(f, 2, 0.6, 0.8, 1.55)], ['planten', 'Plant', 8.42, 11.05, 0, f => P.plant(f, 0.9)], ['hanglampen', 'Hanglamp', 7.65, 9.3, 0, f => P.pendant(f, 0.3)]],
   sk1: [
-    ['bed', 'Bed 180', 4.35, 6.4, HP, f => P.bed(f, 1.8, 2.1, state.style === 'huidig' ? 'dark' : 'wood')],
+    ['bed', 'Bed 180', 4.35, 6.4, HP, f => state.style === 'huidig' ? P.bed(f, 1.8, 2.1, 'dark', 'duvet') : P.bed(f, 1.8, 2.1)],
     ['ladekast', 'Ladekast + tv (nu)', 3.5, 5.95, HP, f => state.style === 'huidig' && P.dresser(f)], ['gordijnen', 'Gordijnen', 0, 0, 0, P.sk1Curtains], ['nachtkastjes', 'Nachtkastjes', 3.52, 5.05, HP, f => state.style === 'huidig' ? P.sideRound(f) : P.nightstand(f)],
     ['kast', 'Kledingkast', 4.5, 8.86, PI, f => P.wardrobe(f, 2.2)], ['kleed', 'Vloerkleed', 4.7, 6.4, 0, (f, r) => P.rug(f, r.id, 2.6, 2.6)],
     ['fauteuil', 'Fauteuil', 6.1, 4.85, -0.76, P.armchair], ['planten', 'Plant', 3.5, 4.5, 0, f => P.plant(f, 1)],
@@ -2120,8 +2138,21 @@ function buildFixtures() {
   for (let z = 0.85; z < 3.34; z += 0.625) bx(0, 'metal', 8.4, 8.415, 0.78, 0.8, z + 0.15, z + 0.47);
   addCol(0, 8.4, 9.0, 0.1, 3.95); addCol(0, 6.63, 9.0, 3.33, 3.95);
   // toilets
-  const toilet = (l, x, z, ry, mat = 'ceramic') => { const f = kit(AB, x, LV[l].floor, z, ry), c = k(l, mat); f.cyl(c, 0, 0.19, 0.04, 0.12, 0.38, 16, 0.14); f.sph(c, 0, 0.38, 0.1, 0.19, 0.06, 0.25); f.sph(c, 0, 0.43, 0.1, 0.2, 0.025, 0.26); f.box(c, 0, 0.62, -0.2, 0.38, 0.36, 0.16); f.box(k(l, 'steel'), 0, 0.81, -0.2, 0.08, 0.01, 0.05); };
-  toilet(0, 0.45, 8.83, PI); toilet(0, 8.62, 7.93, 0, 'ceramicBeige'); toilet(1, 8.78, 4.52, -HP);
+  // close-coupled toilet, back against the wall at local z -0.22: turned bowl on its foot, seat ring, lid (closed, or up
+  // against the cistern), cistern with a dual flush button
+  const gPan = GEO.toiletPan ||= new THREE.LatheGeometry([[0.105, 0], [0.105, 0.03], [0.1, 0.1], [0.11, 0.2], [0.14, 0.28], [0.17, 0.34], [0.183, 0.375], [0.182, 0.39],
+    [0.17, 0.397], [0.155, 0.392], [0.15, 0.375], [0.13, 0.33], [0.09, 0.27], [0.05, 0.23], [0.001, 0.22]].map(([r, y]) => new THREE.Vector2(r, y)), 40).scale(1, 1, 1.22);
+  const gSeat = GEO.seat ||= new THREE.TorusGeometry(0.148, 0.026, 10, 40).rotateX(HP).scale(1, 0.42, 1.22);
+  const toilet = (l, x, z, ry, mat = 'ceramic', lidUp = false) => {
+    const f = kit(AB, x, LV[l].floor, z, ry), c = k(l, mat), st = k(l, 'steel');
+    f.geo(c, gPan, 0, 0, 0.14); f.geo(c, gRBox(0.2, 0.3, 0.15, 0.04), 0, 0.17, -0.12);
+    f.geo(c, gSeat, 0, 0.405, 0.15); for (const sx of [-1, 1]) f.box(c, sx * 0.075, 0.41, -0.045, 0.035, 0.025, 0.04);
+    if (lidUp) f.sph(c, 0, 0.42 + 0.18 * Math.sin(1.66), -0.03 + 0.18 * Math.cos(1.66), 0.18, 0.014, 0.215, -1.66, 0, 0, 20); // turned up about the hinge
+    else f.sph(c, 0, 0.428, 0.15, 0.18, 0.014, 0.215, 0, 0, 0, 20);
+    f.geo(c, gRBox(0.36, 0.34, 0.15, 0.025), 0, 0.6, -0.145); f.geo(c, gRBox(0.38, 0.03, 0.17, 0.012), 0, 0.785, -0.145);
+    for (const sx of [-1, 1]) f.box(st, sx * 0.022, 0.801, -0.135, 0.04, 0.004, 0.05);
+  };
+  toilet(0, 0.45, 8.83, PI); toilet(0, 8.62, 7.93, 0, 'ceramicBeige', true); toilet(1, 8.78, 4.52, -HP);
   // basins (with mirror)
   const basin = (l, x, z, ry, w = 0.5, vanity = false) => {
     const f = kit(AB, x, LV[l].floor, z, ry), c = k(l, 'ceramic');
