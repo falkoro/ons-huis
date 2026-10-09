@@ -1385,6 +1385,19 @@ const gDrape = (o) => GEO['dr' + JSON.stringify(o)] ||= (() => {
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); g.setIndex(idx); g.computeVertexNormals(); return g;
 })();
+// curtain: a pleated sheet W wide and H tall, centred on the origin and facing ±z. The folds (wavelength lam, depth amp)
+// vary a little from fold to fold, open up and wander slightly towards the hem
+const gCurtain = (W, H, lam = 0.1, amp = 0.035, seed = 1) => GEO[`cu${W},${H},${lam},${amp},${seed}`] ||= (() => {
+  const nx = Math.ceil(W / lam * 10), ny = 16, pos = [], uvs = [], idx = [];
+  for (let j = 0; j <= ny; j++) for (let i = 0; i <= nx; i++) {
+    const x = -W / 2 + W * i / nx, y = H / 2 - H * j / ny, t = j / ny;
+    const a = amp * (0.72 + 0.28 * Math.sin(x * 5.3 + seed)) * (1 + 0.45 * t);
+    pos.push(x * (1 + 0.05 * t), y, a * Math.sin(2 * Math.PI * x / lam + 0.5 * t * Math.sin(x * 3.1 + seed))); uvs.push(x * 1.6, y);
+  }
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const p = j * (nx + 1) + i, q = p + nx + 1; idx.push(p, q, p + 1, p + 1, q, q + 1); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); g.setIndex(idx); g.computeVertexNormals(); return g;
+})();
 function kit(b, x, y, z, ry = 0) {
   const base = new THREE.Matrix4().compose(V(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), V(1, 1, 1)), m = new THREE.Matrix4();
   const place = (cx, cy, cz, rx, ryy, rz, sx, sy, sz) => m.compose(_p.set(cx, cy, cz), _q.setFromEuler(_eu.set(rx, ryy, rz)), _s.set(sx, sy, sz)).premultiply(base);
@@ -1394,6 +1407,8 @@ function kit(b, x, y, z, ry = 0) {
     sph(k, cx, cy, cz, sx, sy, sz, rx = 0, ryy = 0, rz = 0, seg = 14) { b.geo(k, gSph(seg), place(cx, cy, cz, rx, ryy, rz, sx, sy, sz)); },
     ico(k, cx, cy, cz, s) { b.geo(k, gIco(), place(cx, cy, cz, 0, 0, 0, s, s * 0.9, s)); },
     geo(k, g, cx, cy, cz, rx = 0, ryy = 0, rz = 0) { b.geo(k, g, place(cx, cy, cz, rx, ryy, rz, 1, 1, 1)); },
+    // upholstery: a box with rounded edges (radius from its thinnest side unless given), optionally tipped back by rx
+    soft(k, cx, cy, cz, sx, sy, sz, rot = 0, r = Math.min(0.06, Math.min(sx, sy, sz) * 0.3), rx = 0) { b.geo(k, gRBox(sx, sy, sz, Math.round(r * 1000) / 1000), place(cx, cy, cz, rx, rot, 0, 1, 1, 1)); },
   };
 }
 const legMat = () => ['industrieel', 'scandi'].includes(state.style) ? 'metal' : 'woodDark';
@@ -1401,19 +1416,19 @@ const P = {
   sofa(f, w = 2.2, d = 0.92) {
     const L = legMat();
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.cyl(L, sx * (w / 2 - 0.1), 0.06, sz * (d / 2 - 0.1), 0.02, 0.12, 8, 0.025);
-    f.box('fab', 0, 0.24, 0, w, 0.2, d);
-    f.box('fab', 0, 0.56, -d / 2 + 0.11, w, 0.46, 0.22);
-    for (const sx of [-1, 1]) f.box('fab', sx * (w / 2 - 0.09), 0.46, 0, 0.18, 0.3, d);
+    f.soft('fab', 0, 0.24, 0, w, 0.2, d, 0, 0.03);
+    f.soft('fab', 0, 0.56, -d / 2 + 0.11, w, 0.46, 0.22, 0, 0.07);
+    for (const sx of [-1, 1]) f.soft('fab', sx * (w / 2 - 0.09), 0.46, 0, 0.18, 0.3, d, 0, 0.07);
     const n = w > 1.6 ? 3 : 2, cw = (w - 0.36) / n;
-    for (let i = 0; i < n; i++) { const cx = -w / 2 + 0.18 + cw * (i + .5); f.box('fab', cx, 0.42, 0.08, cw - 0.02, 0.15, d - 0.26); f.box('fab', cx, 0.66, -d / 2 + 0.3, cw - 0.04, 0.38, 0.16, 0); }
-    f.box('fab2', -w / 2 + 0.36, 0.66, -d / 2 + 0.42, 0.4, 0.38, 0.12, 0.25); f.box('fab2', w / 2 - 0.36, 0.66, -d / 2 + 0.42, 0.4, 0.38, 0.12, -0.25);
+    for (let i = 0; i < n; i++) { const cx = -w / 2 + 0.18 + cw * (i + .5); f.soft('fab', cx, 0.42, 0.08, cw - 0.02, 0.15, d - 0.26, 0, 0.055); f.soft('fab', cx, 0.66, -d / 2 + 0.3, cw - 0.04, 0.38, 0.16, 0, 0.065, -0.12); }
+    for (const sx of [-1, 1]) f.geo('fab2', gPillow(0.42, 0.13, 0.42, 0.04), sx * (w / 2 - 0.36), 0.67, -d / 2 + 0.43, 1.25, sx * 0.12, 0);
   },
   armchair(f) {
     const L = legMat(), w = 0.82, d = 0.82;
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.cyl(L, sx * 0.32, 0.08, sz * 0.32, 0.018, 0.16, 8, 0.024);
-    f.box('leather', 0, 0.28, 0, w, 0.18, d); f.box('leather', 0, 0.42, 0.06, w - 0.3, 0.12, d - 0.2);
-    f.box('leather', 0, 0.62, -d / 2 + 0.09, w, 0.52, 0.18); for (const sx of [-1, 1]) f.box('leather', sx * (w / 2 - 0.07), 0.5, 0, 0.14, 0.26, d);
-    f.box('fab2', 0, 0.62, -d / 2 + 0.24, 0.36, 0.34, 0.1);
+    f.soft('leather', 0, 0.28, 0, w, 0.18, d, 0, 0.03); f.soft('leather', 0, 0.42, 0.06, w - 0.3, 0.12, d - 0.2, 0, 0.045);
+    f.soft('leather', 0, 0.62, -d / 2 + 0.09, w, 0.52, 0.18, 0, 0.06); for (const sx of [-1, 1]) f.soft('leather', sx * (w / 2 - 0.07), 0.5, 0, 0.14, 0.26, d, 0, 0.05);
+    f.geo('fab2', gPillow(0.36, 0.11, 0.34, 0.04), 0, 0.62, -d / 2 + 0.24, 1.25, 0, 0);
   },
   coffee(f, w = 1.1, d = 0.6) {
     f.box('wood', 0, 0.4, 0, w, 0.04, d); f.box('wood', 0, 0.12, 0, w - 0.1, 0.02, d - 0.1);
@@ -1560,14 +1575,14 @@ const P = {
   // dark-grey L-shaped corner sofa in the back-left corner; Gemma's blanket on the long side
   cornerSofa(f) {
     const nu = state.style === 'huidig', fab = nu ? 'sofaDark' : 'fab', fab2 = nu ? 'sofaCush' : 'fab2';
-    f.box('dark', 0.5, 0.04, 1.45, 0.86, 0.08, 2.06); f.box(fab, 0.5, 0.22, 1.45, 0.9, 0.28, 2.1);
-    f.box(fab, 0.16, 0.58, 1.45, 0.22, 0.44, 2.1); f.box(fab, 0.5, 0.5, 2.44, 0.9, 0.28, 0.12);
-    f.box(fab, 0.61, 0.42, 1.06, 0.66, 0.12, 0.86); f.box(fab, 0.61, 0.42, 1.94, 0.66, 0.12, 0.86);
-    f.box(fab, 0.34, 0.67, 1.06, 0.14, 0.36, 0.84); f.box(fab, 0.34, 0.67, 1.94, 0.14, 0.36, 0.84);
-    f.box('dark', 1.47, 0.04, 0.85, 1.06, 0.08, 0.86); f.box(fab, 1.475, 0.22, 0.85, 1.05, 0.28, 0.9);
-    f.box(fab, 1.135, 0.58, 0.51, 1.73, 0.44, 0.22); f.box(fab, 1.94, 0.5, 0.85, 0.12, 0.28, 0.9);
-    f.box(fab, 1.415, 0.42, 0.96, 0.92, 0.12, 0.68); f.box(fab, 1.415, 0.67, 0.69, 0.9, 0.36, 0.14);
-    f.box(fab2, 0.4, 0.67, 2.22, 0.12, 0.34, 0.36, 0.25); f.box(fab2, 1.72, 0.67, 0.76, 0.36, 0.34, 0.12, -0.25);
+    f.box('dark', 0.5, 0.04, 1.45, 0.86, 0.08, 2.06); f.soft(fab, 0.5, 0.22, 1.45, 0.9, 0.28, 2.1, 0, 0.03);
+    f.soft(fab, 0.16, 0.58, 1.45, 0.22, 0.44, 2.1, 0, 0.07); f.soft(fab, 0.5, 0.5, 2.44, 0.9, 0.28, 0.12, 0, 0.05);
+    f.soft(fab, 0.61, 0.42, 1.06, 0.66, 0.12, 0.86, 0, 0.045); f.soft(fab, 0.61, 0.42, 1.94, 0.66, 0.12, 0.86, 0, 0.045);
+    f.soft(fab, 0.34, 0.67, 1.06, 0.14, 0.36, 0.84, 0, 0.055); f.soft(fab, 0.34, 0.67, 1.94, 0.14, 0.36, 0.84, 0, 0.055);
+    f.box('dark', 1.47, 0.04, 0.85, 1.06, 0.08, 0.86); f.soft(fab, 1.475, 0.22, 0.85, 1.05, 0.28, 0.9, 0, 0.03);
+    f.soft(fab, 1.135, 0.58, 0.51, 1.73, 0.44, 0.22, 0, 0.07); f.soft(fab, 1.94, 0.5, 0.85, 0.12, 0.28, 0.9, 0, 0.05);
+    f.soft(fab, 1.415, 0.42, 0.96, 0.92, 0.12, 0.68, 0, 0.045); f.soft(fab, 1.415, 0.67, 0.69, 0.9, 0.36, 0.14, 0, 0.055);
+    f.geo(fab2, gPillow(0.4, 0.13, 0.4, 0.04), 0.4, 0.67, 2.22, 0, 0.12, -1.25); f.geo(fab2, gPillow(0.4, 0.13, 0.4, 0.04), 1.72, 0.67, 0.76, 1.25, -0.12, 0);
     f.box('blanket', 0.62, 0.485, 1.98, 0.6, 0.012, 0.74);
   },
   // black shelving + low cabinet + tv against the x = 3.62 wall
@@ -1586,14 +1601,12 @@ const P = {
   curtains(f) {
     const nu = state.style === 'huidig';
     f.box('dark', 1.81, 2.465, 0.1, 3.52, 0.022, 0.022);
-    for (const [xa, xb] of [[0.05, 0.62], [2.84, 3.57]]) {
-      const n = Math.round((xb - xa) / 0.07), w = (xb - xa) / n;
-      for (let i = 0; i < n; i++) f.box(nu ? 'curtainDay' : 'curtain', xa + (i + 0.5) * w, 1.235, 0.095 + (i % 2 ? 0.022 : -0.016), w * 1.08, 2.43, 0.03);
-    }
-    if (nu) for (const [xa, xb] of [[0.05, 1.75], [1.87, 3.57]]) { // drawn: two panels with a small gap, softly pleated
-      const n = Math.round((xb - xa) / 0.11), w = (xb - xa) / n;
-      for (let i = 0; i < n; i++) f.box('curtainEve', xa + (i + 0.5) * w, 1.235, 0.11 + (i % 2 ? 0.018 : -0.012), w * 1.12, 2.43, 0.025);
-    }
+    P.hang(f, nu ? 'curtainDay' : 'curtain', 0.1, 1.235, 2.43, [[0.05, 0.62], [2.84, 3.57]]);
+    if (nu) P.hang(f, 'curtainEve', 0.115, 1.235, 2.43, [[0.05, 1.75], [1.87, 3.57]], 0.17, 0.026); // drawn: two panels with a small gap, softly pleated
+  },
+  // curtains hanging from a rail at z: one pleated sheet per span [xa, xb], centred at height yc
+  hang(f, mat, z, yc, h, spans, lam = 0.1, amp = 0.035) {
+    spans.forEach(([xa, xb], i) => f.geo(mat, gCurtain(+(xb - xa).toFixed(3), h, lam, amp, i + 1), (xa + xb) / 2, yc, z));
   },
   // "Huidig" zitkamer (photos): three framed posters on the x = 0 wall, RGB washes, black two-tier side table by the window
   posters(f) {
@@ -1656,19 +1669,25 @@ const P = {
   // woonkamer (photos): long linen curtains drawn open either side of the garden window, rail just under the ceiling
   gardenCurtains(f) {
     const z = 0.12; f.box('dark', 5.15, 2.44, z, 2.8, 0.022, 0.022);
-    for (const [xa, xb] of [[3.74, 4.22], [6.08, 6.55]]) {
-      const n = Math.round((xb - xa) / 0.07), w = (xb - xa) / n;
-      for (let i = 0; i < n; i++) f.box('curtain', xa + (i + 0.5) * w, 1.225, z + (i % 2 ? 0.022 : -0.016), w * 1.08, 2.41, 0.03);
-    }
+    P.hang(f, 'curtain', z, 1.225, 2.41, [[3.74, 4.22], [6.08, 6.55]]);
   },
-  // sk1 (photos, "Huidig"): dark navy curtains drawn open on both sides of the window, rail below the ceiling
+  // sk1 (photos, "Huidig"): dark navy curtains drawn open on both sides of the window, rail below the ceiling; the
+  // other styles get linen ones in the same place
   sk1Curtains(f) {
     const z = 4.31; f.box('dark', 5.08, 2.3, z, 3.0, 0.022, 0.022);
-    for (const [xa, xb] of [[3.58, 4.08], [6.1, 6.56]]) {
-      const n = Math.round((xb - xa) / 0.07), w = (xb - xa) / n;
-      for (let i = 0; i < n; i++) f.box('curtainDark', xa + (i + 0.5) * w, 1.15, z + (i % 2 ? 0.022 : -0.016), w * 1.08, 2.28, 0.03);
-    }
+    P.hang(f, state.style === 'huidig' ? 'curtainDark' : 'curtain', z, 1.15, 2.28, [[3.58, 4.08], [6.1, 6.56]]);
   },
+  // linen roman blind (vouwgordijn) on the wall over a window, half a metre down: flat cloth, then the soft folds
+  // stacked at the bottom. dir: which side of the wall plane z the room is on
+  blind(f, x0, x1, z, top, drop, dir) {
+    const W = x1 - x0, xc = (x0 + x1) / 2, h = drop - 0.2;
+    f.soft('curtain', xc, top - 0.025, z + dir * 0.03, W, 0.05, 0.05, 0, 0.012);
+    f.box('curtain', xc, top - 0.05 - h / 2, z + dir * 0.012, W, h, 0.006);
+    for (let k = 0; k < 3; k++) f.soft('curtain', xc, top - 0.05 - h - 0.035 - k * 0.05, z + dir * (0.028 + k * 0.006), W - 0.004, 0.072, 0.05 + k * 0.01, 0, 0.024);
+  },
+  // sk2: two blinds over the front window (z = 12.25; desk and wardrobe stand in the piers); sk3: one in the dormer
+  sk2Blinds(f) { for (const [a, b] of [[3.92, 5.25], [5.25, 6.58]]) P.blind(f, a, b, 12.25, 2.3, 0.5, -1); },
+  sk3Blinds(f) { P.blind(f, 4.17, 5.8, 4.55, 2.08, 0.45, 1); },
   // recessed downlights in the ceiling (2.51)
   downlights(f) {
     for (const [x, z] of [[0.7, 0.9], [1.75, 0.9], [2.8, 0.9], [0.7, 2.3], [1.75, 2.3], [2.8, 2.3], [0.7, 3.5], [1.75, 3.5], [2.8, 3.4], [2.1, 6.9]]) {
@@ -1707,7 +1726,7 @@ const ITEMS = {
   entree: [['bank', 'Halbankje', 7.3, 9.9, HP, f => P.bench(f, 1.1)], ['kunst', 'Wandkunst', 7.08, 9.9, HP, f => P.art(f, 2, 0.6, 0.8, 1.55)], ['planten', 'Plant', 8.42, 11.05, 0, f => P.plant(f, 0.9)], ['hanglampen', 'Hanglamp', 7.65, 9.3, 0, f => P.pendant(f, 0.3)]],
   sk1: [
     ['bed', 'Bed 180', 4.35, 6.4, HP, f => P.bed(f, 1.8, 2.1, state.style === 'huidig' ? 'dark' : 'wood')],
-    ['ladekast', 'Ladekast + tv (nu)', 3.5, 5.95, HP, f => state.style === 'huidig' && P.dresser(f)], ['gordijnen', 'Gordijnen (nu)', 0, 0, 0, f => state.style === 'huidig' && P.sk1Curtains(f)], ['nachtkastjes', 'Nachtkastjes', 3.52, 5.05, HP, P.nightstand],
+    ['ladekast', 'Ladekast + tv (nu)', 3.5, 5.95, HP, f => state.style === 'huidig' && P.dresser(f)], ['gordijnen', 'Gordijnen', 0, 0, 0, P.sk1Curtains], ['nachtkastjes', 'Nachtkastjes', 3.52, 5.05, HP, P.nightstand],
     ['kast', 'Kledingkast', 4.5, 8.86, PI, f => P.wardrobe(f, 2.2)], ['kleed', 'Vloerkleed', 4.7, 6.4, 0, (f, r) => P.rug(f, r.id, 2.6, 2.6)],
     ['fauteuil', 'Fauteuil', 6.1, 4.85, -0.76, P.armchair], ['planten', 'Plant', 3.5, 4.5, 0, f => P.plant(f, 1)],
     ['hanglampen', 'Hanglamp', 4.9, 6.4, 0, f => P.pendant(f, 0.55, 2.38)], ['kunst', 'Wandkunst', 3.26, 6.4, HP, f => P.art(f, 4, 1.0, 0.7, 1.55)],
@@ -1717,12 +1736,14 @@ const ITEMS = {
     ['bureau', 'Bureau + stoel', 3.6, 11.72, HP, f => P.desk(f, 1.0, 0.6)], ['kast', 'Kledingkast', 6.65, 11.3, -HP, f => P.wardrobe(f, 1.8)],
     ['kleed', 'Vloerkleed', 4.6, 10.9, 0, (f, r) => P.rug(f, r.id, 2.2, 1.8)], ['planten', 'Plant', 5.95, 11.95, 0, f => P.plant(f, 0.9)],
     ['hanglampen', 'Hanglamp', 4.6, 10.6, 0, f => P.pendant(f, 0.55, 2.38)], ['kunst', 'Wandkunst', 4.6, 9.29, 0, f => P.art(f, 5, 0.9, 0.6, 1.6)],
+    ['gordijnen', 'Vouwgordijnen', 0, 0, 0, P.sk2Blinds],
   ],
   sk3: [
     ['bed', 'Bed 160', 4.35, 8.23, HP, f => P.bed(f, 1.6, 2.0)], ['nachtkastjes', 'Nachtkastjes', 3.5, 7.2, HP, P.nightstand],
     ['bureau', 'Bureau in dakkapel', 4.98, 4.95, 0, f => P.desk(f, 1.3, 0.6)], ['kleed', 'Vloerkleed', 4.8, 8.23, 0, (f, r) => P.rug(f, r.id, 2.6, 2.2)],
     ['planten', 'Plant', 6.5, 9.9, 0, f => P.plant(f, 0.9)], ['vloerlamp', 'Vloerlamp', 6.5, 6.5, 0, P.floorlamp],
     ['hanglampen', 'Hanglamp', 5.0, 8.23, 0, f => P.pendant(f, 0.45, 2.63)], ['kunst', 'Wandkunst', 3.26, 8.23, HP, f => P.art(f, 6, 0.8, 0.8, 1.75)],
+    ['gordijnen', 'Vouwgordijn', 0, 0, 0, P.sk3Blinds],
   ],
   badkamer: [['planten', 'Plant', 6.95, 7.85, 0, f => P.plant(f, 0.7)]],
   zolderL: [
