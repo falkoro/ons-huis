@@ -1945,6 +1945,48 @@ function buildRoomFurniture(id) {
 function buildAllFurniture() { for (const id in ITEMS) buildRoomFurniture(id); }
 
 /* ================= FIXED FITTINGS (kitchen, sanitary, appliances) ================= */
+/* ---------- mirrors: each one its own mesh, reflecting a cube capture of its own room taken from where you would stand in
+   front of it. The capture is box-projected onto the room's walls, so the reflection lines up with the real room as you move
+   instead of showing the sky. Re-captured every couple of seconds while you are near (doors, lamps, time of day). */
+const MIRRORS = [];
+function addMirror(l, x, z, ry, w, h = 0.7, yc = 1.55) {
+  const c = Math.cos(ry), s = Math.sin(ry), fl = LV[l].floor, room = roomAt(l, x + 0.3 * s, z + 0.3 * c);
+  const rt = new THREE.WebGLCubeRenderTarget(LOWQ ? 128 : 256, { type: THREE.HalfFloatType });
+  const U = { uBoxMin: { value: V(0, 0, 0) }, uBoxMax: { value: V(0, 0, 0) }, uCubePos: { value: V(x + 0.45 * s, fl + yc, z + 0.45 * c) } };
+  const rect = room && room.rects.find(q => x + 0.3 * s >= q[0] && x + 0.3 * s <= q[1] && z + 0.3 * c >= q[2] && z + 0.3 * c <= q[3]);
+  if (rect) { U.uBoxMin.value.set(rect[0], fl, rect[2]); U.uBoxMax.value.set(rect[1], LV[l].ceil, rect[3]); }
+  const mat = new MSM({ color: '#e8eef0', metalness: 1, roughness: 0.03, envMap: rt.texture });
+  mat.onBeforeCompile = function (sh, R) {
+    THREE.Material.prototype.onBeforeCompile.call(this, sh, R); // keep the post module's lighting patch
+    if (!rect) return;
+    Object.assign(sh.uniforms, U);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vMirW;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvMirW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vMirW; uniform vec3 uBoxMin, uBoxMax, uCubePos;')
+      .replace('#include <envmap_physical_pars_fragment>', THREE.ShaderChunk.envmap_physical_pars_fragment.replace('reflectVec = inverseTransformDirection( reflectVec, viewMatrix );',
+        'reflectVec = inverseTransformDirection( reflectVec, viewMatrix );\n{ vec3 bt = max((uBoxMax - vMirW) / reflectVec, (uBoxMin - vMirW) / reflectVec); reflectVec = vMirW + reflectVec * min(min(bt.x, bt.y), bt.z) - uCubePos; }'));
+  };
+  mat.customProgramCacheKey = () => 'mirror|' + THREE.Material.prototype.onBeforeCompile.name;
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.012), mat);
+  m.position.set(x + 0.006 * s, fl + yc, z + 0.006 * c); m.rotation.y = ry; m.receiveShadow = true; G[l].main.add(m);
+  MIRRORS.push({ l, m, rt, U, cam: new THREE.CubeCamera(0.03, 40, rt), at: -1e9 });
+}
+function captureMirror(M) {
+  const vis = G.map(g => [g.main.visible, g.ceil.visible]), au = renderer.shadowMap.autoUpdate;
+  try {
+    G.forEach((g, i) => { g.main.visible = i <= M.l + 1; g.ceil.visible = true; });
+    M.m.visible = false; renderer.shadowMap.autoUpdate = false;
+    M.cam.position.copy(M.U.uCubePos.value); M.cam.update(renderer, scene);
+  } finally { G.forEach((g, i) => { g.main.visible = vis[i][0]; g.ceil.visible = vis[i][1]; }); M.m.visible = true; renderer.shadowMap.autoUpdate = au; }
+  M.at = performance.now();
+}
+// one capture per frame at most: first every mirror once, then the ones within reach every 2 s (4 s on phones)
+function mirrorTick() {
+  if (renderPaused || renderer.xr.isPresenting || frames < 8 || !MIRRORS.length) return;
+  const now = performance.now(), every = LOWQ ? 4000 : 2000;
+  const M = MIRRORS.find(M => M.at < 0) || MIRRORS.find(M => now - M.at > every && camera.position.distanceTo(M.m.position) < 4.5);
+  if (M) captureMirror(M);
+}
 function buildFixtures() {
   const k = (l, m) => K(l, 'main', m), bx = (l, m, ...a) => AB.box(k(l, m), ...a);
   // kitchen: right run, bottom run, tall fridge unit, uppers
@@ -1984,7 +2026,7 @@ function buildFixtures() {
     if (w > 0.55) { f.cyl(k(l, 'black'), e - 0.04, 0.96, 0.05, 0.028, 0.12, 14); f.cyl(k(l, 'steel'), e - 0.04, 1.03, 0.05, 0.008, 0.02, 8); f.box(k(l, 'steel'), e - 0.04, 1.04, 0.07, 0.01, 0.01, 0.04); // soap pump
       f.cyl(k(l, 'ceramic'), -e + 0.04, 0.95, 0.05, 0.032, 0.1, 14, 0.036); f.cyl(k(l, 'fruitGreen'), -e + 0.045, 1.03, 0.05, 0.005, 0.12, 6); f.cyl(k(l, 'plate'), -e + 0.035, 1.02, 0.045, 0.005, 0.12, 6); } // mug with toothbrushes
     if (vanity) f.box(k(l, 'front'), 0, 0.5, 0.2, w, 0.56, 0.42);
-    f.box(k(l, 'mirror'), 0, 1.55, 0.006, w + 0.1, 0.7, 0.012);
+    addMirror(l, x, z, ry, w + 0.1);
   };
   basin(0, 0.0, 8.15, HP, 0.36); basin(0, 9.0, 8.5, -HP, 0.36); basin(1, 6.68, 5.4, HP, 0.8, true); basin(1, 7.03, 11.25, HP, 0.6, true);
   // towel over the bathroom radiator, bath mat, toilet roll holders (on the walls without a door)
@@ -2488,7 +2530,7 @@ function applyStyle(id) {
   dogs                                    set by the dalmatian module below: { dogs, pet(obj), setObstacles(list), ... }
   Picking: one app-wide picker handles doors, klinken, floors, furniture and dogs; while measuring, call setInteractive(false).
 */
-const tickFns = new Set();
+const tickFns = new Set([mirrorTick]);
 let interactive = true, toastTimer = 0;
 function pickables() {
   const out = [];
