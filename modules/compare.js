@@ -1,6 +1,7 @@
 /* compare.js — "Nu ↔ Plan": foto van nu naast het plan (add-on voor de Ons Huis-walkthrough)
  *
- *  - Laadt photos/manifest.json (relatief aan de pagina). Bestaat dat niet (GitHub Pages), dan verschijnt er niets.
+ *  - Foto's alleen versleuteld: manifest.json en de jpg's komen via HOUSE.vault (modules/vault.js, vault/*.txt) na het wachtwoord.
+ *    Is er geen kluis of geen manifest, dan verschijnt er niets.
  *  - Knop "Nu ↔ Plan" in de gereedschapsstrip -> kiezer met de foto's van de huidige kamer (en de andere kamers).
  *  - Een foto kiezen tekent het live model (vloeren, kleuren, meubels van nu) vanuit de camerapositie van die foto,
  *    op de beeldverhouding van de foto, en toont beide schermvullend met een sleepbare scheidslijn:
@@ -15,7 +16,8 @@
  */
 
 const DEG = Math.PI / 180;
-const MANIFEST = 'photos/manifest.json';
+const MANIFEST = 'manifest.json';
+const vault = () => window.VAULT || window.HOUSE?.vault;
 const LS_WB = 'onshuis.compare.wb';
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -157,12 +159,13 @@ export function capture(H, pose, W, H_) {
 }
 
 /* ---------------- install ---------------- */
-export function install(H, photos, base) {
+export function install(H, photos) {
   if (!H || H.__compare) return H && H.__compare;
   injectCSS('cmp-style', CSS); injectWB();
   const rooms = Object.fromEntries((H.rooms || []).map(r => [r.id, r]));
   const roomName = id => rooms[id]?.name || id;
-  const list = photos.map((p, i) => ({ ...p, i, src: new URL(p.file, base).href }));
+  const list = photos.map((p, i) => ({ ...p, i, src: '' }));
+  const srcOf = p => vault().url(p.file).then(u => (p.src = u)); // decrypted blob URL, cached by the vault
   const root = document.getElementById('app') || document.body;
   const api = { photos: list, capture: (pose, w, h) => capture(H, pose, w, h), open: null, close: null, pick: null };
   H.__compare = api; H.compare = api;
@@ -180,7 +183,7 @@ export function install(H, photos, base) {
     <button type="button" class="x" data-a="close" aria-label="Kiezer sluiten">${ICON.close}</button></div><div class="bd"></div>`;
   root.append(pick);
   const pbd = pick.querySelector('.bd');
-  const card = p => `<button type="button" class="ph" data-i="${p.i}" title="${esc(roomName(p.room))} · ${esc(p.label)}"><img src="${esc(p.src)}" alt="" loading="lazy" decoding="async"><span>${esc(p.label)}</span></button>`;
+  const card = p => `<button type="button" class="ph" data-i="${p.i}" title="${esc(roomName(p.room))} · ${esc(p.label)}"><img alt="" decoding="async"><span>${esc(p.label)}</span></button>`;
   function renderPicker() {
     const cur = currentRoom(), here = list.filter(p => p.room === cur);
     const byRoom = new Map(); for (const p of list) if (p.room !== cur) { if (!byRoom.has(p.room)) byRoom.set(p.room, []); byRoom.get(p.room).push(p); }
@@ -189,6 +192,7 @@ export function install(H, photos, base) {
     for (const [rid, ps] of byRoom) h += `<section><h3>${esc(roomName(rid))}</h3><div class="grid">${ps.map(card).join('')}</div></section>`;
     h += `<p class="note">Kies een foto: het plan wordt vanuit hetzelfde standpunt getekend, met de vloeren, kleuren en meubels van nu.</p>`;
     pbd.innerHTML = h;
+    pbd.querySelectorAll('.ph').forEach(b => { const i = b.querySelector('img'), p = list[+b.dataset.i]; srcOf(p).then(u => { i.src = u; }, () => { }); });
   }
   let btn = null, pickOpen = false;
   function setPicker(on) {
@@ -256,7 +260,7 @@ export function install(H, photos, base) {
     if (document.pointerLockElement) document.exitPointerLock();
     cur = photo; lastFocus = document.activeElement;
     q('[data-o="room"]').textContent = roomName(photo.room); q('[data-o="label"]').textContent = photo.label;
-    img.src = photo.src; setWB(wb); setP(50);
+    img.removeAttribute('src'); srcOf(photo).then(u => { if (cur === photo) img.src = u; }, e => console.warn('[compare] foto', e)); setWB(wb); setP(50);
     if (canvas) { canvas.remove(); canvas = null; }
     view.hidden = false; document.documentElement.classList.add('cmp-open');
     wasInteractive = true; H.setInteractive?.(false);
@@ -327,17 +331,13 @@ function whenHouse(fn, timeoutMs = 60000) {
   go();
 }
 async function loadManifest() {
-  const url = new URL(MANIFEST, document.baseURI);
-  try {
-    const res = await fetch(url, { cache: 'no-cache' }); if (!res.ok) return null;
-    const ct = res.headers.get('content-type') || ''; const txt = await res.text();
-    if (/text\/html/i.test(ct) && !/^\s*[\[{]/.test(txt)) return null; // SPA fallbacks serve index.html for missing files
-    const data = JSON.parse(txt); return Array.isArray(data) && data.length ? { data, base: url } : null;
-  } catch (e) { return null; }
+  for (let n = 0; !vault() && n < 100; n++) await new Promise(r => setTimeout(r, 100));
+  const v = vault(); if (!v) return null;
+  try { await v.ready; const data = await v.json(MANIFEST); return Array.isArray(data) && data.length ? data : null; } catch (e) { return null; }
 }
 (async () => {
   if (typeof document === 'undefined') return;
   const m = await loadManifest();
-  if (!m) return; // no photos here (public site): no button
-  whenHouse(H => install(H, m.data, m.base));
+  if (!m) return; // no vault / no photos here: no button
+  whenHouse(H => install(H, m));
 })();

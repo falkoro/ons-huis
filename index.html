@@ -78,6 +78,7 @@ h2{font:700 24px/1.1 var(--font-display);margin:0;letter-spacing:-.015em;text-wr
 .panel-body select{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:var(--r-sm);padding:8px 10px}
 .seg.small{box-shadow:none;background:var(--surface-2);width:100%;display:flex}
 .seg.small button{flex:1;padding:6px 8px;font-size:13px}
+.seg.looks button{padding:11px 8px;font-size:15px;font-weight:600}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:500;display:inline-flex;gap:8px;align-items:center}
 .chip i{display:inline-flex;gap:0;border-radius:999px;overflow:hidden;height:12px;width:30px;border:1px solid var(--line)}
@@ -175,6 +176,40 @@ display:grid;gap:12px;justify-items:center;max-width:min(420px,calc(100vw - 32px
 @media (prefers-reduced-motion: reduce){ #panel{transition:none} }
 </style>
 
+<!-- password gate (modules/vault.js): the photos only exist encrypted in vault/; the house keeps loading behind the gate -->
+<style>
+#vault{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:16px;box-sizing:border-box;overflow:auto;background:var(--bg)}
+html.vault-ok #vault{display:none}
+#vault form{width:min(380px,100%);box-sizing:border-box;display:flex;flex-direction:column;gap:14px;padding:28px 24px 22px;
+  background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+#vault .vt{display:flex;align-items:center;gap:12px}
+#vault h1{font:700 26px/1.1 var(--font-display);letter-spacing:-.015em;margin:0}
+#vault p{margin:0;color:var(--ink-2);font-size:14px}
+#vault input[type=password]{width:100%;box-sizing:border-box;border:1px solid var(--line);background:var(--bg);border-radius:var(--r-sm);padding:11px 12px;font-size:16px}
+#vault label{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2);cursor:pointer}
+#vault input[type=checkbox]{width:18px;height:18px;margin:0;accent-color:var(--accent)}
+#vault button{border:0;border-radius:999px;padding:11px 18px;font:600 15px var(--font-body);background:var(--accent);color:var(--accent-ink)}
+#vault button:disabled{opacity:.6;cursor:progress}
+#vault .vmsg{min-height:1.4em;font-size:13px}
+#vault .vmsg.bad{color:#b3412e}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) #vault .vmsg.bad{color:#f0927f} }
+:root[data-theme="dark"] #vault .vmsg.bad{color:#f0927f}
+#vault form.shake{animation:vshake .4s}
+@keyframes vshake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+@media (prefers-reduced-motion: reduce){ #vault form.shake{animation:none} }
+</style>
+<script>try{if(localStorage.getItem('onshuis.vault')||sessionStorage.getItem('onshuis.vault'))document.documentElement.classList.add('vault-ok')}catch(e){}</script>
+<div id="vault" role="dialog" aria-modal="true" aria-labelledby="vaultT">
+  <form onsubmit="return false" autocomplete="on">
+    <div class="vt"><svg width="36" height="36" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><path d="M8 15.5 16 9l8 6.5V24h-5.5v-5h-5v5H8z" fill="var(--accent-ink)"/></svg><h1 id="vaultT">Ons huis</h1></div>
+    <p>Vul het wachtwoord in om het huis te bekijken.</p>
+    <input id="vaultPw" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" aria-label="Wachtwoord" placeholder="Wachtwoord" autofocus>
+    <label><input type="checkbox" id="vaultRem" checked> Onthouden op dit apparaat</label>
+    <button type="submit">Openen</button>
+    <p class="vmsg" id="vaultMsg" role="alert" aria-live="assertive"></p>
+  </form>
+</div>
+
 <div id="app">
   <div id="stage"></div>
 
@@ -215,7 +250,13 @@ display:grid;gap:12px;justify-items:center;max-width:min(420px,calc(100vw - 32px
         </div>
       </section>
       <section>
-        <h3>Stijl</h3>
+        <h3>Inrichting</h3>
+        <div class="seg small looks" role="group" aria-label="Nu of heringericht" id="looks">
+          <button data-look="nu" aria-pressed="true">Nu</button>
+          <button data-look="her" aria-pressed="false">Heringericht</button>
+        </div>
+        <p class="note">Nu is het huis zoals het is. Heringericht laat het hele huis opnieuw ingericht zien, in de stijl hieronder.</p>
+        <h3>Stijl voor heringericht</h3>
         <div id="styles" class="chips"></div>
         <p class="note">Een stijl zet muren, vloeren en meubels in één keer.</p>
       </section>
@@ -269,6 +310,7 @@ display:grid;gap:12px;justify-items:center;max-width:min(420px,calc(100vw - 32px
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/","three-gpu-pathtracer":"https://cdn.jsdelivr.net/npm/three-gpu-pathtracer@0.0.23/build/index.module.js","three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.7.8/build/index.module.js","three/examples/jsm/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
 </script>
+<script type="module" src="./modules/vault.js"></script><!-- password gate: before the main module, after the import map -->
 
 <script type="module">
 import * as THREE from 'three';
@@ -363,8 +405,8 @@ const WALLS = [
   [0, 'z', 7.72, 12.25, 7.0, 7.07],
   [0, 'x', 6.57, 9.0, 7.58, 7.72, [[7.33, 8.02, 'd', 0, 2.05, -1]]],
 
-  [0, 'z', 7.72, 8.9, 8.17, 8.24, [[7.85, 8.55, 'd', 0, 2.05, -1]]],
-  [0, 'x', 8.24, 9.0, 8.82, 8.9, null, { top: () => lineY(FL.A, 8.9) - 0.2 }], // wc2 / cupboard wall ends under stair A's soffit (it used to poke up through the treads)
+  [0, 'z', 7.72, 8.9, 8.17, 8.24, [[7.85, 8.55, 'd', 0, 2.05, -1]], { top: z => z <= 8.3 ? LV[0].top : lineY(FL.A, z) - 0.09, brk: [8.3, 8.31] }], // wc2 door wall: full height under the landing, then up into stair A's soffit (its tiled top used to poke up beside the treads)
+  [0, 'x', 8.24, 9.0, 8.82, 8.9, null, { top: () => lineY(FL.A, 8.82) - 0.09 }], // wc2 / cupboard wall ends inside stair A's soffit (it used to poke up through the treads)
   // ---- first floor, main block
   [1, 'x', 3.03, 9.22, 3.99, 4.21, [[3.82, 6.54, 'w', 0.85, 2.2], [7.25, 8.68, 'w', 1.2, 2.2]], { top: 5.48 }],
   [1, 'x', 3.03, 9.22, 12.25, 12.47, [[3.96, 6.54, 'w', 0.85, 2.2], [7.49, 8.35, 'w', 1.0, 2.2]], { top: 5.48 }],
@@ -497,7 +539,7 @@ function styleRoomState(styleId, room, prev) {
   return { wall: o.wall || S.accent[room.id] || (room.wet ? S.wallWet : S.wall), floor: o.floor || (room.wet ? S.wetFloor : S.floor), tint: o.tint || (room.wet ? '#ffffff' : S.tint), rug: S.c.rug, items: { ...(prev?.items || {}) } };
 }
 function defaultState() {
-  const s = { v: 2, style: 'huidig', time: 13.5, scope: 'room', sel: 'entree', rooms: {}, over: {} };
+  const s = { v: 2, style: 'huidig', design: 'warm', time: 13.5, scope: 'room', sel: 'entree', rooms: {}, over: {} }; // design = the style "Heringericht" uses
   for (const r of ROOMS) s.rooms[r.id] = styleRoomState('huidig', r);
   return s;
 }
@@ -509,6 +551,8 @@ function loadState() {
     const raw = localStorage.getItem(SKEY), s = raw ? JSON.parse(raw) : null;
     if (s && typeof s === 'object' && !Array.isArray(s)) {
       if (typeof s.style === 'string' && Object.hasOwn(STYLES, s.style) && s.style !== d.style) { d.style = s.style; for (const r of ROOMS) d.rooms[r.id] = styleRoomState(d.style, r); }
+      if (typeof s.design === 'string' && Object.hasOwn(STYLES, s.design) && s.design !== 'huidig') d.design = s.design;
+      if (d.style !== 'huidig') d.design = d.style;
       const rooms = s.rooms && typeof s.rooms === 'object' ? s.rooms : {};
       for (const r of ROOMS) {
         const s0 = rooms[r.id], d0 = d.rooms[r.id];
@@ -687,6 +731,17 @@ function texCarpet() {
   for (let i = 0; i < 3000; i++) { const x = R() * S, y = R() * S; ctx.strokeStyle = R() < .5 ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.05)'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (R() - .5) * 6, y + (R() - .5) * 6); ctx.stroke(); }
   return c;
 }
+// stained walnut (stair treads, handrails, photos): one wide board, grain along u, seamless both ways (whole sine periods)
+function texWalnut() {
+  const S = 512, c = mkCanvas(S), ctx = c.getContext('2d'), R = rng(37), P = Math.PI * 2 / S;
+  ctx.fillStyle = hsl(24, 42, 21); ctx.fillRect(0, 0, S, S);
+  for (let i = 0; i < 170; i++) {
+    const off = R() * S, amp = 2 + R() * 12, k = 1 + (R() * 5 | 0), ph = R() * 6, dark = R() < 0.6;
+    ctx.strokeStyle = hsl(20 + R() * 10, 36 + R() * 12, dark ? 8 + R() * 8 : 27 + R() * 10, 0.08 + R() * 0.2); ctx.lineWidth = 0.8 + R() * (dark ? 3 : 1.5);
+    for (const dy of [-S, 0, S]) { ctx.beginPath(); for (let s = 0; s <= S; s += 6) ctx.lineTo(s, off + dy + Math.sin(s * P * k + ph) * amp + Math.sin(s * P * k * 3 + ph * 2) * amp * 0.3); ctx.stroke(); }
+  }
+  noise(ctx, S, 9, 37); return c;
+}
 // wool rug: near-white so the chosen rug colour multiplies through; fine loop weave, heathered fibres, soft pile shading
 function texRug() {
   const S = 512, c = mkCanvas(S), ctx = c.getContext('2d'), R = rng(27);
@@ -818,7 +873,7 @@ const T = {
   brick: canvasTex(texBrick(0), 0.88, 0.875), brick2: canvasTex(texBrick(1), 0.88, 0.875), roof: canvasTex(texRoof(), 1.5),
   grass: canvasTex(texGrass(), 2.5), paving: canvasTex(texTiles(4, () => [40, 5, 58], '#6f6c66', 4, 81), 1.2),
   fence: canvasTex(texBoards(25, 25, 24, 4), 0.6, 1.8), shed: canvasTex(texBoards(28, 20, 34, 5), 0.8, 2.4),
-  rug: canvasTex(texRug(), 0.7), reeds: canvasTex(texReeds(), 0.18), wicker: canvasTex(texWicker(), 0.16), paisley: canvasTex(texPaisley(), 0.5),
+  rug: canvasTex(texRug(), 0.7), reeds: canvasTex(texReeds(), 0.18), wicker: canvasTex(texWicker(), 0.16), paisley: canvasTex(texPaisley(), 0.5), walnut: canvasTex(texWalnut(), 1.2, 0.5),
   asphalt: canvasTex((() => { const c = mkCanvas(256), x = c.getContext('2d'); x.fillStyle = '#44464a'; x.fillRect(0, 0, 256, 256); noise(x, 256, 30, 3); return c; })(), 1.5),
 };
 // procedural canvases are the fallback diffuse of each photo set until (unless) the jpg arrives
@@ -829,8 +884,9 @@ TEX_SETS.brick.diffTex = T.brick; TEX_SETS.roof.diffTex = T.roof; TEX_SETS.grass
 function applySet(mat) {
   const S = TEX_SETS[mat.userData.set], o = mat.userData.setOpts;
   if (!S.detail) mat.map = S.diffTex || null;
-  mat.normalMap = S.norTex || null; if (S.norTex) mat.normalScale.set(o.ns ?? 1, o.ns ?? 1);
-  mat.roughnessMap = S.roughTex || null; mat.roughness = S.roughTex ? (o.rmul ?? 1) : (o.rough ?? mat.userData.rough0);
+  const ns = S.norTex?.userData.ph ? 0 : o.ns ?? 1, rt = S.roughTex && !S.roughTex.userData.ph; // ph: stand-in until the jpg arrives
+  mat.normalMap = S.norTex || null; if (S.norTex) mat.normalScale.set(ns, ns);
+  mat.roughnessMap = S.roughTex || null; mat.roughness = rt ? (o.rmul ?? 1) : (o.rough ?? mat.userData.rough0);
   mat.needsUpdate = true;
 }
 function bindSet(mat, set, o = {}) {
@@ -857,8 +913,10 @@ const STATIC_MAT = {
   hardware: () => new MSM({ color: '#b9bbbd', metalness: 0.95, roughness: 0.32 }),
   roofTile: () => bindSet(new MSM({ roughness: 0.72 }), 'roof', { ns: 0.9 }), bitumen: () => new MSM({ color: '#4b4c4e', roughness: 0.95 }),
   stair: () => new MSM({ color: '#b98f62', roughness: 0.55 }),
-  treadA: () => new MSM({ color: '#3e2c1e', roughness: 0.42 }), treadB: () => bindSet(new MSM({ color: '#9a8670', roughness: 0.97 }), 'fabric', { ns: 0.8 }),
-  treadC: () => new MSM({ color: '#5a2a1e', roughness: 0.5 }), handrail: () => new MSM({ color: '#4a3426', roughness: 0.45 }),
+  // stairs (photos): A has stained walnut treads with a satin sheen, B is carpeted like the attic floor, C is dark wood; everything painted is cream
+  treadA: () => new MSM({ map: T.walnut, roughness: 0.4 }), treadB: () => bindSet(new MSM({ color: '#d4bfad', roughness: 1 }), 'tapijt', { rough: 1 }),
+  treadC: () => new MSM({ map: T.walnut, color: '#e8d6c8', roughness: 0.45 }), handrail: () => new MSM({ map: T.walnut, roughness: 0.4 }),
+  trapwit: () => new MSM({ color: '#ece6d6', roughness: 0.4 }),
  steel: () => new MSM({ color: '#c9cbcc', metalness: 0.9, roughness: 0.3 }),
   ceramic: () => new MSM({ color: '#f8f8f6', roughness: 0.12 }), anthracite: () => new MSM({ color: '#3c3e40', roughness: 0.6 }),
   plastic: () => new MSM({ color: '#e6e9ea', roughness: 0.3, envMapIntensity: 1.3 }), // cooler than the plaster, so a white unit still reads against a white wall
@@ -989,10 +1047,14 @@ function refreshRoomMaterials(id) {
   if (f) { bindSet(f, rs.floor, { rough: FLOORS[rs.floor].rough }); f.color.set(rs.tint); }
 }
 // photo textures: each file that arrives is pushed to every material bound to its set; failures keep the fallback
+// Until a jpg arrives its slot holds a 1x1 stand-in (flat normal at scale 0, white roughness = the plain factor): same look as
+// no map, but the shader is final from the first frame, so an arriving photo swaps a texture instead of recompiling.
 function loadTextureSets() {
   const loader = new THREE.TextureLoader(), aniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  const ph = (...c) => { const t = new THREE.DataTexture(new Uint8Array([...c, 255]), 1, 1); t.needsUpdate = true; t.userData.ph = true; return t; }, PH_N = ph(128, 128, 255), PH_R = ph(255, 255, 255);
   for (const S of Object.values(TEX_SETS)) {
     if (!S.base) continue; // procedural-only set
+    if (!(LOWQ && S.detail)) S.norTex ||= PH_N; S.roughTex ||= PH_R; for (const m of S.users) applySet(m);
     const get = (suffix, srgb, cb) =>
  loader.load(`assets/${S.base}_${suffix}.jpg`, t => {
       t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / S.size, 1 / S.size); t.anisotropy = aniso;
@@ -1256,61 +1318,81 @@ const lineY = (f, z) => f.yBot + (z - f.zBot) / (f.zTop - f.zBot) * (f.yTop - f.
 function slab3(key, x0, x1, za, zb, ya0, ya1, yb0, yb1) {
   AB.prism(key, [V(x0, ya0, za), V(x1, ya0, za), V(x1, yb0, zb), V(x0, yb0, zb), V(x0, ya1, za), V(x1, ya1, za), V(x1, yb1, zb), V(x0, yb1, zb)]);
 }
+// closed-string flight (photos): 4 cm treads housed between two stringer boards (trapbomen) whose top edge runs 7 cm above the
+// nosings and which end in a level piece along the top landing; full-width risers (o.riser, none = open), a rounded nosing
+// (o.nose = radius, 2 cm overhang + the round), optional plaster soffit. o.open = extra stringer thickness on the open side.
 function buildFlight(f, o) {
-  const { l, x0, x1, zBot, yBot, n } = f, rise = (f.yTop - yBot) / n, run = (f.zTop - zBot) / n, sg = Math.sign(run), tk = K(l, 'main', o.tread);
+  const { l, x0, x1, zBot, yBot, yTop, n } = f, rise = (yTop - yBot) / n, run = (f.zTop - zBot) / n, sg = Math.sign(run), tk = K(l, 'main', o.tread);
+  const zEnd = sg < 0 ? f.zMin : f.zMax, nose = o.nose ?? 0.012, m4 = new THREE.Matrix4();
   for (let i = 0; i < n; i++) {
-    const yt = yBot + rise * (i + 1), zf = zBot + run * i, za = zf - sg * 0.025;
-    const zb = i === n - 1 ? (sg < 0 ? f.zMin : f.zMax) : zBot + run * (i + 1);
+    const yt = yBot + rise * (i + 1), zf = zBot + run * i, za = zf - sg * 0.02, zb = i === n - 1 ? zEnd : zf + run;
     AB.box(tk, x0, x1, yt - 0.04, yt, Math.min(za, zb), Math.max(za, zb));
-    if (o.riser) AB.box(K(l, 'main', o.riser), x0 + 0.04, x1 - 0.04, yt - rise, yt - 0.04, Math.min(zf, zf + sg * 0.02), Math.max(zf, zf + sg * 0.02));
+    m4.makeRotationZ(Math.PI / 2).setPosition((x0 + x1) / 2, yt - nose, za); AB.geo(tk, gCyl(nose, nose, x1 - x0 - 0.06, 10), m4);
+    if (o.riser) AB.box(K(l, 'main', o.riser), x0 + 0.03, x1 - 0.03, Math.max(yBot, yt - rise - 0.02), yt - 0.04, Math.min(zf, zf + sg * 0.02), Math.max(zf, zf + sg * 0.02));
   }
-  const sk = K(l, 'main', o.stringer || 'frame');
-  for (const [s0, s1] of [[x0 - 0.01, x0 + 0.03], [x1 - 0.03, x1]]) slab3(sk, s0, s1, zBot, f.zTop, yBot - 0.22, yBot + 0.1, f.yTop - 0.22, f.yTop + 0.1);
-  if (o.soffit) { // closed plaster underside
-    const z0 = zBot + (0.26 / (f.yTop - yBot)) * (f.zTop - zBot);
-    slab3(kmap(l, 'main', { ny: 'plaster', def: 'frame' }), x0 + 0.03, x1 - 0.03, z0, f.zTop, lineY(f, z0) - 0.24, lineY(f, z0) - 0.2, f.yTop - 0.24, f.yTop - 0.2);
+  // stringers: 30 cm below to 7 cm above the nosing line (hb/ht are offsets from the step feet), nothing below the bottom floor
+  const sk = K(l, 'main', o.stringer || 'trapwit'), zl = zBot + run * (n - 1), yl = yTop - rise, hb = rise - 0.3, ht = rise + 0.07;
+  for (const [s0, s1] of [[x0 - (o.open || 0.01), x0 + 0.03], [x1 - 0.03, x1]]) {
+    slab3(sk, s0, s1, zBot, zl, yBot + Math.max(hb, 0), yBot + ht, yl + hb, yl + ht);
+    slab3(sk, s0, s1, zl, f.zTop, yl + hb, yTop + 0.07, yTop + hb, yTop + 0.07);
+    AB.box(sk, s0, s1, yTop + hb, yTop + 0.07, Math.min(f.zTop, zEnd), Math.max(f.zTop, zEnd));
+  }
+  if (o.soffit) { // closed plaster underside, flush with the stringers' bottom edge, starting where it leaves the floor
+    const z0 = zBot + (0.34 - rise) / (yTop - yBot) * (f.zTop - zBot), y0 = lineY(f, z0) + hb;
+    slab3(kmap(l, 'main', { ny: 'plaster', def: 'trapwit' }), x0 + 0.03, x1 - 0.03, z0, f.zTop, y0 - 0.04, y0, yTop + hb - 0.04, yTop + hb);
   }
 }
-// spindle balustrade from (xa, za) to (xb, zb), standing on y0(z), handrail at +h
-function bal(l, xa, za, xb, zb, y0, key = 'frame', h = 0.9, step = 0.12) {
-  const k = K(l, 'main', key), n = Math.max(1, Math.round(Math.hypot(xb - xa, zb - za) / step)), w = 0.03;
-  for (let i = 0; i <= n; i++) { const x = xa + (xb - xa) * i / n, z = za + (zb - za) * i / n, y = y0(z); AB.box(k, x - 0.014, x + 0.014, y, y + h, z - 0.014, z + 0.014); }
+// cream balustrade from (xa, za) to (xb, zb) standing on y0(z): round spindles every o.step, flat handrail topping out at +o.h,
+// square newel posts at the ends (o.p0 / o.p1 = [bottom, top] in absolute y, null = no post, default = standing on y0)
+function bal(l, xa, za, xb, zb, y0, o = {}) {
+  const { key = 'trapwit', h = 0.9, step = 0.11, w = 0.035 } = o, k = K(l, 'main', key), n = Math.max(1, Math.round(Math.hypot(xb - xa, zb - za) / step)), m4 = new THREE.Matrix4();
+  for (let i = 0; i <= n; i++) {
+    const x = xa + (xb - xa) * i / n, z = za + (zb - za) * i / n, y = y0(z), p = i === 0 ? o.p0 : i === n ? o.p1 : undefined;
+    if (p === null) continue;
+    if (p || i === 0 || i === n) { const [b, t] = p || [y, y + h + 0.08]; AB.box(k, x - 0.04, x + 0.04, b, t, z - 0.04, z + 0.04); if (t > y + h + 0.05) AB.box(k, x - 0.05, x + 0.05, t, t + 0.02, z - 0.05, z + 0.05); continue; }
+    m4.makeTranslation(x, y + h / 2 - 0.02, z); AB.geo(k, gCyl(0.009, 0.009, h - 0.04, 8), m4);
+  }
   const ya = y0(za) + h, yb = y0(zb) + h;
-  if (Math.abs(xb - xa) < 1e-6) slab3(k, xa - w, xa + w, za, zb, ya - 0.01, ya + 0.04, yb - 0.01, yb + 0.04);
-  else AB.box(k, Math.min(xa, xb) - w, Math.max(xa, xb) + w, ya - 0.01, ya + 0.04, za - w, za + w);
+  if (Math.abs(xb - xa) < 1e-6) slab3(k, xa - w, xa + w, za, zb, ya - 0.045, ya, yb - 0.045, yb);
+  else AB.box(k, Math.min(xa, xb) - w, Math.max(xa, xb) + w, ya - 0.045, ya, za - w, za + w);
 }
 function buildStairs() {
-  const A = FL.A, B = FL.B, C = FL.C, f1 = LV[1].floor, f2 = LV[2].floor;
-  // A, entree -> 1e: closed stair, dark treads, white risers, plaster underside, spindle balustrade on the open side
-  buildFlight(A, { tread: 'treadA', riser: 'frame', soffit: true });
+  const A = FL.A, B = FL.B, C = FL.C, f1 = LV[1].floor, f2 = LV[2].floor, X = 8.22; // X: the one line of newels and spindles up both flights
+  const nA = z => lineY(A, z) + 0.28, nB = z => lineY(B, z) + 0.25; // where the spindles stand: just inside the stringers' top edge
+  const sb = (f, z) => lineY(f, z) + (f.yTop - f.yBot) / f.n - 0.3; // the stringers' bottom edge (buildFlight): where posts and the soffit stop
+  // A, entree -> 1e (photos): walnut treads, cream risers and stringers, plaster underside, spindle balustrade on the open side
+  buildFlight(A, { tread: 'treadA', riser: 'trapwit', soffit: true, open: 0.03 });
   const zp = 10.35;
   AB.prism(K(0, 'main', 'trim'), [V(8.17, 0, 8.9), V(8.24, 0, 8.9), V(8.24, 0, zp), V(8.17, 0, zp),
     V(8.17, lineY(A, 8.9) - 0.05, 8.9), V(8.24, lineY(A, 8.9) - 0.05, 8.9), V(8.24, lineY(A, zp) - 0.05, zp), V(8.17, lineY(A, zp) - 0.05, zp)]);
   const dk = K(0, 'main', 'dark'); // under-stair cupboard door outline + knob
   AB.box(dk, 8.162, 8.17, 0.05, 1.28, 8.97, 8.98); AB.box(dk, 8.162, 8.17, 0.05, 1.28, 9.36, 9.37); AB.box(dk, 8.162, 8.17, 1.27, 1.28, 8.97, 9.37);
   AB.box(K(0, 'main', 'hardware'), 8.14, 8.162, 0.9, 0.93, 9.3, 9.33);
-  bal(0, 8.205, 10.45, 8.205, 8.85, z => lineY(A, z) + 0.06);
-  slab3(K(0, 'main', 'handrail'), 8.93, 8.97, A.zBot, A.zTop, A.yBot + 0.86, A.yBot + 0.91, A.yTop + 0.86, A.yTop + 0.91);
-  // B, 1e -> zolder: carpeted, white stringers, wall handrail
-  buildFlight(B, { tread: 'treadB', riser: 'treadB' });
-  slab3(K(1, 'main', 'handrail'), 8.93, 8.97, B.zBot, B.zTop, B.yBot + 0.86, B.yBot + 0.91, B.yTop + 0.86, B.yTop + 0.91);
-  // C, zitkamer -> linkervleugel: open risers, dark red-brown, horizontal-rail balustrade
-  buildFlight(C, { tread: 'treadC', stringer: 'treadC' });
+  // the wet-room wall beside the top treads is plaster on the stair side (the wc2 tiles stop at the soffit)
+  slab3(K(0, 'main', 'wall:entree'), 8.985, 9.0, 8.3, 8.82, sb(A, 8.3) - 0.02, LV[0].top, sb(A, 8.82) - 0.02, LV[0].top);
+  bal(0, X, 10.45, X, 8.82, nA, { h: 0.85, p0: [-0.05, nA(10.45) + 0.93], p1: [sb(A, 8.82), f1 + 0.98] });
+  // B, 1e -> zolder (photos): carpet wrapped round the nosings, cream stringers, plaster underside, wooden wall handrail on brackets
+  buildFlight(B, { tread: 'treadB', riser: 'treadB', nose: 0.02, soffit: true });
+  slab3(K(1, 'main', 'handrail'), 8.95, 8.98, B.zBot, B.zTop, B.yBot + 1.02, B.yBot + 1.09, B.yTop + 1.02, B.yTop + 1.09);
+  for (const z of [9.9, 9.2, 8.5]) AB.box(K(1, 'main', 'hardware'), 8.975, 9.0, lineY(B, z) + 1.0, lineY(B, z) + 1.03, z - 0.015, z + 0.015);
+  // C, zitkamer -> linkervleugel: open risers, dark wood, horizontal-rail balustrade
+  buildFlight(C, { tread: 'treadC', stringer: 'treadC', nose: 0.008 });
   const ck = K(0, 'main', 'treadC');
   for (const z of [7.15, 6.3]) AB.box(ck, 0.92, 0.96, lineY(C, z), lineY(C, z) + 0.95, z - 0.02, z + 0.02);
   for (const h of [0.32, 0.62, 0.92]) slab3(ck, 0.925, 0.955, 7.15, 6.3, lineY(C, 7.15) + h, lineY(C, 7.15) + h + 0.035, lineY(C, 6.3) + h, lineY(C, 6.3) + h + 0.035);
-  // landing strips that no room rect covers
-  AB.box(K(1, 'main', 'treadA'), 8.16, 8.24, f1 - 0.04, f1, 8.23, 8.8);
-  AB.box(K(1, 'main', 'treadB'), 8.16, 8.2, f1 - 0.04, f1, 9.8, 10.34); AB.box(K(1, 'main', 'treadB'), 8.2, 9.0, f1 - 0.04, f1, 10.3, 10.34);
-  AB.box(K(2, 'main', 'treadB'), 8.09, 8.2, f2 - 0.04, f2, 8.26, 8.62);
-  // railings: 1e landing between the two flights, attic stairwell, wing stairwell
-  bal(1, 8.13, 8.8, 8.13, 9.8, () => f1);
-  bal(2, 8.07, 8.62, 8.07, 10.25, () => f2); bal(2, 8.09, 10.27, 9.0, 10.27, () => f2);
-  bal(1, 0.945, 6.5, 0.945, 6.75, () => f1, 'frame', 0.7);
+  // landing strips that no room rect covers, in the landing's own floor
+  AB.box(K(1, 'main', 'floor:overloop'), 8.16, 8.24, f1 - 0.04, f1, 8.23, 8.8);
+  AB.box(K(1, 'main', 'floor:overloop'), 8.16, 8.2, f1 - 0.04, f1, 9.8, 10.34); AB.box(K(1, 'main', 'floor:overloop'), 8.2, 9.0, f1 - 0.04, f1, 10.3, 10.34);
+  AB.box(K(2, 'main', 'floor:zolderR'), 8.09, 8.2, f2 - 0.04, f2, 8.3, 10.3); AB.box(K(2, 'main', 'floor:zolderR'), 8.09, 9.0, f2 - 0.04, f2, 8.26, 8.3);
+  // railings along the open side of the stairwell: 1e landing (A's top newel to B's bottom newel), up B, round the attic hole, wing
+  bal(1, X, 8.82, X, 9.42, () => f1, { p0: null, p1: [f1, nB(9.42) + 0.93] });
+  bal(1, X, 9.42, X, 8.62, nB, { h: 0.85, p0: null, p1: null });
+  bal(2, X, 8.62, X, 10.27, () => f2, { p0: [sb(B, 8.62), f2 + 0.98] }); bal(2, X, 10.27, 9.0, 10.27, () => f2, { p0: null });
+  bal(1, 0.945, 6.5, 0.945, 6.75, () => f1, { h: 0.7 });
   // colliders: under-stair spaces, railings (the flights themselves are handled by the walker, see stepState)
   addCol(0, 8.17, 9.0, 8.9, 10.25); addCol(0, 0, 0.97, 6.2, 7.2);
-  addCol(1, 8.1, 8.16, 8.8, 9.8); addCol(1, 0.92, 0.97, 6.5, 6.75); addCol(1, 0, 1.95, 6.75, 7.85);
-  addCol(2, 8.03, 8.11, 8.62, 10.3); addCol(2, 8.09, 9.0, 10.22, 10.3);
+  addCol(1, 8.16, 8.3, 8.8, 9.8); addCol(1, 0.92, 0.97, 6.5, 6.75); addCol(1, 0, 1.95, 6.75, 7.85);
+  addCol(2, 8.14, 8.3, 8.62, 10.3); addCol(2, 8.09, 9.0, 10.22, 10.3);
   // attic low headroom + wing low headroom (not walkable)
   addCol(2, 3.25, 3.9, 4.21, 6.1); addCol(2, 6.07, 9.0, 4.21, 6.1); addCol(2, 3.25, 9.0, 10.36, 11.4);
   addCol(1, 0, 3.6, -0.3, 2.1); addCol(1, 2.05, 3.03, 5.7, 7.9);
@@ -1323,16 +1405,13 @@ function buildExterior() {
   xb('grass', -0.85, 9.35, -0.035, 0, -15.15, -3.0);
   xb('paving', -0.22, 9.0, -0.035, 0.012, -3.0, -0.22);
   xb('paving', -0.85, -0.22, -0.035, 0.01, -3.0, 9.28);
-  xb('grass', 3.0, 7.0, -0.035, 0, 12.47, 18); xb('grass', 8.3, 9.35, -0.035, 0, 12.47, 18);
-  xb('paving', 7.0, 8.3, -0.035, 0.012, 12.47, 18);
-  xb('grass', -0.85, 3.0, -0.035, 0, 9.28, 18); xb('paving', 1.6, 2.65, -0.035, 0.01, 9.28, 11.0);
-  xb('paving', -12, 22, -0.035, 0.04, 18, 20); xb('asphalt', -12, 22, -0.035, -0.005, 20, 27);
+  // voortuin (grind, border, oprit), stoep, straat en de overkant: modules/frontgarden.js
   // fences + hedges
   const fence = (x0, x1, z0, z1, h = 1.8) => { xb('fence', x0, x1, 0, h, z0, z1); addCol(0, x0, x1, z0, z1); };
   fence(-0.85, 9.35, -15.2, -15.15); fence(-0.9, -0.85, -15.15, -0.95); fence(-0.9, -0.85, 0, 9.28); fence(9.3, 9.35, -15.15, -0.22);
   xb('shed', -0.89, -0.86, 0, 1.75, -0.95, -0.05); xb('dark', -0.92, -0.83, 0.95, 1.05, -0.3, -0.2); // tuinpoort
   const hedge = (x0, x1, z0, z1) => { xb('hedge', x0, x1, 0, 0.75, z0, z1); addCol(0, x0, x1, z0, z1); };
-  hedge(-1.05, -0.75, 9.28, 18); hedge(-0.75, 7.0, 17.6, 17.9); hedge(8.3, 9.35, 17.6, 17.9);
+  // (geen voorhagen: de oprit ligt open naar de straat; beukenhaag op de erfgrens zit in frontgarden.js)
   // shed (berging): built by modules/garden.js (wooden shed + narrow annex, with colliders)
   // neighbour (party wall side)
   const nb = kmap('x', 'main', { py: 'bitumen', def: 'brick2' });
@@ -1655,9 +1734,9 @@ const P = {
     f.geo(cover, gDrape({ a, z0, z1, r, ds: 0.2, rh: 0.022, seed: w, floor: 0.02 - Y }), 0, Y, 0);
     f.geo(cover, gDrape({ a, z0, z1: z0 + 0.32, r: r + 0.03, ds: 0.17, df: 0, rh: 0.028, seed: w + 2, floor: 0.02 - Y }), 0, Y + 0.03, 0);
     if (cover === 'bedding') f.geo('fab2', gDrape({ a, z0: z1 - 0.62, z1: z1 - 0.16, r: r + 0.02, ds: 0.3, df: 0, rh: 0.012, seed: w + 4, amp: 0.6, floor: 0.02 - Y }), 0, Y + 0.02, 0);
-    const pw = w > 1.7 ? 0.72 : 0.68, px = w > 1.7 ? 0.43 : 0.39;
-    for (const sx of [-1, 1]) f.geo('bedding', gPillow(pw, 0.17, 0.5), sx * px, T + 0.125, -L / 2 + 0.31, 0.25, sx * 0.03, 0);
-    if (state.style !== 'huidig') for (const sx of [-1, 1]) f.geo('fab2', gPillow(0.46, 0.13, 0.46, 0.05), sx * 0.26, T + 0.23, -L / 2 + 0.5, 1.1, -sx * 0.08, sx * 0.03);
+    const pw = w > 1.7 ? 0.72 : 0.68, px = w > 1.7 ? 0.43 : 0.39, sides = w < 1.2 ? [0] : [-1, 1]; // a single bed gets one pillow
+    for (const sx of sides) f.geo('bedding', gPillow(pw, 0.17, 0.5), sx * px, T + 0.125, -L / 2 + 0.31, 0.25, sx * 0.03, 0);
+    if (state.style !== 'huidig') for (const sx of sides) f.geo('fab2', gPillow(0.46, 0.13, 0.46, 0.05), sx * 0.26, T + 0.23, -L / 2 + 0.5, 1.1, -sx * 0.08, sx * 0.03);
     f.box('fab', 0, 0.6, -L / 2 - 0.06, W, 1.0, 0.05);
     const n = Math.round(W / 0.22), cw = W / n;
     for (let i = 0; i < n; i++) f.geo('fab', gRBox(cw - 0.004, 0.98, 0.07, 0.03), -W / 2 + cw * (i + 0.5), 0.64, -L / 2 - 0.02);
@@ -1811,9 +1890,9 @@ const P = {
   },
   // "Huidig" zitkamer (photos): three framed posters on the x = 0 wall, RGB washes, black two-tier side table by the window
   posters(f) {
-    [[2.85, 0], [3.66, 1], [4.47, 2]].forEach(([z, i]) => {
-      f.box('black', 0.015, 1.68, z, 0.03, 0.95, 0.65);
-      f.geo('poster' + i, GEO.poster ||= new THREE.PlaneGeometry(0.61, 0.91), 0.031, 1.68, z, 0, PI / 2, 0);
+    [[3.55, 0], [4.36, 1], [5.17, 2]].forEach(([z, i]) => {           // hoog boven de rig/het bureau (kantoor_1.jpg), vrij van monitor 2
+      f.box('black', 0.015, 2.02, z, 0.03, 0.95, 0.65);
+      f.geo('poster' + i, GEO.poster ||= new THREE.PlaneGeometry(0.61, 0.91), 0.031, 2.02, z, 0, PI / 2, 0);
     });
   },
   rgbWashes(f) {
@@ -1923,6 +2002,135 @@ const P = {
   },
   bench(f, w = 1.2) { f.box('wood', 0, 0.42, 0, w, 0.05, 0.38);
  f.box('fab2', 0, 0.47, 0, w - 0.04, 0.06, 0.34); for (const sx of [-1, 1]) f.box('wood', sx * (w / 2 - 0.04), 0.2, 0, 0.05, 0.4, 0.34); f.box('wood', 0, 0.12, 0, w - 0.1, 0.03, 0.3); },
+  // ---- "Heringericht" pieces (the refurnished house; HER_ITEMS) ----
+  // table lamp: stoneware base in the style's pot colour, linen drum shade
+  tableLamp(f, x = 0, y = 0, z = 0, s = 1) {
+    f.cyl('pot', x, y + 0.11 * s, z, 0.055 * s, 0.22 * s, 16, 0.07 * s); f.cyl('metal', x, y + 0.26 * s, z, 0.006, 0.08 * s, 6);
+    f.geo('shade', gCyl(0.13 * s, 0.15 * s, 0.2 * s, 24, true), x, y + 0.38 * s, z); f.sph('bulb', x, y + 0.34 * s, z, 0.03 * s, 0.04 * s, 0.03 * s);
+  },
+  // a few stems in a vase: a stoneware pot with branches fanning out, leaf tufts on top
+  stems(f, x, y, z, n = 3, h = 0.55) {
+    f.cyl('pot', x, y + 0.1, z, 0.055, 0.2, 16, 0.045);
+    for (let i = 0; i < n; i++) { const a = i * 2.1 + 0.4, L = h + i * 0.08, rx = Math.cos(a) * 0.12, rz = Math.sin(a) * 0.12;
+      f.cyl('woodDark', x + rx / 2, y + 0.2 + L / 2, z + rz / 2, 0.004, L, 4, 0.004, rz * 2.2, -rx * 2.2); f.ico('leaf2', x + rx, y + 0.2 + L, z + rz, 0.05); }
+  },
+  // low sideboard on slim legs: softened oak body, door grooves, brass pulls; a lamp, a few books and a vase on top
+  sideboard(f, w = 1.6, d = 0.45, h = 0.72, deco = true) {
+    const L = legMat(), g = 0.14, n = Math.max(2, Math.round(w / 0.55));
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.cyl(L, sx * (w / 2 - 0.08), g / 2, sz * (d / 2 - 0.08), 0.014, g, 8, 0.02);
+    f.geo('wood', gRBox(w, h - g, d, 0.015), 0, g + (h - g) / 2, 0);
+    for (let i = 1; i < n; i++) f.box('dark', -w / 2 + i * w / n, g + (h - g) / 2, d / 2 + 0.001, 0.005, h - g - 0.03, 0.004);
+    for (let i = 0; i < n; i++) f.box('metal', -w / 2 + (i + 0.5) * w / n, g + (h - g) / 2 + 0.02, d / 2 + 0.012, 0.1, 0.012, 0.012);
+    if (!deco) return;
+    P.tableLamp(f, -w / 2 + 0.25, h, -0.05, 0.9);
+    f.box('book1', w * 0.1, h + 0.012, 0.02, 0.26, 0.024, 0.19, 0.1); f.box('book3', w * 0.1, h + 0.034, 0.02, 0.24, 0.02, 0.18, -0.05); f.box('book2', w * 0.1, h + 0.054, 0.02, 0.22, 0.02, 0.17, 0.15);
+    P.stems(f, w / 2 - 0.22, h, -0.04);
+  },
+  // low media unit with the tv on the wall above it: soundbar, small plant and books on top. The unit stands against the wall (z 0)
+  tvUnit(f, w = 1.3, d = 0.4, h = 0.45) {
+    const z = d / 2 + 0.01, L = legMat();
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.cyl(L, sx * (w / 2 - 0.08), 0.06, z + sz * (d / 2 - 0.08), 0.014, 0.12, 8, 0.02);
+    f.geo('wood', gRBox(w, h - 0.12, d, 0.012), 0, 0.12 + (h - 0.12) / 2, z);
+    f.box('dark', 0, 0.12 + (h - 0.12) / 2, z + d / 2 + 0.001, 0.005, h - 0.15, 0.004); for (const sx of [-1, 1]) f.box('metal', sx * 0.08, h / 2 + 0.04, z + d / 2 + 0.012, 0.1, 0.012, 0.012);
+    f.soft('black', 0, h + 0.035, z - 0.02, 0.8, 0.065, 0.09, 0, 0.03);
+    f.cyl('pot', w / 2 - 0.16, h + 0.06, z, 0.055, 0.12, 14, 0.045); f.ico('leaf2', w / 2 - 0.16, h + 0.2, z, 0.09);
+    f.box('book1', -w / 2 + 0.2, h + 0.012, z, 0.22, 0.024, 0.16, 0.12); f.box('book3', -w / 2 + 0.2, h + 0.034, z, 0.2, 0.02, 0.15, -0.06);
+    P.tv(f, 1.3);
+  },
+  // dining table for six: thick oak top with softened edges on two A-shaped trestles (steel where the style has metal legs),
+  // a linen runner, a vase of stems and two candles
+  dining(f, w = 2.0, d = 0.95) {
+    const L = legMat();
+    f.geo('wood', gRBox(w, 0.045, d, 0.012), 0, 0.735, 0);
+    for (const sx of [-1, 1]) { const x = sx * (w / 2 - 0.3); f.box(L, x, 0.69, 0, 0.06, 0.05, d - 0.36); for (const sz of [-1, 1]) f.geo(L, gRBox(0.05, 0.76, 0.05, 0.008), x, 0.36, sz * 0.14, -sz * 0.38, 0, 0); }
+    f.box(L, 0, 0.6, 0, w - 0.75, 0.04, 0.04);
+    f.soft('cotton', 0, 0.762, 0, w * 0.75, 0.008, 0.36, 0, 0.003);
+    P.stems(f, 0, 0.766, 0, 4, 0.4);
+    for (const sx of [-1, 1]) { f.cyl('woodDark', sx * 0.38, 0.78, 0.06 * sx, 0.03, 0.03, 12, 0.025); f.cyl('cotton', sx * 0.38, 0.9, 0.06 * sx, 0.016, 0.2, 10); }
+  },
+  // dining chair: leather (klassiek: fabric) seat, bent-ply back, splayed legs
+  dchair(f) {
+    const L = legMat(), seat = state.style === 'klassiek' ? 'fab' : 'leather', back = state.style === 'industrieel' ? 'leather' : 'wood';
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.cyl(L, sx * 0.19, 0.22, sz * 0.18, 0.012, 0.45, 8, 0.012, -sz * 0.08, sx * 0.08);
+    f.box('wood', 0, 0.44, 0, 0.44, 0.02, 0.43); f.soft(seat, 0, 0.475, 0.01, 0.45, 0.05, 0.44, 0, 0.02);
+    for (const sx of [-1, 1]) f.cyl(L, sx * 0.19, 0.6, -0.19, 0.01, 0.3, 6);
+    f.geo(back, gRBox(0.44, 0.3, 0.025, 0.01), 0, 0.78, -0.21, -0.1, 0, 0);
+  },
+  // round pouf
+  pouf(f, r = 0.3, h = 0.4) { f.cyl('fab2', 0, h / 2, 0, r, h, 24, r); f.sph('fab2', 0, h - 0.01, 0, r * 0.98, 0.06, r * 0.98, 0, 0, 0, 20); },
+  // slim console table: thin top on four slender legs, a low shelf with a basket; small lamp and a bowl for keys on top
+  console(f, w = 1.0, d = 0.3, h = 0.8) {
+    const L = legMat();
+    f.geo('wood', gRBox(w, 0.03, d, 0.008), 0, h - 0.015, 0); f.box('wood', 0, 0.16, 0, w - 0.1, 0.02, d - 0.08);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.cyl(L, sx * (w / 2 - 0.04), (h - 0.03) / 2, sz * (d / 2 - 0.04), 0.012, h - 0.03, 8);
+    P.tableLamp(f, -w / 2 + 0.18, h, 0, 0.75); f.cyl('ceramic', 0.12, h + 0.025, 0.02, 0.1, 0.05, 20, 0.12);
+    P.basket(f, w / 4, 0.17, 0, 0.3, 0.14, 0.22);
+  },
+  // round mirror with a brass rim, hung on the wall at the item origin (facing +z)
+  mirror(f, r = 0.35, y = 1.5) { f.cyl('metal', 0, y, 0.012, r + 0.02, 0.024, 40, r + 0.02, HP); f.cyl('mirror', 0, y, 0.026, r, 0.004, 40, r, HP); },
+  // tall mirror leaning against the wall behind it
+  floorMirror(f, w = 0.5, h = 1.7) {
+    const a = 0.1, y = h / 2 * Math.cos(a) + 0.02, z = 0.03 - h / 2 * Math.sin(a);
+    f.geo(legMat() === 'metal' ? 'black' : 'woodDark', gRBox(w + 0.05, h + 0.05, 0.03, 0.005), 0, y, z, -a, 0, 0);
+    f.geo('mirror', GEO['fm' + w + h] ||= new THREE.PlaneGeometry(w, h), 0, y + 0.016 * Math.sin(a), z + 0.016 * Math.cos(a), -a, 0, 0);
+  },
+  // wall rail with brass hooks, a wool coat, a scarf and a tote bag hanging off it
+  coatRack(f, w = 0.7, y = 1.65) {
+    f.box('wood', 0, y, 0.015, w, 0.07, 0.03);
+    const n = 4, X = i => -w / 2 + (i + 0.5) * w / n;
+    for (let i = 0; i < n; i++) { f.cyl('metal', X(i), y - 0.03, 0.04, 0.008, 0.06, 8, 0.008, HP); f.sph('metal', X(i), y - 0.03, 0.07, 0.012, 0.012, 0.012); }
+    f.soft('anthracite', X(0), y - 0.1, 0.11, 0.42, 0.1, 0.1, 0, 0.04); f.geo('anthracite', gCurtain(0.42, 0.95, 0.14, 0.035, 7), X(0), y - 0.59, 0.11);
+    f.geo('fab2', gCurtain(0.12, 0.7, 0.1, 0.02, 3), X(1), y - 0.42, 0.09);
+    f.soft('taupe', X(3), y - 0.5, 0.09, 0.34, 0.36, 0.07, 0, 0.02); for (const sx of [-1, 1]) f.box('taupe', X(3) + sx * 0.08, y - 0.2, 0.09, 0.02, 0.26, 0.012);
+  },
+  // runner: a rug with knotted fringes at the short ends
+  runner(f, id, w, d) { P.rug(f, id, w, d); for (const sz of [-1, 1]) for (let x = -w / 2 + 0.03; x < w / 2; x += 0.06) f.box('cotton', x, 0.006, sz * (d / 2 + 0.03), 0.012, 0.008, 0.06); },
+  // chest of three drawers with round brass knobs; a vase and two books on top
+  drawers(f, w = 1.0, d = 0.45, h = 0.8) {
+    const L = legMat(), g = 0.12, n = 3, dh = (h - g - 0.04) / n;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.cyl(L, sx * (w / 2 - 0.06), g / 2, sz * (d / 2 - 0.06), 0.014, g, 8, 0.02);
+    f.geo('wood', gRBox(w, h - g, d, 0.012), 0, g + (h - g) / 2, 0);
+    for (let i = 0; i < n; i++) { if (i) f.box('dark', 0, g + 0.02 + i * dh, d / 2 + 0.001, w - 0.04, 0.005, 0.004); f.cyl('metal', 0, g + 0.02 + (i + 0.5) * dh, d / 2 + 0.012, 0.016, 0.024, 10, 0.016, HP); }
+    f.cyl('ceramic', -w / 2 + 0.2, h + 0.08, 0, 0.05, 0.16, 14, 0.04); f.box('book4', w * 0.15, h + 0.012, 0, 0.22, 0.024, 0.16, 0.1); f.box('book3', w * 0.15, h + 0.034, 0, 0.2, 0.02, 0.15, -0.08);
+  },
+  // round three-legged side table / stool
+  stool(f, r = 0.2, h = 0.45) {
+    f.cyl('wood', 0, h - 0.02, 0, r, 0.04, 28);
+    for (let i = 0; i < 3; i++) { const a = i * 2.094; f.cyl(legMat(), Math.cos(a) * r * 0.65, (h - 0.04) / 2, Math.sin(a) * r * 0.65, 0.014, h - 0.04, 8, 0.014, -Math.sin(a) * 0.12, Math.cos(a) * 0.12); }
+  },
+  // wall shelf on brackets: a run of books, a leaning frame and a small plant
+  wallShelf(f, w = 0.9, y = 1.3) {
+    f.box('wood', 0, y, 0.09, w, 0.03, 0.18); for (const sx of [-1, 1]) f.box('metal', sx * (w / 2 - 0.08), y - 0.07, 0.1, 0.02, 0.12, 0.16);
+    const R = rng(w * 77 | 0); let x = -w / 2 + 0.05;
+    while (x < w * 0.15) { const bw = 0.025 + R() * 0.03, bh = 0.18 + R() * 0.08; f.box('book' + (1 + (R() * 4 | 0)), x + bw / 2, y + 0.015 + bh / 2, 0.08, bw, bh, 0.14); x += bw + 0.003; }
+    f.geo('black', gRBox(0.2, 0.25, 0.015, 0.003), w / 2 - 0.16, y + 0.14, 0.05, 0.15, 0, 0); f.geo('canvasBack', gRBox(0.16, 0.2, 0.004, 0.001), w / 2 - 0.16, y + 0.14, 0.061, 0.15, 0, 0);
+    f.cyl('pot', w / 2 - 0.4, y + 0.055, 0.08, 0.04, 0.08, 12, 0.035); f.ico('leaf', w / 2 - 0.4, y + 0.14, 0.08, 0.06);
+  },
+  // oak board across the bath with a candle, a book and a rolled towel
+  bathTray(f) {
+    f.geo('wood', gRBox(0.8, 0.025, 0.2, 0.006), 0, 0.59, 0);
+    f.cyl('glass', -0.25, 0.65, 0, 0.04, 0.09, 14); f.cyl('cotton', -0.25, 0.64, 0, 0.03, 0.07, 12);
+    f.box('book1', 0.08, 0.615, 0, 0.16, 0.022, 0.21, 0.15); f.cyl('towel', 0.3, 0.645, 0, 0.045, 0.16, 14, 0.045, 0, HP);
+  },
+  // wooden stool with folded towels and a jar of bath salts
+  bathStool(f) {
+    P.stool(f, 0.18, 0.42);
+    f.soft('towel', 0, 0.445, 0, 0.3, 0.05, 0.22, 0.1, 0.02); f.soft('towelTaupe', 0, 0.49, 0, 0.28, 0.04, 0.2, -0.08, 0.018);
+    f.cyl('glass', 0.09, 0.56, -0.05, 0.03, 0.09, 12); f.cyl('woodDark', 0.09, 0.612, -0.05, 0.032, 0.014, 12);
+  },
+  // woonkamer front window: linen curtains drawn open on both sides, rail just under the ceiling
+  frontCurtains(f) { const z = 12.1; f.box('dark', 5.0, 2.44, z, 3.3, 0.022, 0.022); P.hang(f, 'curtain', z, 1.225, 2.41, [[3.42, 3.9], [6.12, 6.5]]); },
+  // keuken, refurnished: what is out now plus a styled worktop (boards leaning on the splashback, oils, a cookbook on a
+  // stand, a bowl of lemons, a jar of wooden spoons, pepper mill)
+  kitchenStyled(f) {
+    P.kitchenProps(f); const W = 0.9;
+    f.geo('wood', gRBox(0.012, 0.36, 0.22, 0.003), 8.93, W + 0.172, 2.25, 0, 0, -0.3); f.geo('woodDark', gRBox(0.012, 0.3, 0.2, 0.003), 8.94, W + 0.145, 2.27, 0, 0, -0.26);
+    f.cyl('glassDark', 8.88, W + 0.11, 3.25, 0.028, 0.22, 12); f.cyl('black', 8.88, W + 0.24, 3.25, 0.012, 0.04, 8); f.cyl('fruitGreen', 8.84, W + 0.09, 3.32, 0.025, 0.18, 12); f.cyl('black', 8.84, W + 0.195, 3.32, 0.01, 0.03, 8);
+    f.geo('book2', gRBox(0.26, 0.32, 0.02, 0.004), 8.05, W + 0.17, 3.8, 0.35, 0, 0); f.geo('paper', gRBox(0.24, 0.3, 0.016, 0.002), 8.05, W + 0.17, 3.79, 0.35, 0, 0);
+    f.cyl('ceramic', 8.28, W + 0.03, 3.72, 0.09, 0.06, 20, 0.12); [[-0.04, -0.03], [0.04, -0.02], [0, 0.04], [0.02, 0.0]].forEach(([dx, dz], i) => f.sph('fruitYellow', 8.28 + dx, W + 0.085 + (i === 3 ? 0.05 : 0), 3.72 + dz, 0.038, 0.03, 0.03, 0, i, 0.3));
+    f.cyl('ceramic', 7.32, W + 0.07, 3.78, 0.05, 0.14, 14); for (let i = 0; i < 3; i++) { const a = i * 2.1, rx = Math.cos(a) * 0.05, rz = Math.sin(a) * 0.04; f.cyl('wood', 7.32 + rx / 2, W + 0.26, 3.78 + rz / 2, 0.008, 0.3, 6, 0.012, rz * 1.5, -rx * 1.5); }
+    f.cyl('woodDark', 8.38, W + 0.1, 3.8, 0.025, 0.2, 10, 0.02); f.cyl('steel', 8.38, W + 0.21, 3.8, 0.012, 0.02, 8);
+  },
 };
 
 /* items per room: [id, label, x, z, ry, builder(f, room)] — positions in metres, ry = facing (front = +Z rotated) */
@@ -2041,18 +2249,111 @@ const ITEM_POS = { huidig: {
   'sk1/planten': [6.3, 4.5, 0], 'sk1/kunst': [6.58, 6.3, -HP],
 } };
 const EXTRA_POS = { huidig: { 'sk1/nachtkastjes': [[6.38, 7.48, HP]] } }; // turned round so its lamp also hangs over the bed
+
+/* ---------- "Heringericht": the whole house refurnished in the chosen design style (every style but "Huidig") ----------
+   Its own item lists, in the same shape as ITEMS / EXTRA / MODEL_MAP, so "Huidig" keeps following the photos untouched.
+   Every room is planned around its doors, windows, radiators and walking routes; the zitkamer office corner
+   (x 1.1-3.0, z 4.6-6.1) stays free for modules/office.js and the dogs' bed spot by the chimney (3.8, 7.0) stays open. */
+const HER_ITEMS = {
+  // seating group on a big rug facing the chimney tv; dressoir with a lamp on the left wall, bookcase and a floor lamp beside
+  // the sofa, armchair + side table at the side window, reading chair with a pouf in the alcove, table for six at the garden window
+  woonkamer: [
+    ['bank', 'Bank', 6.5, 8.8, -HP, f => P.sofa(f, 2.4)], ['salontafel', 'Salontafel', 5.3, 8.8, HP, f => P.coffee(f, 1.15, 0.62)],
+    ['kleed', 'Vloerkleed', 5.2, 8.8, 0, (f, r) => P.rug(f, r.id, 2.6, 3.4)], ['fauteuil', 'Fauteuil', 4.5, 10.6, 2.5, P.armchair],
+    ['bijzettafel', 'Bijzettafel', 3.78, 11.45, 0, f => P.stool(f, 0.22, 0.5)], ['leesstoel', 'Leesstoel', 8.3, 5.0, -1.06, P.armchair], ['poef', 'Poef', 7.6, 5.7, 0, f => P.pouf(f)],
+    ['tv', 'Tv + tv-meubel', 3.61, 8.4, HP, f => P.tvUnit(f)], ['dressoir', 'Dressoir', 3.49, 5.4, HP, f => P.sideboard(f, 1.6, 0.45)],
+    ['boekenkast', 'Boekenkast', 6.82, 11.1, -HP, f => P.bookshelf(f, 1.0, 2.0, 0.3)], ['eettafel', 'Eettafel + 6 stoelen', 5.15, 1.3, HP, f => P.dining(f, 2.0, 0.95)],
+    ['vloerlamp', 'Vloerlampen', 6.72, 10.25, 0, P.floorlamp], ['planten', 'Planten', 6.75, 11.9, 0, f => P.plant(f, 1.1)],
+    ['hanglampen', 'Hanglampen', 5.15, 0.85, 0, f => P.pendant(f, 0.8)], ['kunst', 'Wandkunst', 3.26, 5.4, HP, f => P.art(f, 0, 1.2, 0.8, 1.6)],
+    ['gordijnen', 'Gordijnen', 0, 0, 0, f => { P.gardenCurtains(f); P.frontCurtains(f); }],
+  ],
+  keuken: [['hanglampen', 'Hanglamp', 7.55, 2.0, 0, f => P.pendant(f, 0.7)], ['planten', 'Kruidenplant', 8.72, 3.0, 0, f => P.plant(f, 0.45)], ['kunst', 'Wandkunst', 6.64, 1.25, HP, f => P.art(f, 3, 0.5, 0.65, 1.55)],
+    ['spullen', 'Keukenspullen', 0, 0, 0, P.kitchenStyled]],
+  // tv lounge: sofa along the left wall facing a low media unit on the right wall, armchair + floor lamp beyond the sofa
+  zitkamer: [
+    ['bank', 'Bank', 0.5, 2.0, HP, f => P.sofa(f, 2.2, 0.92)], ['salontafel', 'Salontafel', 1.65, 2.0, 0, f => P.coffee(f, 0.9, 0.5)],
+    ['kleed', 'Vloerkleed', 1.75, 2.0, 0, (f, r) => P.rug(f, r.id, 2.0, 2.6)], ['fauteuil', 'Fauteuil', 0.7, 4.2, 0.7, P.armchair],
+    ['tv', 'Tv-meubel + tv', 3.61, 1.5, -HP, f => P.tvUnit(f, 1.5)], ['bijzettafel', 'Bijzettafel', 0.45, 0.6, 0, f => P.stool(f, 0.2, 0.5)],
+    ['vloerlamp', 'Vloerlamp', 0.4, 3.5, 0, P.floorlamp], ['planten', 'Plant', 0.45, 5.35, 0, f => P.plant(f, 0.9)],
+    ['kunst', 'Wandkunst', 0.01, 2.0, HP, f => P.art(f, 1, 1.2, 0.8, 1.55)], ['gordijnen', 'Gordijnen', 0, 0, 0, P.curtains], ['spots', 'Inbouwspots', 0, 0, 0, P.downlights],
+    ['hanglampen', 'Hanglamp', 1.65, 2.0, 0, f => P.pendant(f, 0.9)],
+  ],
+  entree: [['console', 'Sidetable', 7.25, 9.4, HP, f => P.console(f, 1.0)], ['spiegel', 'Spiegel', 7.08, 9.4, HP, f => P.mirror(f, 0.35, 1.5)],
+    ['kapstok', 'Kapstok', 7.08, 8.35, HP, f => P.coatRack(f, 0.7)], ['loper', 'Loper', 7.8, 10.3, 0, (f, r) => P.runner(f, r.id, 0.7, 2.4)],
+    ['planten', 'Plant', 7.35, 11.0, 0, f => P.plant(f, 0.8)], ['hanglampen', 'Hanglamp', 7.65, 9.3, 0, f => P.pendant(f, 0.3)]],
+  // bed 180 with its headboard on the left wall, nightstands with lamps, bench at the foot, wardrobe along the landing wall
+  sk1: [
+    ['bed', 'Bed 180', 4.35, 6.4, HP, f => P.bed(f, 1.8, 2.1)], ['nachtkastjes', 'Nachtkastjes', 3.52, 5.05, HP, P.nightstand],
+    ['bankje', 'Bankje aan het voeteneind', 5.72, 6.4, HP, f => P.bench(f, 1.2)], ['gordijnen', 'Gordijnen', 0, 0, 0, P.sk1Curtains],
+    ['kast', 'Kledingkast', 4.5, 8.86, PI, f => P.wardrobe(f, 2.2)], ['kleed', 'Vloerkleed', 4.9, 6.4, 0, (f, r) => P.rug(f, r.id, 2.6, 2.8)],
+    ['fauteuil', 'Fauteuil', 6.1, 4.85, -0.76, P.armchair], ['planten', 'Plant', 3.5, 4.5, 0, f => P.plant(f, 1)], ['spiegel', 'Staande spiegel', 6.55, 7.85, -HP, f => P.floorMirror(f)],
+    ['hanglampen', 'Hanglamp', 4.9, 6.4, 0, f => P.pendant(f, 0.55, 2.38)], ['kunst', 'Wandkunst', 3.26, 6.4, HP, f => P.art(f, 4, 1.2, 0.8, 1.6)],
+  ],
+  sk2: [
+    ['bed', 'Bed 160', 4.6, 10.33, 0, f => P.bed(f, 1.6, 2.0)], ['nachtkastjes', 'Nachtkastjes', 3.55, 9.55, 0, P.nightstand],
+    ['bureau', 'Bureau + stoel', 3.6, 11.72, HP, f => P.desk(f, 1.0, 0.6)], ['plank', 'Wandplank', 3.26, 11.72, HP, f => P.wallShelf(f, 0.9, 1.45)],
+    ['kast', 'Kledingkast', 6.65, 11.3, -HP, f => P.wardrobe(f, 1.8)], ['kleed', 'Vloerkleed', 4.6, 11.0, 0, (f, r) => P.rug(f, r.id, 2.4, 1.8)],
+    ['planten', 'Plant', 5.95, 11.95, 0, f => P.plant(f, 0.9)], ['hanglampen', 'Hanglamp', 4.6, 10.6, 0, f => P.pendant(f, 0.55, 2.38)],
+    ['kunst', 'Wandkunst', 4.6, 9.29, 0, f => P.art(f, 5, 1.0, 0.7, 1.6)], ['gordijnen', 'Vouwgordijnen', 0, 0, 0, P.sk2Blinds],
+  ],
+  // under the ridge: bed with its head on the gable, desk in the dormer, a low chest where the roof comes down
+  sk3: [
+    ['bed', 'Bed 160', 4.35, 8.23, HP, f => P.bed(f, 1.6, 2.0)], ['nachtkastjes', 'Nachtkastjes', 3.5, 7.2, HP, P.nightstand],
+    ['bureau', 'Bureau in dakkapel', 4.98, 4.95, 0, f => P.desk(f, 1.3, 0.6)], ['kleed', 'Vloerkleed', 4.8, 8.23, 0, (f, r) => P.rug(f, r.id, 2.6, 2.2)],
+    ['ladekast', 'Ladekast', 5.0, 10.8, PI, f => P.drawers(f, 1.1, 0.45, 0.75)], ['planten', 'Plant', 6.5, 9.9, 0, f => P.plant(f, 0.9)], ['vloerlamp', 'Vloerlamp', 6.4, 6.7, 0, P.floorlamp],
+    ['hanglampen', 'Hanglamp', 5.0, 8.23, 0, f => P.pendant(f, 0.45, 2.63)], ['kunst', 'Wandkunst', 3.26, 8.23, HP, f => P.art(f, 6, 1.0, 0.7, 1.7)],
+    ['gordijnen', 'Vouwgordijn', 0, 0, 0, P.sk3Blinds],
+  ],
+  badkamer: [['planten', 'Plant', 6.95, 7.85, 0, f => P.plant(f, 0.7)], ['kast', 'Hoge kast', 6.84, 4.5, HP, P.bathCabinet],
+    ['handdoeken', 'Handdoeken', 6.68, 7.05, HP, P.hookTowels], ['kruk', 'Krukje met handdoeken', 6.98, 6.4, HP, P.bathStool],
+    ['badplank', 'Badplank', 8.63, 6.0, 0, P.bathTray], ['badmat', 'Badmat', 7.62, 4.95, 0, P.bathMat]],
+  // guest room under the wing roof: single bed with its head on the gable, lounge chair + lamp under the ridge, low bookcase under the eaves
+  zolderL: [
+    ['bed', 'Logeerbed 90', 1.08, 3.9, HP, f => P.bed(f, 0.9, 2.0)], ['nachtkastjes', 'Bijzettafel', 0.42, 3.05, 0, f => P.stool(f, 0.2, 0.5)],
+    ['kleed', 'Vloerkleed', 1.5, 4.0, 0, (f, r) => P.rug(f, r.id, 2.6, 2.0)], ['fauteuil', 'Fauteuil', 2.45, 4.9, -2.4, P.armchair],
+    ['boekenkast', 'Lage boekenkast', 1.8, 1.9, 0, f => P.bookshelf(f, 1.4, 0.9, 0.3)], ['vloerlamp', 'Vloerlamp', 2.8, 4.05, 0, P.floorlamp],
+    ['planten', 'Plant', 2.6, 5.25, 0, f => P.plant(f, 0.9)], ['hanglampen', 'Hanglamp', 1.8, 3.9, 0, f => P.pendant(f, 0.9, 3.15)],
+    ['kunst', 'Wandkunst', 0.01, 3.9, HP, f => P.art(f, 1, 0.9, 0.7, 1.55)],
+  ],
+  zolderR: [['planten', 'Plant', 7.4, 7.0, 0, f => P.plant(f, 0.9)], ['ladekast', 'Ladekast', 7.9, 5.95, 0, f => P.drawers(f, 1.4, 0.45, 0.75)], ['loper', 'Loper', 7.57, 9.8, 0, (f, r) => P.runner(f, r.id, 0.6, 1.4)]],
+  overloop: [['hanglampen', 'Hanglamp', 7.6, 9.3, 0, f => P.pendant(f, 0.28, 2.38)], ['loper', 'Loper', 7.6, 9.3, 0, (f, r) => P.runner(f, r.id, 0.6, 1.3)]],
+};
+const HER_EXTRA = {
+  'woonkamer/eettafel': [[4.45, 0.65, HP], [4.45, 1.3, HP], [4.45, 1.95, HP], [5.85, 0.65, -HP], [5.85, 1.3, -HP], [5.85, 1.95, -HP]].map(([x, z, ry]) => [x, z, ry, P.dchair]),
+  'woonkamer/hanglampen': [[5.15, 1.75, 0, f => P.pendant(f, 0.8)], [5.3, 8.8, 0, f => P.pendant(f, 0.6)]],
+  'woonkamer/vloerlamp': [[8.75, 4.4, 0, P.floorlamp]], 'woonkamer/planten': [[8.7, 7.2, 0, f => P.plant(f, 1.2)], [6.75, 4.35, 0, f => P.plant(f, 0.9)]],
+  'woonkamer/kunst': [[6.99, 8.8, -HP, f => P.art(f, 7, 1.3, 0.8, 1.55)], [3.73, 1.25, HP, f => P.art(f, 8, 0.8, 1.0)]],
+  'sk1/nachtkastjes': [[3.52, 7.75, HP, P.nightstand]], 'sk2/nachtkastjes': [[5.65, 9.55, 0, P.nightstand]], 'sk3/nachtkastjes': [[3.5, 9.26, HP, P.nightstand]],
+  'sk2/bureau': [[4.15, 11.72, -HP, P.dchair]], 'sk3/bureau': [[4.98, 5.5, PI, P.dchair]],
+};
+const HER_MODEL = {
+  'woonkamer/salontafel': { kind: 'coffee', w: 1.15, d: 0.62, h: 0.42 }, 'woonkamer/fauteuil': ARM, 'woonkamer/leesstoel': { ...ARM, variant: 'lounge' },
+  'woonkamer/boekenkast': () => state.style === 'industrieel' && { kind: 'bookshelf', w: 1.0, d: 0.3, h: 2.0 }, 'woonkamer/planten': PLANT(1.1, 0.5), 'woonkamer/hanglampen': LAMP(0.8),
+  'keuken/hanglampen': LAMP(0.7), 'keuken/planten': { kind: 'plant', variant: 'small', y: 0.9, h: 0.3 },
+  'zitkamer/salontafel': { kind: 'coffee', w: 0.9, d: 0.5, h: 0.42 }, 'zitkamer/planten': PLANT(0.9), 'zitkamer/fauteuil': ARM, 'zitkamer/hanglampen': LAMP(0.9),
+  'entree/planten': PLANT(0.8, 0.4), 'entree/hanglampen': LAMP(0.3),
+  'sk1/nachtkastjes': NIGHT, 'sk1/fauteuil': ARM, 'sk1/planten': PLANT(1, 0.48), 'sk1/hanglampen': LAMP(0.55, 2.38),
+  'sk2/nachtkastjes': NIGHT, 'sk2/bureau': { kind: 'desk', w: 1.0, d: 0.6, h: 0.76 }, 'sk2/planten': PLANT(0.9), 'sk2/hanglampen': LAMP(0.55, 2.38),
+  'sk3/nachtkastjes': NIGHT, 'sk3/bureau': { kind: 'desk', w: 1.3, d: 0.6, h: 0.76 }, 'sk3/planten': PLANT(0.9), 'sk3/hanglampen': LAMP(0.45, 2.63),
+  'badkamer/planten': PLANT(0.7, 0.5), 'zolderL/fauteuil': { ...ARM, variant: 'lounge' }, 'zolderL/planten': PLANT(0.9), 'zolderL/hanglampen': LAMP(0.9, 3.15),
+  'zolderR/planten': PLANT(0.9), 'overloop/hanglampen': LAMP(0.28, 2.38),
+};
+const HER_MODEL_EXTRA = { 'woonkamer/hanglampen': [LAMP(0.8), LAMP(0.6)], 'woonkamer/planten': [PLANT(1.2, 0.56), PLANT(0.9, 0.5)], 'sk1/nachtkastjes': NIGHT, 'sk2/nachtkastjes': NIGHT, 'sk3/nachtkastjes': NIGHT };
+const isHer = () => state.style !== 'huidig';
+const curItems = () => isHer() ? HER_ITEMS : ITEMS;
 const furnGroups = {};
 function buildRoomFurniture(id) {
-  const r = ROOM[id], fl = LV[r.lvl].floor, rs = state.rooms[id];
+  const r = ROOM[id], fl = LV[r.lvl].floor, rs = state.rooms[id], her = isHer();
+  const IT = her ? HER_ITEMS : ITEMS, EX = her ? HER_EXTRA : EXTRA, MM = her ? HER_MODEL : MODEL_MAP, ME = her ? HER_MODEL_EXTRA : MODEL_EXTRA;
   if (furnGroups[id]) { furnGroups[id].traverse(o => { if (!o.userData.sharedGeo) o.geometry?.dispose(); }); furnGroups[id].removeFromParent(); }
   const g = new THREE.Group(); g.name = 'furn:' + id; furnGroups[id] = g; G[r.lvl].main.add(g);
   const b = new Buckets();
   const PO = ITEM_POS[state.style] || {}, EO = EXTRA_POS[state.style] || {};
-  for (const [iid, , x0, z0, ry0, fn] of ITEMS[id] || []) {
+  for (const [iid, , x0, z0, ry0, fn] of IT[id] || []) {
     if (rs.items[iid] === false) continue;
-    const key = id + '/' + iid, mx = MODEL_EXTRA[key], [x, z, ry] = PO[key] || [x0, z0, ry0];
-    if (!placeModel(g, MODEL_MAP[key], x, fl, z, ry)) fn(kit(b, x, fl, z, ry), r);
-    (EXTRA[key] || []).forEach(([ex0, ez0, ery0, efn], i) => {
+    const key = id + '/' + iid, mx = ME[key], [x, z, ry] = PO[key] || [x0, z0, ry0];
+    if (!placeModel(g, MM[key], x, fl, z, ry)) fn(kit(b, x, fl, z, ry), r);
+    (EX[key] || []).forEach(([ex0, ez0, ery0, efn], i) => {
       const [ex, ez, ery] = EO[key]?.[i] || [ex0, ez0, ery0];
       if (!placeModel(g, Array.isArray(mx) ? mx[i] : mx, ex, fl, ez, ery)) efn(kit(b, ex, fl, ez, ery), r);
     });
@@ -2061,7 +2362,7 @@ function buildRoomFurniture(id) {
   invalidatePicks();
 }
 
-function buildAllFurniture() { for (const id in ITEMS) buildRoomFurniture(id); }
+function buildAllFurniture() { for (const id of new Set([...Object.keys(ITEMS), ...Object.keys(HER_ITEMS)])) buildRoomFurniture(id); }
 
 /* ================= FIXED FITTINGS (kitchen, sanitary, appliances) ================= */
 /* ---------- mirrors: each one its own mesh, reflecting a cube capture of its own room taken from where you would stand in
@@ -2248,7 +2549,9 @@ function applyTime(h) {
   const dir = V(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el));
   sun.position.copy(SUN_C).addScaledVector(dir, 45);
   const se = Math.sin(el), up = sstep(se, 0, 0.35), nf = 1 - sstep(se, -0.06, 0.14), gold = (1 - up) * (1 - nf);
-  sun.intensity = 3.6 * sstep(se, 0, 0.12); sun.visible = sun.intensity > 0.01;
+  // after sunset the sun stays in the scene at intensity 0 (hiding it would change the light count and recompile every
+  // material, a freeze of seconds); only its shadow map stops being redrawn
+  sun.intensity = 3.6 * sstep(se, 0, 0.12); sun.shadow.autoUpdate = sun.intensity > 0.01;
   sun.color.setRGB(1, 0.58 + 0.38 * up, 0.3 + 0.6 * up);
   // with the HDR sky most of the fill comes from the environment; the hemisphere light only carries the colour of the hour
   hemi.intensity = lerp(skyTex ? 0.35 : 0.85, 0.08, nf); hemi.color.copy(C_SKY_DAY).lerp(C_SKY_GOLD, gold).lerp(C_SKY_NIGHT, nf);
@@ -2599,7 +2902,8 @@ function syncPanel() {
   $('#selName').textContent = r.name; $('#sheetRoom').textContent = r.name; $('#roomSelect').value = r.id;
   $('#selMeta').textContent = `${roomArea(r).toFixed(1).replace('.', ',')} m² · ${LVSHORT[r.lvl]}`;
   document.querySelectorAll('#scopeSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.scope === state.scope)));
-  document.querySelectorAll('#styles .chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === state.style)));
+  document.querySelectorAll('#looks button').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.look === 'her') === isHer())));
+  document.querySelectorAll('#styles .chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === state.design)));
   document.querySelectorAll('#floorTiles .tile').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === rs.floor)));
   const wn = PAINTS.find(p => p[1] === rs.wall.toLowerCase()); $('#wallName').textContent = wn ? wn[0] : 'Eigen kleur ' + rs.wall.toUpperCase();
   $('#wallSw').replaceChildren(...PAINTS.map(([n, h]) => swatch(h, n, h === rs.wall.toLowerCase(), () => applyToTargets(s => { s.wall = h; }))));
@@ -2617,7 +2921,7 @@ function syncPanel() {
     sw.replaceChildren(...F.list.map(([n, h]) => swatch(h, n, h === cur, () => setFinish(k, h))));
     wrap.append(head, sw); return wrap;
   }));
-  const items = ITEMS[r.id] || [];
+  const items = curItems()[r.id] || [];
   if (!items.length) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = 'Geen losse meubels in deze ruimte; de vaste inrichting blijft staan.'; $('#items').replaceChildren(p); }
   else $('#items').replaceChildren(...items.map(([iid, label]) => {
     const l = document.createElement('label'); l.className = 'check'; const c = document.createElement('input'); c.type = 'checkbox'; c.id = `it-${r.id}-${iid}`; c.checked = rs.items[iid] !== false;
@@ -2633,7 +2937,8 @@ function buildPanel() {
   LV.forEach(l => { const og = document.createElement('optgroup'); og.label = l.name; ROOMS.filter(r => r.lvl === l.id).forEach(r => og.append(new Option(r.name, r.id))); rsel.append(og); });
   rsel.onchange = () => selectRoom(rsel.value);
   document.querySelectorAll('#scopeSeg button').forEach(b => b.onclick = () => { state.scope = b.dataset.scope; saveState(); syncPanel(); });
-  $('#styles').replaceChildren(...Object.entries(STYLES).map(([id, S]) => {
+  document.querySelectorAll('#looks button').forEach(b => b.onclick = () => setLook(b.dataset.look === 'her'));
+  $('#styles').replaceChildren(...Object.entries(STYLES).filter(([id]) => id !== 'huidig').map(([id, S]) => {
     const b = document.createElement('button'); b.className = 'chip'; b.dataset.id = id;
     const i = document.createElement('i'); for (const c of [S.wall, S.c.fab, S.c.wood]) { const d = document.createElement('b'); d.style.background = c; i.append(d); }
     b.append(i, S.name); b.onclick = () => applyStyle(id); return b;
@@ -2672,10 +2977,21 @@ function setFinish(k, hex, sync = true) {
   saveState(); if (sync) syncPanel();
 }
 function restoreLook(snap) { state.style = snap.style; state.rooms = snap.rooms; state.over = snap.over || {}; refreshStyleMaterials(); ROOMS.forEach(r => refreshRoomMaterials(r.id)); buildAllFurniture(); saveState(); syncPanel(); }
+// "Nu" (the house as it is) or "Heringericht" (the whole house refurnished in the chosen design style). House-wide and
+// instant: the walker stays where it is, only the furniture groups and finishes are rebuilt
+function setLook(her) {
+  const id = her ? state.design : 'huidig';
+  if (state.style === id) return;
+  const snap = { style: state.style, rooms: structuredClone(state.rooms), over: { ...state.over } };
+  state.style = id; state.over = {};
+  for (const r of ROOMS) state.rooms[r.id] = styleRoomState(id, r, state.rooms[r.id]);
+  refreshStyleMaterials(); ROOMS.forEach(x => refreshRoomMaterials(x.id)); buildAllFurniture(); saveState(); syncPanel();
+  toast(her ? `Heringericht: ${STYLES[id].name}` : 'Het huis zoals het nu is', { action: 'Ongedaan maken', onAction: () => restoreLook(snap) });
+}
 function applyStyle(id) {
   if (!Object.hasOwn(STYLES, id)) return;
   const snap = { style: state.style, rooms: structuredClone(state.rooms), over: { ...state.over } }, ids = targets(), r = ROOM[state.sel];
-  state.style = id; state.over = {};
+  state.style = id; state.over = {}; if (id !== 'huidig') state.design = id;
   for (const rid of ids) state.rooms[rid] = styleRoomState(id, ROOM[rid], state.rooms[rid]);
   refreshStyleMaterials(); ROOMS.forEach(x => refreshRoomMaterials(x.id)); buildAllFurniture(); saveState(); syncPanel();
   const where = state.scope === 'house' ? 'het hele huis' : state.scope === 'floor' ? LV[r.lvl].name.toLowerCase() : r.name.toLowerCase();
@@ -2743,7 +3059,7 @@ window.HOUSE = {
   data: { LV, ROOMS, WALLS, HOLES, FLOORS, PAINTS, STYLES, FLIGHTS },
   stairs: FLIGHTS.map(f => Object.assign([f.l, f.x0, f.x1, f.zBot, f.zTop, f.yBot, f.yTop], { id: f.id, name: f.name, l: f.l, x0: f.x0, x1: f.x1, zBot: f.zBot, zTop: f.zTop, yBot: f.yBot, yTop: f.yTop, zMin: f.zMin, zMax: f.zMax, exits: f.exits })),
   addToRoom(roomId, obj) { const r = ROOM[roomId]; (r ? G[r.lvl].main : EXT).add(obj); invalidatePicks(); return obj; },
-  rebuildFurniture: () => buildAllFurniture(),
+  rebuildFurniture: () => buildAllFurniture(), setLook: her => setLook(!!her), get look() { return isHer() ? 'her' : 'nu'; },
   onTick(fn) { tickFns.add(fn); return () => tickFns.delete(fn); }, prepareCapture,
   pauseRender(on = true) { renderPaused = !!on; },
   on(evt, fn) { if (!HUB[evt]) HUB[evt] = new Set(); HUB[evt].add(fn); return () => HUB[evt].delete(fn); },
@@ -2812,7 +3128,46 @@ function frame() {
   if (++frames === 2) $('#loading').hidden = true;
 }
 function loop() { try { frame(); } catch (e) { if (frames < 2) bootFail(e); else if (loopErrs++ < 3) console.error(e); } }
-if (booted) renderer.setAnimationLoop(loop);
+// Shaders are compiled before the first frame, all at once so the driver builds them in parallel (KHR_parallel_shader_compile),
+// with a count on the loading screen. Left to three they compile one by one on first use (~80 programs at 0.25-0.6 s each
+// with D3D), which froze the house for 10-15 s right after it appeared. Resolves when every program can be used.
+function precompile(objs = scene, onPart) {
+  const lv = HOUSE.post?.levels?.[HOUSE.post.quality], list = [].concat(objs), progs = new Set(), texs = new Set();
+  const rt = lv?.composer ? new THREE.WebGLRenderTarget(1, 1) : null; // the composer draws the scene into a target: linear, no tone mapping
+  try {
+    renderer.setRenderTarget(rt);
+    const mats = renderer.compile(objs === scene ? scene : { traverse: f => list.forEach(o => o.traverse(f)), traverseVisible() { } }, camera, scene);
+    for (const m of mats) { for (const p of renderer.properties.get(m).programs?.values() || []) progs.add(p); for (const k in m) if (m[k]?.isTexture) texs.add(m[k]); }
+  } catch (e) { console.warn('[boot] precompile', e); } finally { renderer.setRenderTarget(null); rt?.dispose(); }
+  const n = progs.size;
+  return new Promise(res => {
+    // finished programs are fetched a few per tick (their uniform lookup blocks), so the count keeps moving; in between the
+    // loaded textures go up to the GPU (decode + upload), which three would otherwise do all at once in the first frame
+    const tick = () => {
+      const t0 = performance.now(), full = () => performance.now() - t0 > 12;
+      for (const p of progs) { if (p.isReady()) { p.getUniforms(); progs.delete(p); } if (full()) break; }
+      for (const t of texs) { if (full()) break; texs.delete(t); if (t.version > 0 && !t.isRenderTargetTexture && t.image && t.image.complete !== false) renderer.initTexture(t); }
+      onPart?.(n ? 1 - progs.size / n : 1);
+      if (progs.size || texs.size) setTimeout(tick, progs.size ? 16 : 0); else res(n);
+    };
+    tick();
+  });
+}
+HOUSE.precompile = precompile;
+// first frame: once the modules have run (DOMContentLoaded: lighting patch, garden, office), their shaders and the house's are
+// compiled; furniture models that are on their way get a few more seconds (models.js compiles its own before placing them)
+let domReady = false; addEventListener('DOMContentLoaded', () => { domReady = true; }, { once: true });
+async function warmUp() {
+  const L = $('#loading'), wait = ms => new Promise(r => setTimeout(r, ms));
+  const until = async (ok, ms) => { const t = performance.now() + ms; while (!ok() && performance.now() < t) await wait(40); };
+  await until(() => domReady || document.readyState === 'complete', 8000);
+  await precompile(scene, k => { L.textContent = `LICHT EN MATERIALEN VOORBEREIDEN… ${Math.round(k * 100)}%`; });
+  let models = !HOUSE.models; HOUSE.models?.ready.then(() => { models = true; }, () => { models = true; });
+  // while they load, a rehearsal frame behind the loading screen builds what only a real frame does (shadow, sky and post
+  // shaders, texture uploads), so the first visible frame is quick
+  if (!models) { L.textContent = 'MEUBELS LADEN…'; await wait(0); try { renderer.render(scene, camera); } catch (e) { } await until(() => models, 4000); }
+}
+if (booted) warmUp().catch(e => console.warn('[boot]', e)).then(() => renderer.setAnimationLoop(loop));
 
 
 </script>
@@ -2825,11 +3180,25 @@ const DOG_BLOCKS = {
   leesstoel: [[7.85, 8.75, 4.55, 5.45]], boekenkast: [[3.25, 3.6, 4.8, 6.4]], eettafel: [[4.3, 6.0, 0.25, 2.25]],
   vloerlamp: [[6.5, 6.9, 10.25, 10.65], [8.55, 8.95, 4.2, 4.6]], planten: [[6.42, 6.82, 11.7, 12.1], [3.42, 3.82, 4.25, 4.65], [8.5, 8.9, 7.0, 7.4]],
 };
+// the same for the "Heringericht" plan (HER_ITEMS); the dogs' bed by the chimney stays reachable between dressoir and tv unit
+const DOG_BLOCKS_HER = {
+  bank: [[6.0, 6.98, 7.55, 10.05]], salontafel: [[4.7, 5.9, 8.45, 9.15]], fauteuil: [[4.05, 4.95, 10.15, 11.05]], bijzettafel: [[3.55, 4.0, 11.2, 11.7]],
+  leesstoel: [[7.85, 8.75, 4.55, 5.45]], poef: [[7.3, 7.9, 5.4, 6.0]], tv: [[3.6, 4.05, 7.7, 9.1]], dressoir: [[3.25, 3.75, 4.55, 6.25]], boekenkast: [[6.6, 7.0, 10.55, 11.65]],
+  eettafel: [[4.2, 6.1, 0.25, 2.35]], vloerlamp: [[6.55, 6.9, 10.08, 10.42], [8.55, 8.95, 4.2, 4.6]], planten: [[6.5, 7.0, 11.7, 12.15], [8.5, 8.9, 7.0, 7.4], [6.55, 6.95, 4.15, 4.55]],
+};
 const FIXED = [[3.25, 3.6, 7.9, 8.9]]; // chimney breast with the tv
 function obstacles(H) {
-  const items = H.state?.rooms?.woonkamer?.items || {}, out = [...FIXED];
-  for (const id in DOG_BLOCKS) if (items[id] !== false) out.push(...DOG_BLOCKS[id]);
+  const items = H.state?.rooms?.woonkamer?.items || {}, B = H.state?.style === 'huidig' ? DOG_BLOCKS : DOG_BLOCKS_HER, out = [...FIXED];
+  for (const id in B) if (items[id] !== false) out.push(...B[id]);
+  if (Array.isArray(H.office?.obstacles)) out.push(...H.office.obstacles); // desk, sim rig, chair, cabinets of the office corner
   return out.map(([x0, x1, z0, z1]) => ({ x0, x1, z0, z1 }));
+}
+// the green bean bag in the office corner (modules/office.js, only in the "Nu" look) is a dog bed; Logan starts asleep on it, as in the photo
+function syncOffice(H, dogs, first) {
+  const b = H.office?.dogBed;
+  if (b) dogs.addBed({ id: 'kantoor', x: b.x, z: b.z, y: b.top, r: Math.max(0.3, b.r - 0.08), heading: 0, room: 'zitkamer' }); else dogs.removeBed('kantoor');
+  dogs.setObstacles(obstacles(H));
+  if (first && b) dogs.place('Logan', { bed: 'kantoor' });
 }
 function boot(n = 0) {
   const H = window.HOUSE;
@@ -2839,7 +3208,8 @@ function boot(n = 0) {
   const dogs = addDalmatians(T, home, { onTick: H.onTick, obstacles: obstacles(H), sofa: { x: 0.62, z: 1.95, y: 0.49, heading: 0.15 } });
   H.addToRoom('woonkamer', home);
   H.dogs = dogs;
-  H.on('change', () => dogs.setObstacles(obstacles(H)));
+  H.on('change', () => setTimeout(() => syncOffice(H, dogs), 0)); // after office.js has rebuilt for the new style
+  let tries = 0; const wait = () => { if (H.office) syncOffice(H, dogs, true); else if (++tries < 300) setTimeout(wait, 100); }; wait();
 }
 boot();
 </script>
@@ -2857,11 +3227,11 @@ setTimeout(() => {
 }, 20000);
 </script>
 <script type="module">
-import './modules/measure.js'; import './modules/shopping.js'; import './modules/vr.js'; import './modules/office.js'; import './modules/garden.js'; import './modules/post.js';
+import './modules/measure.js'; import './modules/shopping.js'; import './modules/vr.js'; import './modules/office.js'; import './modules/garden.js'; import './modules/frontgarden.js'; import './modules/post.js';
 </script>
 <script type="module">
 import './models/models.js';
 </script>
-<!-- "Nu ↔ Plan" before/after slider: only shows up where photos/manifest.json exists (the private artifact, not GitHub Pages) -->
+<!-- "Nu ↔ Plan" before/after slider: photos come decrypted from the vault (modules/vault.js) once the password is in -->
 <script type="module" src="./modules/compare.js"></script>
 <script type="module" src="./modules/photo.js"></script>

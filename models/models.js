@@ -38,20 +38,26 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const seedOf = (x, z) => (Math.round(x * 100) * 73856093) ^ (Math.round(z * 100) * 19349663);
 
+// the host answered a .glb with 4xx or a page (artifact host): later models try their .b64.txt first, the .glb only after that
+let refusesGlb = false;
 async function fetchBytes(url) {
-  try {
+  const glb = /\.glb$/.test(url);
+  const direct = async () => {
     const r = await fetch(url);
-    if (!r.ok) throw new Error(r.status);
+    if (!r.ok) { if (glb && r.status >= 400 && r.status < 500) refusesGlb = true; throw new Error(r.status); }
     const ct = r.headers.get('content-type') || '';
-    if (/text\/html/.test(ct)) throw new Error('html'); // SPA fallback page instead of the file
+    if (/text\/html/.test(ct)) { if (glb) refusesGlb = true; throw new Error('html'); } // SPA fallback page instead of the file
     return await r.arrayBuffer();
-  } catch (e) {
+  };
+  const b64 = async () => {
     const r = await fetch(url + '.b64.txt');
     if (!r.ok) throw new Error('model not available: ' + url);
     const s = atob((await r.text()).trim()), u = new Uint8Array(s.length);
     for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
     return u.buffer;
-  }
+  };
+  if (glb && refusesGlb) return b64().catch(direct);
+  try { return await direct(); } catch (e) { return b64(); }
 }
 
 export function install(H) {
@@ -132,6 +138,9 @@ export function install(H) {
     await Promise.all(Array.from({ length: CONCURRENCY }, async () => { while (i < order.length) { const e = order[i++]; await loadEntry(e); } }));
     // aliases share the loaded scene of their file
     for (const e of entries) if (!e.loaded && !e.failed) { const src = entries.find(x => x.file === e.file && x.loaded); if (src) { e.template = src.template; e.cord = src.cord; e.loaded = true; } else e.failed = true; }
+    // their shaders compile in parallel before anything is placed (rebuildFurniture runs on ready), not one by one in a frame
+    const K = lampKit(), tpl = [...new Set(entries.filter(e => e.loaded).map(e => e.template))];
+    try { await H.precompile?.([...tpl, new T.Mesh(K.base, K.baseM), new T.Mesh(K.shade, K.shadeM)]); } catch (err) { console.warn('[models] precompile', err); }
     stats.ms = Math.round(performance.now() - t0);
     updateLamps();
     return { ...stats };
@@ -246,7 +255,7 @@ export function install(H) {
     g.add(m); return m;
   }
   let lampGeo = null;
-  function tableLamp(g, x, y, z, s = 1) {
+  function lampKit() {
     if (!lampGeo) {
       const prof = [[0, 0], [0.055, 0], [0.06, 0.012], [0.075, 0.07], [0.078, 0.12], [0.06, 0.2], [0.03, 0.25], [0.012, 0.27], [0.012, 0.33], [0, 0.33]].map(([a, b]) => new T.Vector2(a, b));
       const shadeM = new T.MeshStandardMaterial({ color: '#efe7d8', roughness: 0.95, side: T.DoubleSide, emissive: new T.Color('#ffcf8a'), emissiveIntensity: 0 });
@@ -257,6 +266,10 @@ export function install(H) {
       };
       lampLevel = -1; updateLamps();
     }
+    return lampGeo;
+  }
+  function tableLamp(g, x, y, z, s = 1) {
+    lampKit();
     const L = new T.Group(); L.position.set(x, y, z); L.scale.setScalar(s);
     const b = new T.Mesh(lampGeo.base, lampGeo.baseM), sh = new T.Mesh(lampGeo.shade, lampGeo.shadeM);
     sh.position.y = 0.36; b.castShadow = sh.castShadow = true; b.receiveShadow = sh.receiveShadow = true;

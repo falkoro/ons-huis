@@ -307,8 +307,8 @@ const DECK = { x0: -0.28, x1: 2.72, z0: -9.9, z1: -6.9, h: 0.08 };
 const RIM_Y = DECK.h + 0.90, WATER_Y = RIM_Y - 0.11, FLOOR_Y = RIM_Y - 0.80;
 const SHED = { x0: 6.0, x1: 9.4, z0: -10.9, z1: -8.4, h: 2.3 }, STRIP = { x0: 7.7, x1: 9.3, z0: -15.1, z1: -10.9, h: 2.1 };
 const HEDGE = { a: [-1.1, -10.1], b: [6.0, -10.5], w: 0.6, h: 1.8 };
-// voortuin: gras tussen gevel en voorhaag (host-plaatsen), het tegelpad naar de zijdeur loopt er doorheen
-const FRONT_LAWNS = [[-0.75, 3.0, 9.28, 17.6], [3.0, 7.0, 12.47, 17.6], [8.3, 9.35, 12.47, 17.6]];
+// voortuin: grind, border en straat komen uit frontgarden.js; hier geen gazon, hagen of boom meer aan de voorkant
+const FRONT_LAWNS = [];
 const BEDS = [[-0.3, 2.0, -5.1, -3.35], [-0.85, -0.3, -6.9, -3.0], [2.75, 5.95, -9.9, -7.7], [8.7, 9.3, -8.3, -3.4]];
 const STONES1 = [[2.75, -3.65], [2.55, -4.3], [2.3, -4.95], [2.0, -5.55], [1.45, -5.95]];
 const STONES2 = Array.from({ length: 8 }, (_, i) => { const t = i / 7; return [6.3 + 0.85 * t + 0.25 * Math.sin(PI * t), -3.6 - 4.55 * t]; });
@@ -556,11 +556,7 @@ export function install(H) {
     }
   }
   hedgeRun(HEDGE.a[0], HEDGE.a[1], HEDGE.b[0], HEDGE.b[1], HEDGE.w, HEDGE.h, Q.hedge, true);
-  // voorhagen (host: x -1.05..-0.75 z 9.28..18; z 17.6..17.9 x -0.75..7.0 en 8.3..9.35), zelfde bladdichtheid per m2
-  const hd = Q.hedge / 30;
-  for (const [ax, az, bx, bz] of [[-0.9, 9.28, -0.9, 18.0], [-0.75, 17.75, 7.0, 17.75], [8.3, 17.75, 9.35, 17.75]]) {
-    const L = Math.hypot(bx - ax, bz - az); hedgeRun(ax, az, bx, bz, 0.3, 0.75, Math.round(hd * L * 1.8), false);
-  }
+  // (voorhagen: geen — de oprit ligt open naar de straat, zie frontgarden.js)
   // gazon-ondergrond over de grasplaat van de host (y 0): rustige vlekkerige grasmat; de sprieten erop vervagen snel met afstand
   statics.box({ py: 'lawn', def: 'lawn' }, -0.85, 9.35, -0.03, 0.004, -15.15, -3.0);
   for (const [x0, x1, z0, z1] of FRONT_LAWNS) statics.box({ py: 'lawn', def: 'lawn' }, x0, x1, -0.03, 0.004, z0, z1);
@@ -677,8 +673,8 @@ export function install(H) {
   tree(3.3, -0.75, 1.25, 0.035, 0.55, 1.55, 'olive', 220); addCol(3.0, 3.6, -1.05, -0.45);
   statics.box('pot', 8.35, 8.85, 0, 0.45, -0.85, -0.35); statics.box('mulch', 8.37, 8.83, 0.44, 0.45, -0.83, -0.37); shrub('buxus', 8.6, -0.6, 0.3, 0.3); addCol(8.35, 8.85, -0.85, -0.35);
   // buurbomen (buiten het perceel, decor): bloesemboom en de grote boom van de buren
-  // op de plekken van de (verborgen) host-bomen: twee achter de haag, een in de voortuin
-  tree(1.6, -11.2, 2.9, 0.11, 2.0, 3.8, 'tree', 620); tree(4.2, -13.4, 2.2, 0.085, 1.5, 2.9, 'tree', 420); tree(5.0, 16.2, 1.9, 0.07, 1.15, 2.4, 'tree', 300);
+  // op de plekken van de (verborgen) host-bomen: twee achter de haag (de voortuinboom staat in frontgarden.js)
+  tree(1.6, -11.2, 2.9, 0.11, 2.0, 3.8, 'tree', 620); tree(4.2, -13.4, 2.2, 0.085, 1.5, 2.9, 'tree', 420);
   tree(-5.2, -9.5, 2.6, 0.11, 2.2, 3.7, 'birch', 700, 2); tree(9.9, -8.5, 3.2, 0.2, 2.5, 4.9, 'tree', 750);
 
   /* =================================================== STAPTEGELS, VERLICHTING, TERRAS =================================================== */

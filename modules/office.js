@@ -1,13 +1,22 @@
-/* office.js — kantoor-/gamehoek in de zitkamer (add-on voor de woning-walkthrough)
+/* office.js — het kantoor/de gamehoek in de zitkamer (add-on voor de woning-walkthrough)
  *
- *  - Flightsim-cockpit: stuur, gashendels, pedalen, kuipstoel en een gebogen 21:9-scherm waarop live een vlucht
- *    boven de polder draait (2D-canvas met perspectief: velden, sloten, molens, landingsbaan + HUD).
- *    E / klik op het scherm = zelf vliegen (Esc = terug naar lopen).
- *  - Bureau met pc, 2 monitoren en gamestoel. Monitor 1 toont Asmongold (kanaal "zackrawrr"):
- *      falkoro.github.io / localhost / 127.0.0.1  -> officiële Twitch-embed via CSS3DRenderer ("hole punch")
+ *  Werkelijkheid (photos/rooms/kantoor_1.jpg, zitkamer_1/2, achterhal_1): de zitkamer is één lange kamer; het "kantoor" staat
+ *  langs de linkerwand (x = 0) aan het voorste (hal-)einde, de hoekbank bij het raam. Van voor naar achter: zwarte gamestoel,
+ *  zwart bureau met 27"-monitor (vliegtuig-achtergrond, naar de stoel gedraaid), glazen gaming-pc met RGB-fans, 32"-monitor op
+ *  een arm, tweede zwarte toren met oranje logo + speaker, dan de flightsim-rig (zwart buisframe, kuipstoel, yoke, gasquadrant
+ *  met groen verlichte knoppen), een zwarte draadstoel en het ronde donkergroene hondenbed. Posters hoog boven het bureau (host).
+ *  Rechterwand: hoge zwarte kast met glazen deuren in de sprong van de wand, zwart ladeblok met witte laserprinter, blauwe
+ *  Helmer-ladekast, tablet. Lichte eiken laminaatvloer, witte wanden (host).
+ *
+ *  - "Huidig": bovenstaande opstelling. Andere stijlen: opgeruimde designerversie (eiken bureau, mesh-stoel, één monitor,
+ *    rig netjes achterin met wandscherm). Wisselt mee met HOUSE.state.style ('change'-event).
+ *  - Monitor 2 (32") toont live een vlucht boven de polder (2D-canvas met perspectief + HUD). E / klik = zelf vliegen (Esc = terug).
+ *  - Monitor 1 (27") toont het bureaublad met het stream-venster van Asmongold (kanaal "zackrawrr"):
+ *      falkoro.github.io / localhost / 127.0.0.1  -> officiële Twitch-embed via CSS3DRenderer ("hole punch") als je dichtbij staat
  *      elders (bv. claude.ai-artifact)            -> geanimeerd voorbeeldbeeld + link naar twitch.tv/zackrawrr
  *    Forceren kan met ?stream=twitch of ?stream=fallback.
- *  - Subtiele RGB-gloed. Statische delen zijn per materiaal samengevoegd (5 draw calls + 3 schermen + 3 gloedvlakken).
+ *  - Lichtspill van schermen/RGB (additief, 's avonds sterker). Statische delen per materiaal samengevoegd (≤ 9 draw calls
+ *    + 2 schermen + 2 spillvlakken). Loopblokken staan in HOUSE.colliders[0]; HOUSE.office.{dogBed,obstacles,chair} voor de honden.
  *
  * Laden (na de hoofdmodule):  <script type="module" src="./modules/office.js"></script>
  * Gebruikt alleen de bestaande import map ("three", "three/addons/"). Exporteert install(HOUSE); start zelf op.
@@ -480,25 +489,64 @@ function makeStreamFallback() {
   return { canvas: c, draw };
 }
 
-function makeCodeScreen() {
-  const c = document.createElement('canvas'); c.width = 512; c.height = 288;
-  const g = c.getContext('2d');
-  g.fillStyle = '#1e1f26'; g.fillRect(0, 0, 512, 288);
-  g.fillStyle = '#16171c'; g.fillRect(0, 0, 92, 288); g.fillRect(0, 0, 512, 18);
-  g.fillStyle = '#2a2c36'; g.fillRect(92, 0, 96, 18);
-  g.font = '9px ui-monospace, Consolas, monospace'; g.fillStyle = '#c8c8d0'; g.fillText('vliegplan.lua', 100, 12);
-  for (let i = 0; i < 14; i++) { g.fillStyle = i === 3 ? '#3b4a6b' : '#16171c'; g.fillRect(4, 26 + i * 15, 84, 12); g.fillStyle = '#8b8d98'; g.fillRect(12 + (i % 3) * 6, 30 + i * 15, 30 + hash(i, 1, 2) * 40, 4); }
-  const pal = ['#c678dd', '#61afef', '#98c379', '#e5c07b', '#d19a66', '#abb2bf', '#56b6c2', '#e06c75'];
-  for (let l = 0; l < 17; l++) {
-    const y = 28 + l * 12; g.fillStyle = '#4b4e5a'; g.fillText(String(l + 1).padStart(2, ' '), 98, y + 4);
-    let x = 120 + (hash(l, 3, 4) * 3 | 0) * 12;
-    const n = 2 + (hash(l, 5, 4) * 5 | 0);
-    for (let q = 0; q < n && x < 420; q++) { const w = 12 + hash(l, q, 6) * 50; g.fillStyle = pal[(hash(l, q, 7) * pal.length) | 0]; g.fillRect(x, y, w, 4); x += w + 6; }
+/* Bureaublad van monitor 1 (foto): achtergrond met een watervliegtuig aan een steiger bij zonsondergang, taskbalk met klok,
+   en het stream-voorbeeldbeeld in een klein venster rechtsboven. */
+function makeDesktop(stream) {
+  const W = 640, HH = 360, c = document.createElement('canvas'); c.width = W; c.height = HH;
+  const g = c.getContext('2d'), wp = document.createElement('canvas'); wp.width = W; wp.height = HH;
+  const SYS = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+  (function wallpaper(q) {
+    const HZ = 178;
+    let gr = q.createLinearGradient(0, 0, 0, HZ); gr.addColorStop(0, '#1d2a6b'); gr.addColorStop(0.45, '#8a4f8e'); gr.addColorStop(0.8, '#e8805a'); gr.addColorStop(1, '#ffc46a');
+    q.fillStyle = gr; q.fillRect(0, 0, W, HZ);
+    gr = q.createRadialGradient(400, 150, 0, 400, 150, 220); gr.addColorStop(0, 'rgba(255,220,150,.75)'); gr.addColorStop(1, 'rgba(255,200,120,0)'); q.fillStyle = gr; q.fillRect(0, 0, W, HZ);
+    for (let i = 0; i < 14; i++) { const x = hash(i, 1, 11) * W, y = 20 + hash(i, 2, 11) * 95, w = 50 + hash(i, 3, 11) * 110; q.fillStyle = `rgba(${255},${150 + hash(i, 4, 11) * 60 | 0},${120 + hash(i, 5, 11) * 60 | 0},${0.25 + hash(i, 6, 11) * 0.3})`; q.beginPath(); q.ellipse(x, y, w, 7 + hash(i, 7, 11) * 9, 0, 0, 7); q.fill(); }
+    for (const [cc, base, amp, s] of [['#5a5f93', 120, 38, 1], ['#2b2f58', 140, 30, 2], ['#171a36', 158, 22, 3]]) {
+      q.fillStyle = cc; q.beginPath(); q.moveTo(0, HZ);
+      for (let x = 0; x <= W; x += 16) q.lineTo(x, base + Math.sin(x * 0.021 * s + s) * amp * 0.5 - hash(x / 16 | 0, s, 12) * amp * 0.6);
+      q.lineTo(W, HZ); q.closePath(); q.fill();
+    }
+    gr = q.createLinearGradient(0, HZ, 0, HH); gr.addColorStop(0, '#f2a560'); gr.addColorStop(0.25, '#7a5a8a'); gr.addColorStop(0.6, '#23305e'); gr.addColorStop(1, '#0d1230');
+    q.fillStyle = gr; q.fillRect(0, HZ, W, HH - HZ);
+    for (let i = 0; i < 60; i++) { const y = HZ + 4 + hash(i, 1, 13) * 150, w = 20 + hash(i, 2, 13) * 90; q.fillStyle = `rgba(255,210,150,${(0.08 + hash(i, 3, 13) * 0.22) * (1 - (y - HZ) / 170)})`; q.fillRect(hash(i, 4, 13) * W, y, w, 1.5); }
+    gr = q.createRadialGradient(400, HZ + 10, 0, 400, HZ + 10, 90); gr.addColorStop(0, 'rgba(255,215,160,.6)'); gr.addColorStop(1, 'rgba(255,215,160,0)'); q.fillStyle = gr; q.fillRect(300, HZ, 200, 90);
+    // steiger (linksonder, in perspectief)
+    q.fillStyle = '#3d2a1b'; q.beginPath(); q.moveTo(0, 300); q.lineTo(236, 232); q.lineTo(262, 236); q.lineTo(0, 345); q.closePath(); q.fill();
+    q.fillStyle = '#5c4027'; q.beginPath(); q.moveTo(0, 292); q.lineTo(236, 229); q.lineTo(258, 232); q.lineTo(0, 334); q.closePath(); q.fill();
+    q.strokeStyle = 'rgba(0,0,0,.35)'; q.lineWidth = 1; for (let i = 0; i < 14; i++) { const t = i / 14, x = 236 * (1 - t * t), y1 = 229 + (292 - 229) * t * t, y2 = 232 + (334 - 232) * t * t; q.beginPath(); q.moveTo(x, y1); q.lineTo(x + 22 * (1 - t), y2); q.stroke(); }
+    for (const [x, y, h] of [[40, 290, 26], [120, 262, 20], [190, 243, 15], [232, 230, 12]]) { q.fillStyle = '#2d1e12'; q.fillRect(x, y - h, 6, h); q.fillStyle = '#3f2b19'; q.fillRect(x, y - h, 2, h); }
+    // watervliegtuig (wit met oranje band), drijvers op het water
+    q.save(); q.translate(300, 214);
+    q.fillStyle = 'rgba(0,0,0,.25)'; q.beginPath(); q.ellipse(4, 30, 54, 5, 0, 0, 7); q.fill();
+    q.fillStyle = '#d9dde3'; for (const dy of [22, 27]) { q.beginPath(); q.ellipse(-2 + (dy - 22) * 3, dy, 48, 4.5, 0, 0, 7); q.fill(); }
+    q.fillStyle = '#8c9199'; q.fillRect(-20, 6, 3, 18); q.fillRect(14, 6, 3, 18); q.fillRect(-4, 8, 3, 16);
+    q.fillStyle = '#f2f3f5'; q.beginPath(); q.moveTo(-58, 0); q.quadraticCurveTo(-52, -10, -30, -11); q.lineTo(28, -12); q.quadraticCurveTo(50, -10, 56, -2); q.quadraticCurveTo(50, 7, 28, 8); q.lineTo(-40, 8); q.quadraticCurveTo(-56, 6, -58, 0); q.closePath(); q.fill();
+    q.fillStyle = '#e8732b'; q.fillRect(-40, 1, 72, 3.5);
+    q.fillStyle = '#2b3340'; q.beginPath(); q.moveTo(-36, -11); q.lineTo(-18, -16); q.lineTo(8, -16); q.lineTo(16, -11); q.closePath(); q.fill();
+    q.fillStyle = '#f2f3f5'; q.beginPath(); q.moveTo(-58, -2); q.lineTo(-72, -26); q.lineTo(-56, -26); q.lineTo(-44, -6); q.closePath(); q.fill();
+    q.fillStyle = '#e8e9ec'; q.fillRect(-70, -26, 20, 3); q.fillRect(-26, -22, 64, 5); q.fillStyle = '#c8ccd3'; q.fillRect(-26, -17, 64, 2);
+    q.fillStyle = '#1e232b'; q.fillRect(54, -5, 5, 10); q.fillStyle = 'rgba(255,255,255,.5)'; q.fillRect(56, -22, 2, 44);
+    q.restore();
+  })(wp.getContext('2d'));
+  const rr = (x, y, w, h, r) => { g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, r) : g.rect(x, y, w, h); };
+  function draw(dt) {
+    stream.draw(dt);
+    g.drawImage(wp, 0, 0);
+    for (let i = 0; i < 5; i++) { g.fillStyle = 'rgba(0,0,0,.35)'; rr(14, 14 + i * 44, 34, 34, 7); g.fill(); g.fillStyle = ['#2d7dff', '#f0b429', '#3ccf7a', '#9146ff', '#e94b3c'][i]; rr(22, 22 + i * 44, 18, 18, 4); g.fill(); }
+    // venster met de stream (rechtsboven)
+    g.fillStyle = 'rgba(0,0,0,.45)'; rr(354, 36, 272, 184, 7); g.fill();
+    g.fillStyle = '#1f1f23'; rr(356, 38, 268, 180, 6); g.fill(); g.fillStyle = '#0e0e10'; g.fillRect(360, 56, 260, 158);
+    g.drawImage(stream.canvas, 0, 0, 640, 360, 360, 56, 260, 146);
+    g.fillStyle = '#efeff1'; g.font = `600 9px ${SYS}`; g.textAlign = 'left'; g.fillText('Twitch · ' + CHANNEL, 366, 50);
+    for (let i = 0; i < 3; i++) { g.fillStyle = ['#ffbd2e', '#28c840', '#ff5f57'][i]; g.beginPath(); g.arc(612 - i * 12, 46, 3.5, 0, 7); g.fill(); }
+    // taskbalk
+    g.fillStyle = 'rgba(16,18,28,.82)'; g.fillRect(0, HH - 24, W, 24);
+    g.fillStyle = '#4da3ff'; for (let i = 0; i < 4; i++) g.fillRect(238 + (i % 2) * 7, HH - 18 + (i / 2 | 0) * 7, 6, 6);
+    for (let i = 0; i < 6; i++) { g.fillStyle = ['#ffffff', '#2d7dff', '#9146ff', '#3ccf7a', '#f0b429', '#8a8d93'][i]; rr(262 + i * 26, HH - 19, 15, 15, 3); g.fill(); }
+    const d = new Date(); g.fillStyle = '#e9ecf2'; g.font = `500 9px ${SYS}`; g.textAlign = 'right';
+    g.fillText(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, W - 10, HH - 13); g.fillText(d.toLocaleDateString('nl-NL'), W - 10, HH - 4); g.textAlign = 'left';
   }
-  g.fillStyle = '#121318'; g.fillRect(92, 236, 420, 52); g.fillStyle = '#2bd17e'; g.font = '9px ui-monospace, Consolas, monospace';
-  g.fillText('> sim verbonden · EHAM → EHRD · ATIS ok', 100, 252); g.fillText('> autopiloot: HOOGTE 570 FT · KOERS 360', 100, 266);
-  g.fillStyle = '#9aa0b0'; g.fillText('_', 100, 280);
-  return c;
+  return { canvas: c, draw };
 }
 
 /* =====================================================================================================
@@ -542,134 +590,182 @@ function makeBuilder(T) {
   };
 }
 
-function curvedPlane(T, w, h, R, seg) {
-  const g = new T.PlaneGeometry(w, h, seg, 1), p = g.attributes.position;
-  for (let i = 0; i < p.count; i++) { const a = p.getX(i) / R; p.setXYZ(i, R * Math.sin(a), p.getY(i), R * (1 - Math.cos(a))); }
-  g.computeVertexNormals(); g.computeBoundingSphere(); return g;
+/* ---------- onderdelen (lokale assen: een stoel/zitje kijkt naar -z, een scherm naar +z; oorsprong op de vloer) ---------- */
+const BLK = '#17171a', BLK2 = '#222327', ALU = '#8f939a', FRM = '#1b1b1e';
+const PI = Math.PI, HP = PI / 2;
+// monitor: paneel w×h met het beeldvlak op lokaal z = 0; voet op hoogte `top` (bureaublad), arm = monitorarm naar achteren,
+// top null = aan de muur (beugel)
+function monitor(b, w, h, x, y, z, ry, top, arm) {
+  b.push(x, y, z, 0, ry, 0);
+  b.box('solid', '#111114', w + 0.024, h + 0.024, 0.022, 0, 0, -0.012);
+  b.box('solid', '#1a1a1e', w * 0.55, h * 0.6, 0.04, 0, -0.01, -0.042);
+  b.box('glow', '#2a6cff', 0.01, 0.004, 0.002, 0, -h / 2 - 0.004, 0.0);
+  const dy = top === null ? 0 : top - y;
+  if (top === null) b.box('metal', '#232326', 0.12, 0.12, 0.05, 0, 0, -0.085);
+  else if (arm) { b.box('metal', '#232326', 0.05, 0.04, 0.2, 0, -0.03, -0.14); b.box('metal', '#232326', 0.06, -dy + 0.06, 0.06, 0, dy / 2, -0.23); b.box('metal', '#232326', 0.14, 0.03, 0.12, 0, dy + 0.015, -0.2); }
+  else { b.box('metal', '#1d1d20', 0.05, -dy - h * 0.4, 0.03, 0, (dy - h * 0.4) / 2, -0.075); b.box('metal', '#1d1d20', 0.24, 0.012, 0.18, 0, dy + 0.006, -0.07); }
+  b.pop();
 }
-
-function buildCorner(T, b) {
-  const BLK = '#17171a', BLK2 = '#222327', ALU = '#8f939a', FAB = '#141416', FAB2 = '#1d1d21', ACC = '#c9c9cc';
-  /* ---------- flightsim-cockpit (x ≈ 1.12–1.72, z ≈ 4.68–6.08) ---------- */
-  const RX = 1.42;
-  b.push(RX, 0, 0);
-  for (const sx of [-0.30, 0.30]) b.box('metal', BLK2, 0.06, 0.06, 1.26, sx, 0.03, 5.40);
-  for (const z of [4.80, 5.38, 6.00]) b.box('metal', BLK2, 0.66, 0.05, 0.06, 0, 0.03, z);
-  for (const sx of [-0.30, 0.30]) for (const z of [4.80, 6.00]) b.box('solid', '#0c0c0e', 0.09, 0.012, 0.09, sx, 0.006, z);
-  for (const sx of [-0.335, 0.335]) b.box('rgb', '#ffffff', 0.008, 0.012, 1.18, sx, 0.035, 5.40);
-  // monitorstandaard + gebogen 34"-behuizing
-  b.box('metal', BLK2, 0.07, 1.0, 0.07, 0, 0.56, 4.70);
-  b.box('metal', BLK2, 0.40, 0.05, 0.36, 0, 0.03, 4.70);
-  b.box('solid', BLK, 0.30, 0.20, 0.06, 0, 1.10, 4.735);
-  const R = 1.8, SW = 0.80, SH = 0.343, NS = 8;
-  for (let k = 0; k < NS; k++) {
-    const a = ((k + 0.5) / NS - 0.5) * (SW + 0.03) / R, x = R * Math.sin(a), z = 4.80 + R * (1 - Math.cos(a));
-    b.box('solid', BLK, (SW + 0.03) / NS + 0.004, SH + 0.03, 0.03, x + Math.sin(a) * 0.018, 1.10, z - Math.cos(a) * 0.018, 0, -a, 0);
-  }
-  b.box('glow', '#ff3355', 0.03, 0.004, 0.004, 0.36, 0.935, 4.81 + 0.035);
-  // pedalen
-  b.box('solid', BLK, 0.46, 0.025, 0.28, 0, 0.12, 5.05, 0.5, 0, 0);
-  b.box('solid', BLK2, 0.12, 0.08, 0.20, 0, 0.13, 5.06);
-  for (const sx of [-0.13, 0.13]) { b.box('metal', ALU, 0.09, 0.22, 0.02, sx, 0.22, 5.05, -0.35, 0, 0); b.box('solid', BLK, 0.02, 0.10, 0.03, sx, 0.16, 5.09, -0.35, 0, 0); }
-  // stuurdeck + yoke
-  for (const sx of [-0.27, 0.27]) b.box('metal', BLK2, 0.05, 0.64, 0.05, sx, 0.38, 5.09);
-  b.box('metal', BLK2, 0.66, 0.025, 0.30, 0, 0.71, 5.09);
-  b.box('solid', '#202024', 0.26, 0.10, 0.20, 0, 0.775, 5.06);
-  b.cyl('metal', ALU, 0.018, 0.018, 0.22, 10, 0, 0.79, 5.27, Math.PI / 2, 0, 0);
-  b.box('solid', BLK, 0.10, 0.06, 0.04, 0, 0.80, 5.39);
-  b.box('solid', BLK, 0.30, 0.03, 0.03, 0, 0.80, 5.40);
-  for (const sx of [-1, 1]) {
-    b.box('fabric', '#101012', 0.04, 0.13, 0.045, sx * 0.15, 0.84, 5.40, 0, 0, -sx * 0.15);
-    b.box('glow', '#ff2a2a', 0.012, 0.006, 0.012, sx * 0.158, 0.908, 5.40);
-  }
-  b.box('glow', '#33ccff', 0.05, 0.004, 0.012, 0, 0.827, 5.39);
-  // gashendels (rechts) en schakelpaneel (links)
-  b.box('solid', '#202024', 0.12, 0.07, 0.16, 0.22, 0.758, 5.08);
-  [['#111111', -0.035], ['#2f6bff', 0], ['#d0202a', 0.035]].forEach(([kc, dx], i) => {
-    b.box('metal', ALU, 0.012, 0.11, 0.012, 0.22 + dx, 0.83, 5.08 - i * 0.012, -0.3, 0, 0);
-    b.box('solid', kc, 0.026, 0.024, 0.034, 0.22 + dx, 0.885, 5.06 - i * 0.012);
-  });
-  b.box('solid', '#202024', 0.14, 0.04, 0.16, -0.22, 0.745, 5.08);
-  for (let i = 0; i < 6; i++) b.box('glow', i % 3 === 1 ? '#3dff7a' : '#ffb020', 0.012, 0.008, 0.012, -0.265 + (i % 3) * 0.045, 0.769, 5.04 + (i / 3 | 0) * 0.06);
-  // kuipstoel
-  b.box('metal', BLK2, 0.44, 0.10, 0.50, 0, 0.12, 5.70);
-  b.push(0, 0.26, 5.70);
-  b.box('fabric', FAB, 0.48, 0.08, 0.48, 0, 0, 0, 0.1, 0, 0);
-  for (const sx of [-1, 1]) { b.box('fabric', FAB2, 0.07, 0.10, 0.46, sx * 0.24, 0.05, 0); b.box('solid', '#9a9ca3', 0.012, 0.102, 0.40, sx * 0.205, 0.05, 0); }
-  b.push(0, 0.12, 0.22, 0.2, 0, 0);
-  b.box('fabric', FAB, 0.50, 0.80, 0.09, 0, 0.40, 0);
-  for (const sx of [-1, 1]) { b.box('fabric', FAB2, 0.08, 0.55, 0.14, sx * 0.25, 0.33, -0.03); b.box('solid', '#060607', 0.05, 0.10, 0.092, sx * 0.12, 0.66, 0); }
-  b.box('solid', '#d8d8d8', 0.20, 0.03, 0.092, 0, 0.55, 0);
-  b.pop(); b.pop();
-  b.pop();
-
-  /* ---------- bureau (x 1.90–2.995, z 4.62–5.32) ---------- */
-  b.box('solid', '#d9d9d5', 1.095, 0.025, 0.70, 2.4475, 0.7375, 4.97);
-  for (const x of [1.96, 2.94]) {
-    b.box('metal', '#151518', 0.05, 0.70, 0.05, x, 0.375, 4.97);
-    b.box('metal', '#151518', 0.06, 0.03, 0.62, x, 0.015, 4.97);
-    b.box('metal', '#151518', 0.05, 0.03, 0.62, x, 0.71, 4.97);
-  }
-  b.box('metal', '#151518', 0.98, 0.04, 0.02, 2.45, 0.60, 4.70);
-  b.box('rgb', '#ffffff', 1.0, 0.008, 0.012, 2.45, 0.72, 5.31);
-  b.box('rgb', '#ffffff', 1.0, 0.008, 0.012, 2.45, 0.72, 4.635);
-  b.box('fabric', '#202024', 0.80, 0.004, 0.32, 2.45, 0.752, 5.12);
-  b.box('solid', '#1a1a1d', 0.44, 0.022, 0.14, 2.40, 0.765, 5.11);
-  b.box('rgb', '#ffffff', 0.446, 0.006, 0.146, 2.40, 0.757, 5.11);
-  for (let r = 0; r < 4; r++) b.box('rgb', '#6a6a6a', 0.40, 0.003, 0.018, 2.40, 0.777, 5.06 + r * 0.032);
-  b.box('solid', '#1a1a1d', 0.06, 0.03, 0.10, 2.74, 0.768, 5.11);
-  b.box('rgb', '#ffffff', 0.004, 0.004, 0.06, 2.74, 0.785, 5.10);
-  b.cyl('solid', '#efefef', 0.04, 0.036, 0.095, 12, 2.92, 0.80, 4.98);
-  b.cyl('solid', '#2b1a10', 0.035, 0.035, 0.002, 12, 2.92, 0.847, 4.98);
-  // monitor 1 (27", stream)
-  b.push(2.63, 1.09, 4.80, 0, -0.187, 0);
-  b.box('solid', '#111114', 0.62, 0.358, 0.025, 0, 0, -0.014);
-  b.box('solid', '#18181b', 0.36, 0.22, 0.05, 0, -0.01, -0.05);
-  b.box('metal', '#1d1d20', 0.04, 0.26, 0.03, 0, -0.21, -0.075);
-  b.box('metal', '#1d1d20', 0.22, 0.012, 0.16, 0, -0.334, -0.06);
-  b.box('solid', '#0b0b0d', 0.09, 0.03, 0.035, 0, 0.195, -0.008);
-  b.box('glow', '#3050ff', 0.012, 0.012, 0.002, 0, 0.195, 0.011);
-  b.pop();
-  // monitor 2 (24")
-  b.push(2.10, 1.065, 4.84, 0, 0.386, 0);
-  b.box('solid', '#111114', 0.55, 0.318, 0.022, 0, 0, -0.013);
-  b.box('solid', '#18181b', 0.32, 0.20, 0.045, 0, -0.01, -0.045);
-  b.box('metal', '#1d1d20', 0.04, 0.24, 0.03, 0, -0.19, -0.07);
-  b.box('metal', '#1d1d20', 0.20, 0.012, 0.15, 0, -0.309, -0.06);
-  b.pop();
-  // pc-tower (glazen zijkant naar de kamer)
-  b.box('solid', '#121215', 0.22, 0.48, 0.48, 2.81, 0.25, 4.93);
-  b.box('solid', '#1b2230', 0.004, 0.44, 0.44, 2.698, 0.255, 4.93);
-  for (const y of [0.37, 0.20]) b.geo('rgb', '#ffffff', new T.TorusGeometry(0.055, 0.008, 6, 18), 2.81, y, 4.688);
-  b.box('rgb', '#ffffff', 0.004, 0.44, 0.008, 2.697, 0.255, 4.714);
-  b.box('rgb', '#ffffff', 0.004, 0.44, 0.008, 2.697, 0.255, 5.146);
-  b.box('rgb', '#8a8a8a', 0.003, 0.03, 0.26, 2.699, 0.23, 4.95);
-  b.box('glow', '#66ffcc', 0.003, 0.012, 0.012, 2.699, 0.42, 5.08);
-
-  /* ---------- gamestoel ---------- */
-  b.push(2.42, 0, 5.74, 0, 0.12, 0);
+// gamestoel (foto): zwart PU-leer, grijze panelen, ronde chroomknop op de rug, 4D-armleggers, zwarte nylon stervoet
+function gamingChair(b, x, z, ry) {
+  const L = '#121214', L2 = '#2b2c31';
+  b.push(x, 0, z, 0, ry, 0);
   for (let k = 0; k < 5; k++) {
-    const a = k * Math.PI * 2 / 5;
-    b.box('metal', '#1a1a1d', 0.045, 0.035, 0.30, Math.sin(a) * 0.15, 0.085, Math.cos(a) * 0.15, 0, a, 0);
-    b.cyl('solid', '#0e0e10', 0.028, 0.028, 0.03, 8, Math.sin(a) * 0.29, 0.03, Math.cos(a) * 0.29, 0, a, Math.PI / 2);
+    const a = k * PI * 2 / 5;
+    b.box('solid', '#1a1a1d', 0.045, 0.035, 0.30, Math.sin(a) * 0.15, 0.085, Math.cos(a) * 0.15, 0, a, 0);
+    b.cyl('solid', '#0e0e10', 0.028, 0.028, 0.03, 8, Math.sin(a) * 0.29, 0.03, Math.cos(a) * 0.29, 0, a, HP);
   }
-  b.cyl('metal', '#1a1a1d', 0.05, 0.05, 0.06, 10, 0, 0.10, 0);
-  b.cyl('metal', '#2a2a2e', 0.025, 0.03, 0.30, 10, 0, 0.27, 0);
+  b.cyl('metal', '#1a1a1d', 0.05, 0.05, 0.06, 10, 0, 0.10, 0); b.cyl('metal', '#2a2a2e', 0.025, 0.03, 0.30, 10, 0, 0.27, 0);
   b.push(0, 0.49, 0);
-  b.box('fabric', FAB, 0.52, 0.10, 0.50, 0, 0, 0);
-  for (const sx of [-1, 1]) { b.box('fabric', FAB2, 0.07, 0.07, 0.46, sx * 0.25, 0.06, 0); b.box('solid', ACC, 0.012, 0.072, 0.42, sx * 0.215, 0.06, 0); }
+  b.box('leather', L, 0.52, 0.10, 0.50, 0, 0, 0);
+  for (const sx of [-1, 1]) b.box('leather', L2, 0.07, 0.08, 0.46, sx * 0.25, 0.05, 0);
   b.pop();
   for (const sx of [-1, 1]) { b.box('metal', '#1a1a1d', 0.04, 0.20, 0.05, sx * 0.29, 0.60, 0.05); b.box('solid', '#111113', 0.08, 0.03, 0.24, sx * 0.29, 0.71, 0.0); }
   b.push(0, 0.54, 0.24, 0.14, 0, 0);
-  b.box('fabric', FAB, 0.50, 0.84, 0.10, 0, 0.42, 0);
+  b.box('leather', L, 0.50, 0.84, 0.10, 0, 0.42, 0);
   for (const sx of [-1, 1]) {
-    b.box('fabric', FAB2, 0.08, 0.60, 0.14, sx * 0.25, 0.36, -0.02);
-    b.box('solid', ACC, 0.012, 0.56, 0.142, sx * 0.212, 0.36, -0.02);
+    b.box('leather', L2, 0.08, 0.60, 0.14, sx * 0.25, 0.36, -0.02);
     b.box('solid', '#060607', 0.05, 0.11, 0.102, sx * 0.12, 0.70, 0);
+    b.cyl('metal', '#d6d8dc', 0.045, 0.045, 0.006, 16, sx * 0.292, 0.3, 0.0, 0, 0, HP);
   }
-  b.box('fabric', '#26262a', 0.26, 0.12, 0.06, 0, 0.66, -0.07);
-  b.box('fabric', '#26262a', 0.30, 0.14, 0.05, 0, 0.22, -0.065);
+  b.box('leather', L2, 0.26, 0.12, 0.06, 0, 0.66, -0.07); b.box('leather', L2, 0.30, 0.14, 0.05, 0, 0.22, -0.065);
   b.pop(); b.pop();
+}
+// flightsim-rig (foto): zwart buisframe, kuipstoel, pedalen, yoke op een kolom, gasquadrant links met groen verlichte knoppen
+// en een klein schakelpaneeltje. Lokaal: piloot op (0, 0, 0), kijkt naar -z.
+function rig(b, x, z, ry) {
+  const S = '#121214', S2 = '#1e1e22';
+  b.push(x, 0, z, 0, ry, 0);
+  for (const sx of [-0.27, 0.27]) b.box('metal', FRM, 0.05, 0.05, 1.15, sx, 0.025, -0.25);
+  for (const zz of [-0.78, -0.3, 0.3]) b.box('metal', FRM, 0.59, 0.05, 0.05, 0, 0.025, zz);
+  b.box('metal', FRM, 0.44, 0.08, 0.5, 0, 0.1, 0.02);
+  b.push(0, 0.24, 0);
+  b.box('fabric', S, 0.48, 0.09, 0.48, 0, 0, 0, 0.12, 0, 0);
+  for (const sx of [-1, 1]) b.box('fabric', S2, 0.07, 0.11, 0.46, sx * 0.24, 0.05, 0);
+  b.push(0, 0.12, 0.22, 0.22, 0, 0);
+  b.box('fabric', S, 0.5, 0.82, 0.09, 0, 0.41, 0);
+  for (const sx of [-1, 1]) b.box('fabric', S2, 0.08, 0.56, 0.14, sx * 0.25, 0.33, -0.03);
+  b.box('fabric', '#2a2a2e', 0.2, 0.14, 0.03, 0, 0.45, -0.06);
+  b.pop(); b.pop();
+  b.box('solid', BLK, 0.42, 0.025, 0.26, 0, 0.1, -0.68, 0.45, 0, 0);
+  for (const sx of [-0.12, 0.12]) b.box('solid', BLK2, 0.09, 0.2, 0.02, sx, 0.2, -0.7, -0.4, 0, 0);
+  for (const sx of [-0.26, 0.26]) b.box('metal', FRM, 0.05, 0.66, 0.05, sx, 0.36, -0.46);
+  b.box('metal', FRM, 0.62, 0.025, 0.28, 0, 0.69, -0.46);
+  b.box('solid', '#1d1d21', 0.26, 0.1, 0.2, 0, 0.755, -0.5);
+  b.cyl('metal', ALU, 0.016, 0.016, 0.2, 10, 0, 0.8, -0.31, HP, 0, 0);
+  b.box('solid', BLK, 0.09, 0.07, 0.05, 0, 0.8, -0.22);
+  for (const sx of [-1, 1]) { b.box('solid', BLK, 0.13, 0.03, 0.035, sx * 0.1, 0.81, -0.22, 0, 0, sx * 0.45); b.box('leather', '#101012', 0.04, 0.13, 0.045, sx * 0.17, 0.87, -0.22, 0, 0, -sx * 0.2); }
+  b.box('glow', '#ff2a2a', 0.01, 0.006, 0.01, 0.16, 0.935, -0.22);
+  b.box('metal', FRM, 0.05, 0.72, 0.05, -0.42, 0.36, -0.35); b.box('metal', FRM, 0.2, 0.025, 0.3, -0.42, 0.73, -0.35);
+  b.box('solid', '#1d1d21', 0.3, 0.1, 0.26, -0.42, 0.79, -0.37);
+  ['#2a2a2e', '#2a2a2e', '#d0202a', '#2f6bff', '#2a2a2e', '#f0f0f0'].forEach((kc, i) => { const xx = -0.53 + i * 0.044; b.box('metal', ALU, 0.01, 0.1, 0.01, xx, 0.88, -0.4, -0.25, 0, 0); b.box('solid', kc, 0.026, 0.026, 0.03, xx, 0.93, -0.41); });
+  for (let i = 0; i < 7; i++) b.box('glow', '#3dff7a', 0.016, 0.006, 0.016, -0.54 + i * 0.04, 0.842, -0.26);
+  b.box('glow', '#2bd36a', 0.26, 0.004, 0.012, -0.42, 0.842, -0.3);
+  b.box('solid', '#1d1d21', 0.16, 0.035, 0.12, -0.42, 0.75, -0.14);
+  for (let i = 0; i < 6; i++) b.box('glow', '#3dff7a', 0.01, 0.006, 0.01, -0.47 + (i % 3) * 0.05, 0.77, -0.17 + (i / 3 | 0) * 0.05);
+  b.pop();
+}
+// glazen gaming-pc (foto): zwarte kast met glas aan de voor- en zijkant, drie RGB-fans (groen/cyaan/wit), pompblok met lcd
+function glassPc(T, b, x, y, z) {
+  // kast = achterwand, bodem, deksel en dichte zijkant (naar de muur); voorkant (+x) en zijkant (+z) van glas met een smal frame
+  b.box('solid', '#101013', 0.02, 0.48, 0.25, x - 0.22, y + 0.24, z); b.box('solid', '#101013', 0.46, 0.48, 0.02, x, y + 0.24, z - 0.115);
+  for (const dy of [0.01, 0.47]) b.box('solid', '#101013', 0.46, 0.02, 0.25, x, y + dy, z);
+  b.box('solid', '#101013', 0.02, 0.48, 0.02, x + 0.22, y + 0.24, z + 0.115);
+  b.box('solid', '#0c0c0f', 0.3, 0.44, 0.21, x - 0.07, y + 0.24, z - 0.005);                                     // moederbord/voeding
+  b.box('solid', '#15151a', 0.26, 0.03, 0.19, x - 0.06, y + 0.3, z - 0.005); b.box('rgb', '#ffffff', 0.26, 0.004, 0.006, x - 0.06, y + 0.316, z + 0.092);
+  b.box('glass', '#9fb8c8', 0.004, 0.44, 0.21, x + 0.226, y + 0.24, z - 0.01); b.box('glass', '#9fb8c8', 0.42, 0.44, 0.004, x - 0.01, y + 0.24, z + 0.121);
+  [['glow', '#e0ecff', 0.37], ['rgb', '#ffffff', 0.24], ['rgb', '#b8ffd8', 0.11]].forEach(([k, c, dy]) => { b.box('solid', '#15151a', 0.012, 0.12, 0.12, x + 0.15, y + dy + 0.03, z - 0.005); b.geo(k, c, new T.TorusGeometry(0.052, 0.007, 6, 20), x + 0.19, y + dy + 0.03, z - 0.005, 0, HP, 0); b.cyl('solid', '#1a1a1f', 0.022, 0.022, 0.03, 8, x + 0.18, y + dy + 0.03, z - 0.005, 0, 0, HP); });
+  b.box('rgb', '#ffffff', 0.006, 0.4, 0.006, x - 0.2, y + 0.24, z + 0.105);
+  b.box('solid', '#1a1a1f', 0.07, 0.07, 0.02, x - 0.08, y + 0.3, z + 0.105); b.box('glow', '#2e4068', 0.05, 0.05, 0.002, x - 0.08, y + 0.3, z + 0.116); b.box('glow', '#d8e6ff', 0.02, 0.012, 0.002, x - 0.08, y + 0.3, z + 0.117);
+}
+// zwarte draadstoel (foto): staalspijlen rond, zitting van zwart hout
+function wireStool(T, b, x, z) {
+  for (let i = 0; i < 16; i++) { const a = i * PI / 8; b.box('metal', '#111113', 0.006, 0.44, 0.006, x + Math.sin(a) * 0.19, 0.23, z + Math.cos(a) * 0.19, 0.12, a, 0); }
+  for (const y of [0.02, 0.44]) b.geo('metal', '#111113', new T.TorusGeometry(0.19, 0.005, 4, 28), x, y, z, HP, 0, 0);
+  b.cyl('solid', '#151517', 0.2, 0.2, 0.014, 24, x, 0.452, z);
+}
+function roundBed(b, x, z) {
+  b.cyl('fabric', '#2c4a3e', 0.46, 0.5, 0.2, 28, x, 0.1, z); b.cyl('fabric', '#36584b', 0.35, 0.35, 0.15, 24, x, 0.085, z);
+}
+
+/* ---------- "Huidig" (kantoor_1.jpg): alles langs de linkerwand (x = 0), kasten rechts ---------- */
+function buildHuidig(T, b) {
+  // bureau: zwart laminaat op zwart stalen frame, x 0.03–0.68, z 4.375–6.325
+  b.box('solid', '#141416', 1.95, 0.03, 0.65, 0.355, 0.735, 5.35);
+  for (const z of [4.42, 6.28]) { for (const x of [0.12, 0.6]) b.box('metal', '#151518', 0.05, 0.70, 0.05, x, 0.36, z); b.box('metal', '#151518', 0.56, 0.03, 0.05, 0.36, 0.015, z); b.box('metal', '#151518', 0.56, 0.03, 0.05, 0.36, 0.705, z); }
+  b.box('metal', '#151518', 0.04, 0.04, 1.75, 0.1, 0.62, 5.35);
+  // op het bureau: muismat (rood/zwart), muis, controller, mok, toetsenbord
+  b.box('fabric', '#3a1416', 0.42, 0.004, 0.36, 0.5, 0.752, 5.95);
+  b.box('solid', '#1a1a1d', 0.06, 0.03, 0.1, 0.56, 0.768, 5.98); b.box('glow', '#3a7bff', 0.004, 0.004, 0.05, 0.56, 0.785, 5.97);
+  b.box('solid', '#e8e8ea', 0.1, 0.05, 0.14, 0.58, 0.775, 6.2); b.cyl('solid', '#efefef', 0.04, 0.036, 0.095, 12, 0.3, 0.8, 6.1);
+  b.box('solid', '#1a1a1d', 0.14, 0.022, 0.44, 0.5, 0.765, 4.92); for (let r = 0; r < 5; r++) b.box('rgb', '#6a6a6a', 0.018, 0.003, 0.4, 0.44 + r * 0.03, 0.777, 4.92);
+  // monitor 1 (27", naar de stoel gedraaid), glazen pc, monitor 2 (32") op een arm, tweede toren met speaker
+  monitor(b, 0.597, 0.336, 0.42, 1.06, 5.85, HP - 0.4, 0.75, false);
+  glassPc(T, b, 0.35, 0.75, 5.3);
+  monitor(b, 0.705, 0.397, 0.3, 1.45, 4.9, HP - 0.1, 0.75, true);
+  b.box('solid', '#111114', 0.44, 0.44, 0.21, 0.36, 0.97, 4.52); b.box('solid', '#1b1b1f', 0.004, 0.4, 0.17, 0.582, 0.97, 4.52);
+  b.box('glow', '#ff7a1a', 0.004, 0.05, 0.05, 0.583, 1.08, 4.52); b.box('glow', '#ff3a1a', 0.004, 0.02, 0.02, 0.584, 1.08, 4.52);
+  b.box('solid', '#141416', 0.12, 0.18, 0.12, 0.36, 1.28, 4.52); b.box('fabric', '#2a2a2e', 0.004, 0.14, 0.09, 0.422, 1.28, 4.52);
+  b.box('glow', '#33ff66', 0.003, 0.006, 0.006, 0.423, 1.21, 4.55);
+  // rig, draadstoel, hondenbed, gamestoel
+  rig(b, 1.45, 4.05, HP);
+  wireStool(T, b, 1.58, 4.68);
+  roundBed(b, 1.3, 5.4);
+  gamingChair(b, 0.82, 6.3, -2.45);
+  // kabels (zwarte slierten onder het bureau)
+  for (let i = 0; i < 4; i++) b.box('solid', '#0c0c0e', 0.012, 0.012, 1.2 + hash(i, 1, 21) * 0.6, 0.14 + hash(i, 2, 21) * 0.4, 0.012, 5.3, 0, hash(i, 3, 21) * 0.3 - 0.15, 0);
+  // rechterwand: hoge zwarte kast met glazen deuren in de sprong van de wand (x 3.05–3.6, z 2.95–3.8), ladeblok + printer, Helmer
+  b.box('solid', '#121214', 0.55, 0.76, 0.85, 3.325, 0.38, 3.365);
+  b.box('solid', '#121214', 0.04, 1.2, 0.85, 3.58, 1.36, 3.365); b.box('solid', '#121214', 0.55, 0.04, 0.85, 3.325, 1.94, 3.365);
+  for (const z of [2.955, 3.775]) b.box('solid', '#121214', 0.55, 1.2, 0.03, 3.325, 1.36, z);
+  for (const y of [1.14, 1.52]) b.box('solid', '#1b1b1e', 0.5, 0.02, 0.78, 3.33, y, 3.365);
+  [['#c23b2e', 3.2, 1.21], ['#2f6bff', 3.5, 1.21], ['#e8e8e8', 3.3, 0.88], ['#f0b429', 3.55, 1.6], ['#2bd17e', 3.25, 1.6]].forEach(([c, z, y]) => b.box('solid', c, 0.12, 0.12, 0.08, 3.4, y + 0.06, z));
+  b.box('glass', '#a8c0d0', 0.004, 1.16, 0.8, 3.056, 1.36, 3.365); b.box('solid', '#1a1a1d', 0.01, 1.16, 0.02, 3.054, 1.36, 3.365);
+  b.box('solid', '#1a1a1d', 0.56, 0.02, 0.86, 3.325, 0.77, 3.365);
+  b.box('solid', '#b08a5c', 0.42, 0.3, 0.5, 3.33, 2.11, 3.25); b.box('solid', '#1d1d20', 0.4, 0.25, 0.3, 3.32, 2.08, 3.65);
+  b.box('solid', '#141416', 0.43, 0.74, 1.1, 2.785, 0.37, 4.4);
+  for (let r = 0; r < 3; r++) for (const z of [4.14, 4.66]) { b.box('solid', '#1b1b1e', 0.01, 0.2, 0.48, 2.565, 0.14 + r * 0.23, z); b.box('metal', '#c8cacf', 0.008, 0.012, 0.16, 2.558, 0.14 + r * 0.23, z); }
+  b.box('solid', '#eeeeee', 0.4, 0.3, 0.42, 2.79, 0.89, 4.3); b.box('solid', '#3a3b40', 0.36, 0.05, 0.3, 2.79, 1.06, 4.3); b.box('solid', '#dcdcdc', 0.3, 0.02, 0.2, 2.78, 0.9, 4.03); b.box('glow', '#4aa3ff', 0.004, 0.004, 0.004, 2.59, 0.98, 4.2);
+  b.cyl('solid', '#f2f2f0', 0.1, 0.1, 0.32, 16, 2.82, 0.9, 3.93); b.cyl('solid', '#ff7a2a', 0.035, 0.035, 0.24, 10, 2.66, 0.86, 4.7); b.cyl('solid', '#2a2a2e', 0.03, 0.03, 0.03, 10, 2.66, 0.995, 4.7);
+  b.box('solid', '#1a1a1d', 0.14, 0.022, 0.42, 2.72, 0.755, 4.68, 0, 0.1, 0);
+  b.box('gloss', '#1a44a6', 0.43, 0.69, 0.28, 2.785, 0.345, 5.92);
+  for (let r = 0; r < 6; r++) { b.box('gloss', '#1f4db4', 0.01, 0.1, 0.25, 2.565, 0.08 + r * 0.112, 5.92); b.box('metal', '#d0d2d6', 0.014, 0.01, 0.09, 2.556, 0.08 + r * 0.112, 5.92); }
+  b.box('solid', '#1a1a1d', 0.1, 0.02, 0.1, 2.72, 0.7, 6.2); b.box('solid', '#111114', 0.012, 0.2, 0.15, 2.71, 0.81, 6.2, 0, 0, 0.35); b.box('glow', '#9fc7ff', 0.004, 0.17, 0.12, 2.675, 0.812, 6.2, 0, 0, 0.35);
+  return {
+    stream: [0.432, 1.06, 5.85, HP - 0.4], sim: [0.312, 1.45, 4.9, HP - 0.1],
+    spill: [[0.7, 0.42, 0.48, 0.754, 5.85, -HP, 0, 'warm'], [1.3, 1.0, 0.012, 1.05, 5.1, 0, HP, 'rgb']],
+    cols: [[0, 0.72, 4.35, 6.35], [0.55, 1.75, 3.75, 4.6], [1.35, 1.8, 4.45, 4.9], [0.5, 1.15, 6.0, 6.65], [3.02, 3.62, 2.94, 3.8], [2.55, 3.0, 3.83, 4.97], [2.55, 3.0, 5.76, 6.08]],
+    dogBed: { x: 1.3, z: 5.4, r: 0.5, top: 0.16 }, chair: { x: 0.82, z: 6.3, y: 0.52 },
+  };
+}
+
+/* ---------- andere stijlen: opgeruimde designerversie (eiken bureau, mesh-bureaustoel, één monitor, rig netjes achterin) ---------- */
+function buildTidy(T, b) {
+  b.box('wood', '#c9a977', 1.6, 0.03, 0.75, 0.405, 0.745, 5.8);
+  for (const z of [5.1, 6.5]) { for (const x of [0.1, 0.72]) b.box('gloss', '#e9e9e6', 0.04, 0.70, 0.04, x, 0.365, z); b.box('gloss', '#e9e9e6', 0.66, 0.03, 0.04, 0.41, 0.015, z); b.box('gloss', '#e9e9e6', 0.66, 0.03, 0.04, 0.41, 0.715, z); }
+  monitor(b, 0.597, 0.336, 0.33, 1.1, 5.8, HP, 0.76, true);
+  b.box('solid', '#15151a', 0.35, 0.38, 0.16, 0.3, 0.19, 5.15);
+  b.cyl('solid', '#1a1a1d', 0.07, 0.08, 0.02, 16, 0.2, 0.77, 5.2); b.box('solid', '#1a1a1d', 0.02, 0.38, 0.02, 0.2, 0.96, 5.2, 0, 0, -0.35); b.cyl('solid', '#1a1a1d', 0.05, 0.03, 0.08, 12, 0.33, 1.13, 5.2, 0, 0, 1.2); b.box('glow', '#ffd9a0', 0.03, 0.004, 0.03, 0.34, 1.09, 5.2);
+  b.cyl('solid', '#d8d4cc', 0.06, 0.05, 0.1, 12, 0.18, 0.81, 6.42); b.cyl('fabric', '#3f7a3a', 0.1, 0.06, 0.12, 10, 0.18, 0.92, 6.42);
+  b.cyl('solid', '#efefef', 0.04, 0.036, 0.095, 12, 0.55, 0.8, 6.2); b.box('solid', '#2b2b30', 0.2, 0.012, 0.27, 0.5, 0.766, 5.85);
+  b.box('solid', '#1a1a1d', 0.12, 0.018, 0.36, 0.5, 0.769, 5.5); b.box('solid', '#1a1a1d', 0.06, 0.03, 0.1, 0.62, 0.775, 5.8);
+  // mesh-bureaustoel, naar het bureau gekeerd
+  b.push(0.98, 0, 5.8, 0, HP, 0);
+  for (let k = 0; k < 5; k++) { const a = k * PI * 2 / 5; b.box('solid', '#1a1a1d', 0.04, 0.03, 0.28, Math.sin(a) * 0.14, 0.06, Math.cos(a) * 0.14, 0, a, 0); b.cyl('solid', '#0e0e10', 0.025, 0.025, 0.03, 8, Math.sin(a) * 0.27, 0.03, Math.cos(a) * 0.27, 0, a, HP); }
+  b.cyl('metal', '#2a2a2e', 0.025, 0.03, 0.36, 10, 0, 0.27, 0);
+  b.box('fabric', '#3a3d44', 0.48, 0.07, 0.46, 0, 0.47, 0.02);
+  for (const sx of [-1, 1]) { b.box('metal', '#1a1a1d', 0.03, 0.2, 0.04, sx * 0.26, 0.6, 0.04); b.box('solid', '#111113', 0.07, 0.025, 0.22, sx * 0.26, 0.71, 0.0); }
+  b.push(0, 0.5, 0.22, 0.12, 0, 0);
+  b.box('fabric', '#2c2f36', 0.46, 0.6, 0.03, 0, 0.36, 0); b.box('solid', '#111113', 0.48, 0.62, 0.012, 0, 0.36, -0.012); b.box('solid', '#111113', 0.04, 0.3, 0.04, 0, 0.1, -0.02);
+  b.pop(); b.pop();
+  // rig netjes achterin, scherm aan de muur
+  rig(b, 1.3, 4.1, HP);
+  monitor(b, 0.705, 0.397, 0.05, 1.3, 4.1, HP, null, false);
+  return {
+    stream: [0.342, 1.1, 5.8, HP], sim: [0.062, 1.3, 4.1, HP],
+    spill: [[0.7, 0.42, 0.4, 0.764, 5.8, -HP, 0, 'warm'], [0.5, 0.5, 0.26, 0.764, 5.2, -HP, 0, 'lamp']],
+    cols: [[0, 0.82, 4.95, 6.65], [0.5, 1.6, 3.8, 4.45]], dogBed: null, chair: { x: 0.98, z: 5.8, y: 0.5 },
+  };
 }
 
 function haloTexture(T) {
@@ -738,43 +834,51 @@ export function install(H) {
 
   if (!document.getElementById('office-style')) { const st = document.createElement('style'); st.id = 'office-style'; st.textContent = CSS; document.head.append(st); }
 
-  /* ---- 3D-hoek ---- */
+  /* ---- 3D ---- */
   const mats = {
-    solid: new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.05 }),
-    fabric: new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 }),
-    metal: new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.45 }),
+    solid: new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.02 }),       // mat zwart plastic / laminaat
+    gloss: new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.22, metalness: 0.1 }),       // gelakt staal (Helmer, witte poten)
+    wood: new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0 }),
+    fabric: new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0 }),
+    leather: new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0 }),       // PU-leer van de gamestoel
+    metal: new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.6 }),
+    glass: new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.22, depthWrite: false }),
     glow: new T.MeshBasicMaterial({ vertexColors: true, toneMapped: false }),
     rgb: new T.MeshBasicMaterial({ vertexColors: true, toneMapped: false }),
   };
-  const b = makeBuilder(T); buildCorner(T, b);
-  const group = b.build(mats); group.name = 'office-corner';
-
-  // schermen
+  // schermen (vast; worden bij een stijlwissel alleen verplaatst)
   const sim = makeSimRenderer(), flight = newFlight();
-  const simCanvas = document.createElement('canvas'); simCanvas.width = 560; simCanvas.height = 240;
+  const simCanvas = document.createElement('canvas'); simCanvas.width = 560; simCanvas.height = 315;
   const simCtx = simCanvas.getContext('2d');
   const simTex = new T.CanvasTexture(simCanvas); simTex.colorSpace = T.SRGBColorSpace; simTex.anisotropy = 4;
-  const simScreen = new T.Mesh(curvedPlane(T, 0.80, 0.343, 1.8, 16), new T.MeshBasicMaterial({ map: simTex, toneMapped: false }));
-  simScreen.position.set(1.42, 1.10, 4.80); simScreen.name = 'office-sim-screen'; group.add(simScreen);
-
-  const stream = makeStreamFallback();
-  const streamTex = new T.CanvasTexture(stream.canvas); streamTex.colorSpace = T.SRGBColorSpace; streamTex.anisotropy = 4;
+  const simScreen = new T.Mesh(new T.PlaneGeometry(0.705, 0.397), new T.MeshBasicMaterial({ map: simTex, toneMapped: false })); simScreen.name = 'office-sim-screen';
+  const stream = makeStreamFallback(), desk = makeDesktop(stream);
+  const streamTex = new T.CanvasTexture(desk.canvas); streamTex.colorSpace = T.SRGBColorSpace; streamTex.anisotropy = 4;
   const streamMat = new T.MeshBasicMaterial({ map: streamTex, toneMapped: false });
   const holeMat = new T.MeshBasicMaterial({ color: 0x000000, opacity: 0, blending: T.NoBlending, toneMapped: false });
-  const streamScreen = new T.Mesh(new T.PlaneGeometry(0.598, 0.336), streamMat);
-  streamScreen.position.set(2.63, 1.09, 4.80); streamScreen.rotation.y = -0.187; streamScreen.name = 'office-stream-screen'; group.add(streamScreen);
+  const SW = 0.597, streamScreen = new T.Mesh(new T.PlaneGeometry(SW, 0.336), streamMat); streamScreen.name = 'office-stream-screen';
+  // lichtspill van de schermen/RGB op bureau en muur (additief; 's avonds sterker)
+  const halo = haloTexture(T), spillOpt = { map: halo, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 };
+  const spillMats = { warm: new T.MeshBasicMaterial({ ...spillOpt, color: 0xff9a55 }), rgb: new T.MeshBasicMaterial({ ...spillOpt, color: 0x40ff90 }), lamp: new T.MeshBasicMaterial({ ...spillOpt, color: 0xffc070 }) };
+  const SPILL = { warm: 0.3, rgb: 0.22, lamp: 0.35 };
 
-  const codeTex = new T.CanvasTexture(makeCodeScreen()); codeTex.colorSpace = T.SRGBColorSpace;
-  const codeScreen = new T.Mesh(new T.PlaneGeometry(0.531, 0.299), new T.MeshBasicMaterial({ map: codeTex, toneMapped: false }));
-  codeScreen.position.set(2.10, 1.065, 4.84); codeScreen.rotation.y = 0.386; codeScreen.name = 'office-code-screen'; group.add(codeScreen);
-
-  // RGB-gloed
-  const haloMat = new T.MeshBasicMaterial({ map: haloTexture(T), color: 0xb040ff, transparent: true, opacity: 0.32, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-  for (const [w, h, x, y, z, rx, ry] of [[1.35, 1.0, 2.45, 0.004, 4.97, -Math.PI / 2, 0], [0.95, 1.5, 1.42, 0.004, 5.40, -Math.PI / 2, 0], [1.3, 0.9, 2.996, 0.55, 4.97, 0, -Math.PI / 2]]) {
-    const m = new T.Mesh(new T.PlaneGeometry(w, h), haloMat); m.position.set(x, y, z); m.rotation.set(rx, ry, 0); m.renderOrder = 2; m.name = 'office-glow'; group.add(m);
+  let group = null, lay = null, builtStyle = null, cols = [], api = null;
+  const styleOf = () => { try { return H.state?.style || 'huidig'; } catch (e) { return 'huidig'; } };
+  function rebuild() {
+    const style = styleOf(); if (group && style === builtStyle) return; builtStyle = style;
+    if (group) { group.traverse(o => { if (o.isMesh && o !== simScreen && o !== streamScreen) o.geometry.dispose(); }); group.removeFromParent(); }
+    if (H.colliders?.[0]) { for (const c of cols) { const i = H.colliders[0].indexOf(c); if (i >= 0) H.colliders[0].splice(i, 1); } }
+    const b = makeBuilder(T);
+    lay = style === 'huidig' ? buildHuidig(T, b) : buildTidy(T, b);
+    group = b.build(mats); group.name = 'office-' + (style === 'huidig' ? 'huidig' : 'tidy');
+    for (const [m, p] of [[simScreen, lay.sim], [streamScreen, lay.stream]]) { m.position.set(p[0], p[1], p[2]); m.rotation.set(0, p[3], 0); group.add(m); }
+    for (const [w, h, x, y, z, rx, ry, k] of lay.spill) { const m = new T.Mesh(new T.PlaneGeometry(w, h), spillMats[k]); m.position.set(x, y, z); m.rotation.set(rx, ry, 0); m.renderOrder = 2; m.name = 'office-spill'; group.add(m); }
+    cols = H.colliders?.[0] ? lay.cols.map(c => { const q = c.slice(); H.colliders[0].push(q); return q; }) : [];
+    addToRoom(group); group.updateMatrixWorld(true);
+    if (api) { api.group = group; api.dogBed = lay.dogBed; api.obstacles = lay.cols; api.chair = lay.chair; }
   }
-  addToRoom(group);
-  group.updateMatrixWorld(true);
+  rebuild();
+  if (typeof H.on === 'function') { try { H.on('change', () => rebuild()); } catch (e) { /* geen events */ } }
 
   /* ---- DOM ---- */
   const tag = document.createElement('div'); tag.id = 'officeTag'; tag.hidden = true; document.body.append(tag);
@@ -821,7 +925,7 @@ export function install(H) {
   function unmountCss() { if (!css) return; css.iframe.src = 'about:blank'; css.layer.remove(); css = null; }
   function placeCss() {
     streamScreen.updateWorldMatrix(true, false);
-    const k = 0.598 / 1280; css.obj.matrix.copy(streamScreen.matrixWorld).multiply(new T.Matrix4().makeScale(k, k, k));
+    const k = SW / 1280; css.obj.matrix.copy(streamScreen.matrixWorld).multiply(new T.Matrix4().makeScale(k, k, k));
     const w = canvas.clientWidth, h = canvas.clientHeight;
     if (w !== css.w || h !== css.h) { css.w = w; css.h = h; css.r.setSize(w, h); css.layer.style.left = canvas.offsetLeft + 'px'; css.layer.style.top = canvas.offsetTop + 'px'; }
   }
@@ -956,17 +1060,19 @@ export function install(H) {
   let fpsAvg = 60, warm = 0, simFrozen = false, lastSim = -1, lastStream = -1, clock = 0, hue = 0;
   const inp = { roll: 0, pitch: 0, thr: 0 };
   const drawSimTo = (ctx, w, h, opt) => { try { sim.draw(ctx, w, h, flight, opt); } catch (e) { console.warn('[office] sim', e); } };
-  drawSimTo(simCtx, 560, 240); simTex.needsUpdate = true;
-  stream.draw(0.016); streamTex.needsUpdate = true;
+  drawSimTo(simCtx, 560, 315); simTex.needsUpdate = true;
+  desk.draw(0.016); streamTex.needsUpdate = true;
   let simAcc = 0, streamAcc = 0;
+  const nightOf = () => { const t = +(H.state?.time ?? 13); return clamp((t - 17) / 3.5, 0, 1) + clamp((7.5 - t) / 2, 0, 1); };
 
   onTick(dt => {
     dt = Math.min(dt || 0.016, 0.1); clock += dt;
     fpsAvg = lerp(fpsAvg, 1 / Math.max(dt, 1e-3), 0.05); warm += dt;
     if (ENV.phone && warm > 5 && fpsAvg < 40 && !simFrozen) simFrozen = true;
-    // RGB-kleurcyclus (paars ↔ roze ↔ blauw)
-    hue = 0.83 + 0.17 * Math.sin(clock * 0.35);
-    mats.rgb.color.setHSL(((hue % 1) + 1) % 1, 1, 0.55); haloMat.color.setHSL(((hue % 1) + 1) % 1, 1, 0.5);
+    // RGB-kleurcyclus van de pc-fans (groen ↔ cyaan, foto); lichtspill volgt de tijd van de dag
+    hue = 0.41 + 0.09 * Math.sin(clock * 0.5);
+    mats.rgb.color.setHSL(hue, 1, 0.55); spillMats.rgb.color.setHSL(hue, 1, 0.5);
+    const night = nightOf(); for (const k in spillMats) spillMats[k].opacity = SPILL[k] * (0.2 + 0.8 * night);
     const mode = getMode();
 
     if (flying) {
@@ -985,7 +1091,7 @@ export function install(H) {
       const rate = mode === 'walk' && dSim < 4.5 && fpsAvg > 45 ? 24 : mode === 'walk' && dSim < 9 ? 12 : 6;
       if (clock - lastSim >= 1 / rate || lastSim < 0) {
         let left = Math.min(simAcc, 0.5); while (left > 1e-4) { const h = Math.min(left, 1 / 20); stepFlight(flight, h, inp); left -= h; }
-        simAcc = 0; lastSim = clock; drawSimTo(simCtx, 560, 240); simTex.needsUpdate = true;
+        simAcc = 0; lastSim = clock; drawSimTo(simCtx, 560, 315); simTex.needsUpdate = true;
       }
     } else simAcc = Math.min(simAcc, 0.5);
 
@@ -1002,7 +1108,7 @@ export function install(H) {
     streamAcc += dt;
     if (!twitchShown && dStr !== null && dStr < 14) {
       const rate = simFrozen ? 4 : dStr < 6 ? 12 : 6;
-      if (clock - lastStream >= 1 / rate) { stream.draw(Math.min(streamAcc, 0.5)); streamAcc = 0; lastStream = clock; streamTex.needsUpdate = true; }
+      if (clock - lastStream >= 1 / rate) { desk.draw(Math.min(streamAcc, 0.5)); streamAcc = 0; lastStream = clock; streamTex.needsUpdate = true; }
     } else streamAcc = Math.min(streamAcc, 0.5);
 
     // richten (hint onder het vizier)
@@ -1015,12 +1121,13 @@ export function install(H) {
     } else tag.hidden = true;
   });
 
-  const api = {
+  api = {
     installed: true, channel: CHANNEL, url: TWITCH_PAGE, streamMode: ENV.stream, group, flight,
-    screens: { sim: simScreen, stream: streamScreen, code: codeScreen },
+    screens: { sim: simScreen, stream: streamScreen }, dogBed: lay.dogBed, obstacles: lay.cols, chair: lay.chair, rebuild,
+    get style() { return builtStyle; },
     enterFly, exitFly, setWatch, showLink,
     get flying() { return flying; }, get twitchShown() { return twitchShown; }, get simFrozen() { return simFrozen; },
-    stats: () => ({ fps: Math.round(fpsAvg), simFrozen, twitchShown, cssMounted: !!css, aim, drawCalls: group.children.length }),
+    stats: () => ({ fps: Math.round(fpsAvg), simFrozen, twitchShown, cssMounted: !!css, aim, style: builtStyle, drawCalls: group.children.length }),
   };
   H.office = api;
   return api;

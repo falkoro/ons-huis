@@ -80,6 +80,7 @@ uniform vec3 postTint;
 uniform vec4 postP2;
 uniform sampler2D postAODepth;
 uniform vec4 postAOInfo;
+uniform float postLoopN;
 float postLinZ( float d ) { return postAOInfo.z * postAOInfo.w / ( postAOInfo.w - d * ( postAOInfo.w - postAOInfo.z ) ); }
 // AO lookup. A reduced-resolution AO buffer is upsampled depth-aware (bilinear weights times depth similarity),
 // otherwise every silhouette (wall against ceiling, furniture against floor) gets a bright fringe.
@@ -195,13 +196,46 @@ if ( postP0.x > 0.5 ) {
 	}
 }
 `;
+// The point and window lights run as real loops instead of three's unrolled ones (same sum, same order): D3D's shader compiler
+// takes ~0.6 s per material for 14 unrolled lamps + 4 unrolled area lights, which froze the first seconds of a walk.
+// Point lights with shadows (none here) keep the unrolled loop, their shadow samplers need constant indices.
+const GLSL_PL_LOOP = /* glsl */`
+	#if defined( USE_SHADOWMAP ) && NUM_POINT_LIGHT_SHADOWS > 0
+	$UNROLLED
+	#else
+	for ( int i = 0; i < min( NUM_POINT_LIGHTS, int( postLoopN ) ); i ++ ) {
+		pointLight = pointLights[ i ];
+		getPointLightInfo( pointLight, geometryPosition, directLight );
+		if ( i < 16 ) {
+			float postR = postPLRoom[ i < 16 ? i : 15 ], postM = postLampMask( postR );
+			if ( postIn && postR > 0.5 && postM > 0.5 ) {
+				if ( postCode < 252.5 ) postFill += pointLight.color; else postFillN += directLight.color;
+			}
+			directLight.color *= postM * mix( 1.0, postAOv, postP1.x );
+		}
+		RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );
+	}
+	#endif`;
+const GLSL_RECT_LOOP = /* glsl */`
+	for ( int i = 0; i < min( NUM_RECT_AREA_LIGHTS, int( postLoopN ) ); i ++ ) {
+		rectAreaLight = rectAreaLights[ i ];
+		if ( i < 4 ) rectAreaLight.color *= postRectMask( postRectRoom[ i < 4 ? i : 3 ] ) * mix( 1.0, postAOv, postP1.x );
+		RE_Direct_RectArea( rectAreaLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );
+	}`;
 let LFB = null; // patched lights_fragment_begin (null = this three build is not what we expect: no patch)
 function patchedLightsChunk() {
   if (LFB !== null) return LFB;
   const src = THREE.ShaderChunk.lights_fragment_begin;
   const A = 'vec3 geometryClearcoatNormal = vec3( 0.0 );', B = 'getPointLightInfo( pointLight, geometryPosition, directLight );', C = 'rectAreaLight = rectAreaLights[ i ];';
   if (!src.includes(A) || !src.includes(B) || !src.includes(C)) { console.warn('[post] unexpected lights_fragment_begin, lighting patch off'); return (LFB = ''); }
-  return (LFB = src.replace(A, GLSL_CLASSIFY + A).replace(B, B + GLSL_PL).replace(C, C + GLSL_RECT));
+  let out = src.replace(A, GLSL_CLASSIFY + A).replace(B, B + GLSL_PL).replace(C, C + GLSL_RECT);
+  // the two unrolled loops (pragma .. pragma) that hold B and C become rolled ones; anything unexpected keeps them unrolled
+  const loopOf = (s, mark) => { const i = s.indexOf(mark), a = s.lastIndexOf('#pragma unroll_loop_start', i), e = s.indexOf('#pragma unroll_loop_end', i); return i < 0 || a < 0 || e < 0 ? null : [a, e + '#pragma unroll_loop_end'.length]; };
+  const pl = loopOf(out, B);
+  if (pl && !/rectAreaLight|directionalLight|spotLight/.test(out.slice(pl[0], pl[1]))) out = out.slice(0, pl[0]) + GLSL_PL_LOOP.replace('$UNROLLED', () => out.slice(pl[0], pl[1])) + out.slice(pl[1]);
+  const rl = loopOf(out, C);
+  if (rl && !/pointLight|directionalLight|spotLight/.test(out.slice(rl[0], rl[1]))) out = out.slice(0, rl[0]) + GLSL_RECT_LOOP + out.slice(rl[1]);
+  return (LFB = out);
 }
 
 /* ---------------- finish pass: white balance, vignette, tone mapping, sRGB, dither, grain ---------------- */
@@ -467,6 +501,7 @@ export function install(H) {
     postPLRoom: { value: new Float32Array(16).fill(-1) },
     postRectRoom: { value: new Float32Array(4).fill(-1) },
     postFlA: { value: FLS.map(f => f[0]) }, postFlB: { value: FLS.map(f => f[1]) },
+    postLoopN: { value: 64 }, // light loop bound the shader compiler cannot see: keeps the loops rolled
   };
   const setActive = on => { U.postP0.value.x = on ? 1 : 0; if (!on) { U.postWB.value.set(1, 1, 1); U.postAO.value = WHITE; U.postAODepth.value = WHITE; U.postAOInfo.value.x = 0; } };
 
