@@ -811,6 +811,7 @@ const STATIC_MAT = {
   plastic: () => new MSM({ color: '#e6e9ea', roughness: 0.3, envMapIntensity: 1.3 }), // cooler than the plaster, so a white unit still reads against a white wall
   roofBoards: () => bindSet(new MSM({ color: '#a8998a', roughness: 0.75 }), 'eiken_licht', { rough: 0.75 }), // pine boards under the attic slope (photos)
   brickPaint: () => bindSet(new MSM({ color: '#ebe8e1', roughness: 0.92 }), 'brickPaint', { ns: 1.1, rmul: 1 }),
+  towel: () => bindSet(new MSM({ color: '#e6e1d6', roughness: 1 }), 'fabric', { ns: 1 }), paper: () => new MSM({ color: '#f4f3ef', roughness: 0.95 }),
   ceramicBeige: () => new MSM({ color: '#ddd0b6', roughness: 0.12 }), // the entree toilet is an old 'bahama beige' one (photos)
   frosted: () => new MSM({ color: '#e4ecee', transparent: true, opacity: 0.72, roughness: 0.6, metalness: 0, envMapIntensity: 0.8, depthWrite: false }), // bathroom window: obscured glass
   hob: () => new MSM({ color: '#0e0f10', roughness: 0.08, metalness: 0.3 }),
@@ -1440,6 +1441,18 @@ const gDrape = (o) => GEO['dr' + JSON.stringify(o)] ||= (() => {
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); g.setIndex(idx); g.computeVertexNormals(); return g;
 })();
+// inside of a basin: the lower half of an ellipsoid with its faces turned inwards (seen from above)
+const gBowl = (a, b, c) => GEO[`bw${a},${b},${c}`] ||= (() => {
+  const g = new THREE.SphereGeometry(1, 28, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2); g.scale(a, b, c);
+  const ix = g.index.array; for (let i = 0; i < ix.length; i += 3) { const t = ix[i]; ix[i] = ix[i + 2]; ix[i + 2] = t; }
+  g.computeVertexNormals(); return g;
+})();
+// flat top of a basin: a w2 x d2 (half sizes) plate with an a x c elliptical opening, facing up
+const gDeck = (w2, d2, a, c) => GEO[`dk${w2},${d2},${a},${c}`] ||= (() => {
+  const sh = new THREE.Shape(); sh.moveTo(-w2, -d2); sh.lineTo(w2, -d2); sh.lineTo(w2, d2); sh.lineTo(-w2, d2); sh.lineTo(-w2, -d2);
+  const h = new THREE.Path(); h.absellipse(0, 0, a, c, 0, Math.PI * 2, true); sh.holes.push(h);
+  const g = new THREE.ShapeGeometry(sh, 24); g.rotateX(-Math.PI / 2); return metreUV(g);
+})();
 // curtain: a pleated sheet W wide and H tall, centred on the origin and facing ±z. The folds (wavelength lam, depth amp)
 // vary a little from fold to fold, open up and wander slightly towards the hem
 const gCurtain = (W, H, lam = 0.1, amp = 0.035, seed = 1) => GEO[`cu${W},${H},${lam},${amp},${seed}`] ||= (() => {
@@ -1947,11 +1960,26 @@ function buildFixtures() {
   // basins (with mirror)
   const basin = (l, x, z, ry, w = 0.5, vanity = false) => {
     const f = kit(AB, x, LV[l].floor, z, ry), c = k(l, 'ceramic');
-    f.box(c, 0, 0.84, 0.2, w, 0.12, 0.4); f.box(k(l, 'dark'), 0, 0.905, 0.21, w - 0.1, 0.005, 0.28); f.cyl(k(l, 'steel'), 0, 0.98, 0.05, 0.015, 0.16, 10); f.box(k(l, 'steel'), 0, 1.05, 0.1, 0.025, 0.025, 0.1);
+    // hollow ceramic block: bottom, sides, a rim round the opening and the bowl inside; tap on the back of the rim
+    const e = w / 2 - 0.045;
+    f.box(c, 0, 0.755, 0.2, w, 0.01, 0.4); f.box(c, 0, 0.82, 0.395, w, 0.12, 0.01); for (const sx of [-1, 1]) f.box(c, sx * (w / 2 - 0.005), 0.82, 0.2, 0.01, 0.12, 0.4);
+    f.box(c, 0, 0.885, 0.05, w, 0.03, 0.1); f.box(c, 0, 0.885, 0.375, w, 0.03, 0.05); for (const sx of [-1, 1]) f.box(c, sx * (e + 0.0225), 0.885, 0.225, 0.045, 0.03, 0.25);
+    f.geo(c, gBowl(e, 0.12, 0.125), 0, 0.9, 0.225); f.geo(c, gDeck(e + 0.001, 0.126, e * 0.985, 0.123), 0, 0.8995, 0.225); f.cyl(k(l, 'steel'), 0, 0.779, 0.225, 0.02, 0.004, 14);
+    f.cyl(k(l, 'steel'), 0, 0.98, 0.05, 0.015, 0.16, 10); f.box(k(l, 'steel'), 0, 1.05, 0.1, 0.025, 0.025, 0.1);
+    if (w > 0.55) { f.cyl(k(l, 'black'), e - 0.04, 0.96, 0.05, 0.028, 0.12, 14); f.cyl(k(l, 'steel'), e - 0.04, 1.03, 0.05, 0.008, 0.02, 8); f.box(k(l, 'steel'), e - 0.04, 1.04, 0.07, 0.01, 0.01, 0.04); // soap pump
+      f.cyl(k(l, 'ceramic'), -e + 0.04, 0.95, 0.05, 0.032, 0.1, 14, 0.036); f.cyl(k(l, 'fruitGreen'), -e + 0.045, 1.03, 0.05, 0.005, 0.12, 6); f.cyl(k(l, 'plate'), -e + 0.035, 1.02, 0.045, 0.005, 0.12, 6); } // mug with toothbrushes
     if (vanity) f.box(k(l, 'front'), 0, 0.5, 0.2, w, 0.56, 0.42);
     f.box(k(l, 'mirror'), 0, 1.55, 0.006, w + 0.1, 0.7, 0.012);
   };
   basin(0, 0.0, 8.15, HP, 0.36); basin(0, 9.0, 8.5, -HP, 0.36); basin(1, 6.68, 5.4, HP, 0.8, true); basin(1, 7.03, 11.25, HP, 0.6, true);
+  // towel over the bathroom radiator, bath mat, toilet roll holders (on the walls without a door)
+  { const L = LV[1].floor, f = kit(AB, 0, 0, 0), t = k(1, 'towel');
+    f.box(t, 7.75, L + 0.585, 4.305, 0.55, 0.36, 0.014); f.soft(t, 7.75, L + 0.765, 4.255, 0.55, 0.032, 0.105, 0, 0.012);
+    f.soft(t, 7.95, L + 0.006, 5.97, 0.5, 0.012, 0.8, 0, 0.005); }
+  for (const [x, z, dx] of [[0.0, 8.55, 1], [9.0, 8.2, -1]]) {
+    const f = kit(AB, 0, 0, 0); f.box(k(0, 'steel'), x + dx * 0.004, 0.72, z, 0.008, 0.05, 0.05); f.box(k(0, 'steel'), x + dx * 0.035, 0.72, z - 0.06, 0.06, 0.01, 0.01);
+    f.cyl(k(0, 'paper'), x + dx * 0.065, 0.72, z, 0.055, 0.1, 18, 0.055, HP); f.cyl(k(0, 'steel'), x + dx * 0.065, 0.72, z, 0.022, 0.104, 12, 0.022, HP);
+  }
   // bath
   const L1 = LV[1].floor, cb = (...a) => bx(1, 'ceramic', ...a);
   cb(8.25, 8.33, L1, L1 + 0.56, 5.1, 6.85); cb(8.93, 9.0, L1, L1 + 0.56, 5.1, 6.85); cb(8.33, 8.93, L1, L1 + 0.56, 5.1, 5.18); cb(8.33, 8.93, L1, L1 + 0.56, 6.77, 6.85); cb(8.33, 8.93, L1, L1 + 0.18, 5.18, 6.77);
