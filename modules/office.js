@@ -732,7 +732,7 @@ function buildHuidig(T, b) {
   for (let r = 0; r < 6; r++) { b.box('gloss', '#1f4db4', 0.01, 0.1, 0.25, 2.565, 0.08 + r * 0.112, 5.92); b.box('metal', '#d0d2d6', 0.014, 0.01, 0.09, 2.556, 0.08 + r * 0.112, 5.92); }
   b.box('solid', '#1a1a1d', 0.1, 0.02, 0.1, 2.72, 0.7, 6.2); b.box('solid', '#111114', 0.012, 0.2, 0.15, 2.71, 0.81, 6.2, 0, 0, 0.35); b.box('glow', '#9fc7ff', 0.004, 0.17, 0.12, 2.675, 0.812, 6.2, 0, 0, 0.35);
   return {
-    stream: [0.432, 1.06, 5.85, HP - 0.4], sim: [0.312, 1.45, 4.9, HP - 0.1],
+    stream: [0.432, 1.06, 5.85, HP - 0.4], sim: [0.312, 1.45, 4.9, HP - 0.1], pc: [[0.35, 0.99, 5.3, 0.46, 0.48, 0.25], [0.36, 0.97, 4.52, 0.44, 0.44, 0.21]],
     spill: [[0.7, 0.42, 0.48, 0.754, 5.85, -HP, 0, 'warm'], [1.3, 1.0, 0.012, 1.05, 5.1, 0, HP, 'rgb']],
     cols: [[0, 0.72, 4.35, 6.35], [0.55, 1.75, 3.75, 4.6], [1.35, 1.8, 4.45, 4.9], [0.5, 1.15, 6.0, 6.65], [3.02, 3.62, 2.94, 3.8], [2.55, 3.0, 3.83, 4.97], [2.55, 3.0, 5.76, 6.08]],
     dogBed: { x: 1.3, z: 5.4, r: 0.5, top: 0.16 }, chair: { x: 0.82, z: 6.3, y: 0.52 },
@@ -762,7 +762,7 @@ function buildTidy(T, b) {
   rig(b, 1.3, 4.1, HP);
   monitor(b, 0.705, 0.397, 0.05, 1.3, 4.1, HP, null, false);
   return {
-    stream: [0.342, 1.1, 5.8, HP], sim: [0.062, 1.3, 4.1, HP],
+    stream: [0.342, 1.1, 5.8, HP], sim: [0.062, 1.3, 4.1, HP], pc: [[0.3, 0.19, 5.15, 0.35, 0.38, 0.16]],
     spill: [[0.7, 0.42, 0.4, 0.764, 5.8, -HP, 0, 'warm'], [0.5, 0.5, 0.26, 0.764, 5.2, -HP, 0, 'lamp']],
     cols: [[0, 0.82, 4.95, 6.65], [0.5, 1.6, 3.8, 4.45]], dogBed: null, chair: { x: 0.98, z: 5.8, y: 0.5 },
   };
@@ -860,7 +860,17 @@ export function install(H) {
   // lichtspill van de schermen/RGB op bureau en muur (additief; 's avonds sterker)
   const halo = haloTexture(T), spillOpt = { map: halo, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 };
   const spillMats = { warm: new T.MeshBasicMaterial({ ...spillOpt, color: 0xff9a55 }), rgb: new T.MeshBasicMaterial({ ...spillOpt, color: 0x40ff90 }), lamp: new T.MeshBasicMaterial({ ...spillOpt, color: 0xffc070 }) };
-  const SPILL = { warm: 0.3, rgb: 0.22, lamp: 0.35 };
+  const SPILL = { warm: 0.3, rgb: 0.12, lamp: 0.35 };
+  // pc aan/uit (klik op de kast, of op een scherm als hij uit staat): uit = zwarte schermen, geen RGB, geen lichtspill
+  const offMat = new T.MeshStandardMaterial({ color: 0x050506, roughness: 0.18, metalness: 0 }), simMat = simScreen.material, hitMat = new T.MeshBasicMaterial({ visible: false });
+  let pcOn = true;
+  function setPc(on) {
+    pcOn = !!on;
+    if (!pcOn) setTwitchShown(false);
+    simScreen.material = pcOn ? simMat : offMat; if (!twitchShown) streamScreen.material = pcOn ? streamMat : offMat;
+    mats.glow.color.setScalar(pcOn ? 1 : 0.03); lastSim = lastStream = -1;
+  }
+  const pcInteract = { room: ROOM_ID, on: () => pcOn, label: () => (pcOn ? 'pc uitzetten' : 'pc aanzetten'), act: () => setPc(!pcOn) };
 
   let group = null, lay = null, builtStyle = null, cols = [], api = null;
   const styleOf = () => { try { return H.state?.style || 'huidig'; } catch (e) { return 'huidig'; } };
@@ -873,6 +883,8 @@ export function install(H) {
     group = b.build(mats); group.name = 'office-' + (style === 'huidig' ? 'huidig' : 'tidy');
     for (const [m, p] of [[simScreen, lay.sim], [streamScreen, lay.stream]]) { m.position.set(p[0], p[1], p[2]); m.rotation.set(0, p[3], 0); group.add(m); }
     for (const [w, h, x, y, z, rx, ry, k] of lay.spill) { const m = new T.Mesh(new T.PlaneGeometry(w, h), spillMats[k]); m.position.set(x, y, z); m.rotation.set(rx, ry, 0); m.renderOrder = 2; m.name = 'office-spill'; group.add(m); }
+    // turned so its +z (the side you aim from) faces the room (+x), like the glass front of the pc
+    for (const [x, y, z, sx, sy, sz] of lay.pc) { const m = new T.Mesh(new T.BoxGeometry(sz, sy, sx), hitMat); m.position.set(x, y, z); m.rotation.y = HP; m.name = 'office-pc-hit'; m.userData.interact = pcInteract; group.add(m); }
     cols = H.colliders?.[0] ? lay.cols.map(c => { const q = c.slice(); H.colliders[0].push(q); return q; }) : [];
     addToRoom(group); group.updateMatrixWorld(true);
     if (api) { api.group = group; api.dogBed = lay.dogBed; api.obstacles = lay.cols; api.chair = lay.chair; }
@@ -931,7 +943,7 @@ export function install(H) {
   }
   function setTwitchShown(on) {
     if (twitchShown === on) return; twitchShown = on;
-    streamScreen.material = on ? holeMat : streamMat;
+    streamScreen.material = on ? holeMat : pcOn ? streamMat : offMat;
     if (css) { css.obj.visible = on; css.r.render(css.scene, camera); }
     watchBtn.hidden = !on;
     if (!on) setWatch(false);
@@ -1008,7 +1020,8 @@ export function install(H) {
     ray.setFromCamera(ndc, camera); ray.far = far; const h = ray.intersectObjects(targets, false).find(x => shown(x.object)); return h ? which(h.object) : null;
   }
   function activate(w) {
-    if (w === 'sim') enterFly();
+    if (!pcOn) setPc(true);
+    else if (w === 'sim') enterFly();
     else if (w === 'stream') { if (twitchShown) setWatch(!watch); else showLink(); }
   }
   const typing = () => { const a = document.activeElement; return !!a && /INPUT|SELECT|TEXTAREA/.test(a.tagName) && a.type !== 'range' && a.type !== 'checkbox'; };
@@ -1071,8 +1084,8 @@ export function install(H) {
     if (ENV.phone && warm > 5 && fpsAvg < 40 && !simFrozen) simFrozen = true;
     // RGB-kleurcyclus van de pc-fans (groen ↔ cyaan, foto); lichtspill volgt de tijd van de dag
     hue = 0.41 + 0.09 * Math.sin(clock * 0.5);
-    mats.rgb.color.setHSL(hue, 1, 0.55); spillMats.rgb.color.setHSL(hue, 1, 0.5);
-    const night = nightOf(); for (const k in spillMats) spillMats[k].opacity = SPILL[k] * (0.2 + 0.8 * night);
+    mats.rgb.color.setHSL(hue, 1, pcOn ? 0.55 : 0.02); spillMats.rgb.color.setHSL(hue, 1, 0.5);
+    const night = nightOf(); for (const k in spillMats) spillMats[k].opacity = pcOn ? SPILL[k] * (0.2 + 0.8 * night) : 0;
     const mode = getMode();
 
     if (flying) {
@@ -1087,7 +1100,7 @@ export function install(H) {
     // simulatie loopt altijd door (goedkoop); tekenen alleen als het scherm in beeld is
     simAcc += dt;
     const dSim = viewOf(simScreen);
-    if (!simFrozen && dSim !== null && dSim < 30) {
+    if (pcOn && !simFrozen && dSim !== null && dSim < 30) {
       const rate = mode === 'walk' && dSim < 4.5 && fpsAvg > 45 ? 24 : mode === 'walk' && dSim < 9 ? 12 : 6;
       if (clock - lastSim >= 1 / rate || lastSim < 0) {
         let left = Math.min(simAcc, 0.5); while (left > 1e-4) { const h = Math.min(left, 1 / 20); stepFlight(flight, h, inp); left -= h; }
@@ -1098,7 +1111,7 @@ export function install(H) {
     // stream: Twitch-embed of voorbeeldbeeld
     const dStr = viewOf(streamScreen);
     let want = false;
-    if (TWITCH && !twitchFailed && mode === 'walk' && dStr !== null && dStr < 5 && inRoom(camera.position)) want = true;
+    if (pcOn && TWITCH && !twitchFailed && mode === 'walk' && dStr !== null && dStr < 5 && inRoom(camera.position)) want = true;
     if (want) {
       if (!css) ensureCss();
       if (!wantSince) wantSince = clock; hiddenSince = 0;
@@ -1106,7 +1119,7 @@ export function install(H) {
     } else { wantSince = 0; setTwitchShown(false); if (!hiddenSince) hiddenSince = clock; if (css && clock - hiddenSince > 45) unmountCss(); }
     if (twitchShown && css) { placeCss(); css.r.render(css.scene, camera); }
     streamAcc += dt;
-    if (!twitchShown && dStr !== null && dStr < 14) {
+    if (pcOn && !twitchShown && dStr !== null && dStr < 14) {
       const rate = simFrozen ? 4 : dStr < 6 ? 12 : 6;
       if (clock - lastStream >= 1 / rate) { desk.draw(Math.min(streamAcc, 0.5)); streamAcc = 0; lastStream = clock; streamTex.needsUpdate = true; }
     } else streamAcc = Math.min(streamAcc, 0.5);
@@ -1116,7 +1129,7 @@ export function install(H) {
     if (mode === 'walk' && (document.pointerLockElement === canvas || !ENV.coarse) && !watch) aim = pickCenter(3.2);
     if (aim) {
       const k = ENV.coarse ? 'Tik' : 'E / klik';
-      tag.textContent = aim === 'sim' ? `${k}: vliegen` : twitchShown ? `${k}: bekijk stream` : `${k}: stream-link`;
+      tag.textContent = !pcOn ? `${k}: pc aanzetten` : aim === 'sim' ? `${k}: vliegen` : twitchShown ? `${k}: bekijk stream` : `${k}: stream-link`;
       tag.hidden = false;
     } else tag.hidden = true;
   });
@@ -1125,7 +1138,7 @@ export function install(H) {
     installed: true, channel: CHANNEL, url: TWITCH_PAGE, streamMode: ENV.stream, group, flight,
     screens: { sim: simScreen, stream: streamScreen }, dogBed: lay.dogBed, obstacles: lay.cols, chair: lay.chair, rebuild,
     get style() { return builtStyle; },
-    enterFly, exitFly, setWatch, showLink,
+    enterFly, exitFly, setWatch, showLink, setPc, get pcOn() { return pcOn; },
     get flying() { return flying; }, get twitchShown() { return twitchShown; }, get simFrozen() { return simFrozen; },
     stats: () => ({ fps: Math.round(fpsAvg), simFrozen, twitchShown, cssMounted: !!css, aim, style: builtStyle, drawCalls: group.children.length }),
   };

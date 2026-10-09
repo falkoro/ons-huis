@@ -219,7 +219,9 @@ export function install(H) {
     roof: new MSM({ color: '#5a5c5c', roughness: 0.8 }), fascia: new MSM({ color: '#2b2d2f', roughness: 0.5 }), trim: new MSM({ color: '#f1f0eb', roughness: 0.45 }),
     door: new MSM({ color: '#2f3b45', roughness: 0.5 }), winDark: new MSM({ color: '#131c24', roughness: 0.3, metalness: 0.0, envMapIntensity: 0.45 }),
     winLit: new MSM({ color: '#2a2622', emissive: '#ffd2a0', emissiveIntensity: 0, roughness: 0.3, metalness: 0.0, envMapIntensity: 0.4 }),
-    glass: new MSM({ color: '#0e1216', roughness: 0.25, metalness: 0.0, envMapIntensity: 0.5 }), paint: new MSM({ vertexColors: true, roughness: 0.4, metalness: 0.15, envMapIntensity: 0.35 }),
+    glass: new MSM({ color: '#0b1014', roughness: 0.12, metalness: 0.0, envMapIntensity: 0.9 }),
+    paint: new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.5, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 0.9 }),   // autolak met blanke lak
+    lens: new MSM({ color: '#78848b', roughness: 0.08, metalness: 0.8, envMapIntensity: 1.0 }), taillight: new MSM({ color: '#8c0f12', roughness: 0.15, envMapIntensity: 0.8 }),
     tyre: new MSM({ color: '#141414', roughness: 0.9 }), rim: new MSM({ color: '#9ea2a6', metalness: 0.7, roughness: 0.35 }), lamp: new MSM({ color: '#f3e4c8', emissive: '#ffd59a', emissiveIntensity: 0, roughness: 0.4 }),
     pole: new MSM({ color: '#4f5450', roughness: 0.6, metalness: 0.3 }), black: new MSM({ color: '#111213', roughness: 0.6 }), bark: new MSM({ color: '#4a3d31', roughness: 0.95 }),
     stake: new MSM({ color: '#8a6d4a', roughness: 0.9 }), colored: new MSM({ vertexColors: true, roughness: 0.95 }), mat: new MSM({ color: '#1c1c1c', roughness: 1 }),
@@ -338,19 +340,55 @@ export function install(H) {
   statics.geo('charger', rbox(0.2, 0.38, 0.11, 0.04), place(9.1, 1.25, ZF + 0.06)); statics.box('black', 9.06, 9.14, 0.85, 1.06, ZF, ZF + 0.03);
 
   /* =================================================== AUTO'S (geen kenteken) =================================================== */
-  function car(x, z, ry, col) {
-    const M = place(x, 0, z, ry), at = (k, g, lx, ly, lz, c) => statics.geo(k, g, M.clone().multiply(place(lx, ly, lz)), c);
-    at('paint', rbox(1.78, 0.5, 4.3, 0.09), 0, 0.57, 0, col); at('paint', rbox(1.74, 0.16, 3.0, 0.06), 0, 0.84, 0.1, col);   // carrosserie + schouders
-    at('glass', rbox(1.6, 0.52, 2.15, 0.14), 0, 1.1, 0.25); at('paint', rbox(1.5, 0.05, 1.9, 0.02), 0, 1.36, 0.25, col);  // kabine (glas rondom) + dak
-    for (const [lx, lz] of [[-0.74, -0.5], [0.74, -0.5], [-0.74, 1.3], [0.74, 1.3]]) at('paint', new THREE.BoxGeometry(0.08, 0.5, 0.1), lx, 1.1, lz, col);
-    at('black', rbox(1.8, 0.2, 0.3, 0.05), 0, 0.33, -2.1); at('black', rbox(1.8, 0.2, 0.3, 0.05), 0, 0.33, 2.1);   // bumpers
-    at('lamp', new THREE.BoxGeometry(0.4, 0.12, 0.05), -0.6, 0.72, -2.15); at('lamp', new THREE.BoxGeometry(0.4, 0.12, 0.05), 0.6, 0.72, -2.15);
-    at('colored', new THREE.BoxGeometry(0.36, 0.1, 0.05), -0.62, 0.78, 2.15, [0.55, 0.04, 0.03]); at('colored', new THREE.BoxGeometry(0.36, 0.1, 0.05), 0.62, 0.78, 2.15, [0.55, 0.04, 0.03]);
+  // compacte cross-over (4,45 x 1,82 x 1,58 m), neus naar −Z. Zijprofiel (z, y) met wielkasten, over de breedte geëxtrudeerd
+  // met afgeronde schouders; de kabine is een tweede, smallere extrusie in glas (tumblehome) met stijlen en dak in lak.
+  function profile(shape, w, bevel) {
+    const g = new THREE.ExtrudeGeometry(shape, { depth: w - 2 * bevel, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel * 0.999, bevelOffset: -bevel, bevelSegments: 3, curveSegments: 10 });   // offset -bevel: profiel = buitenmaat, kopvlakken ingetrokken
+    g.rotateY(-PI / 2); g.translate((w - 2 * bevel) / 2, 0, 0); return g;   // vorm-x -> z, extrusie -> x (gecentreerd)
   }
-  // wielen: cilinders liggen langs Y, dus apart gedraaid
-  const wheel = (x, z, ry) => { const M = place(x, 0, z, ry); for (const [lx, lz] of [[-0.82, -1.4], [0.82, -1.4], [-0.82, 1.35], [0.82, 1.35]]) { statics.geo('tyre', new THREE.CylinderGeometry(0.32, 0.32, 0.2, 14), M.clone().multiply(place(lx, 0.32, lz, 0, 1, 0, PI / 2))); statics.geo('rim', new THREE.CylinderGeometry(0.19, 0.19, 0.21, 10), M.clone().multiply(place(lx, 0.32, lz, 0, 1, 0, PI / 2))); } };
-  car(1.2, 16.2, 0, [0.2, 0.21, 0.23]); wheel(1.2, 16.2, 0); addCol(0.3, 2.1, 14.0, 18.4);          // onze auto, zilvergrijs, neus naar het huis
-  car(-5.8, 25.4, PI / 2, [0.16, 0.17, 0.19]); wheel(-5.8, 25.4, PI / 2); addCol(-8.0, -3.6, 24.5, 26.3);   // overkant, langs de stoep
+  const WZ = 1.38, WY = 0.335, TR = 0.335, ARCH = 0.42, a0 = Math.asin((0.28 - WY) / ARCH);   // wielen, wielkast
+  function bodyShape() {
+    const s = new THREE.Shape(); s.moveTo(2.18, 0.28);
+    s.lineTo(WZ + ARCH * Math.cos(a0), 0.28); s.absarc(WZ, WY, ARCH, a0, PI - a0, false); s.lineTo(-WZ + ARCH * Math.cos(a0), 0.28); s.absarc(-WZ, WY, ARCH, a0, PI - a0, false);
+    s.lineTo(-2.14, 0.28); s.quadraticCurveTo(-2.24, 0.30, -2.24, 0.42); s.lineTo(-2.22, 0.72); s.quadraticCurveTo(-2.18, 0.86, -2.0, 0.90);   // bumper, neus
+    s.lineTo(-0.85, 1.02); s.quadraticCurveTo(-0.72, 1.05, -0.60, 1.06); s.lineTo(1.95, 1.06);                                                   // motorkap, gordellijn
+    s.quadraticCurveTo(2.16, 1.06, 2.20, 0.92); s.lineTo(2.22, 0.45); s.quadraticCurveTo(2.22, 0.30, 2.18, 0.28); return s;                       // achterklep
+  }
+  function cabinShape() {
+    const s = new THREE.Shape(); s.moveTo(-0.62, 0.94); s.lineTo(0.05, 1.50); s.quadraticCurveTo(0.15, 1.56, 0.35, 1.56); s.lineTo(1.25, 1.56);
+    s.quadraticCurveTo(1.55, 1.56, 1.75, 1.40); s.lineTo(2.02, 0.94); return s;   // voorruit, dak, achterruit; voet zit 12 cm in de carrosserie
+  }
+  function car(x, z, ry, col) {
+    const M = place(x, 0, z, ry), at = (k, g, lx, ly, lz, c, ryy = 0, rx = 0, rz = 0) => statics.geo(k, g, M.clone().multiply(place(lx, ly, lz, ryy, 1, rx, rz)), c || undefined);
+    const P = (lx, ly, lz) => V(lx, ly, lz).applyMatrix4(M), dark = [0.05, 0.05, 0.055];
+    at('paint', profile(bodyShape(), 1.82, 0.08), 0, 0, 0, col); at('glass', profile(cabinShape(), 1.62, 0.10), 0, 0, 0);
+    at('black', new THREE.BoxGeometry(1.62, 0.70, 3.6), 0, 0.51, 0);                                 // wielkasten / onderstel (vult de kasten van binnen, blijft onder de motorkap)
+    at('black', rbox(1.80, 0.14, 1.84, 0.04), 0, 0.22, 0); for (const bz of [-2.02, 2.02]) at('black', rbox(1.80, 0.14, 0.36, 0.04), 0, 0.22, bz);   // donkere dorpel en bumperlippen
+    at('paint', rbox(1.40, 0.025, 0.95, 0.012), 0, 1.565, 0.80, col);                                // dakpaneel
+    for (const sx of [-1, 1]) {
+      cylBetween(statics, 'paint', P(sx * 0.80, 1.04, -0.60), P(sx * 0.73, 1.52, 0.08), 0.035, col);  // A-stijl
+      cylBetween(statics, 'paint', P(sx * 0.80, 1.04, 2.02), P(sx * 0.74, 1.42, 1.72), 0.055, col);  // C-stijl
+      at('black', new THREE.BoxGeometry(0.03, 0.46, 0.08), sx * 0.805, 1.27, 0.76);                   // B-stijl
+      at('black', rbox(0.04, 0.04, 1.30, 0.015), sx * 0.66, 1.595, 0.80);                              // dakrail
+      at('black', new THREE.BoxGeometry(0.12, 0.035, 0.06), sx * 0.90, 1.08, -0.45); at('paint', rbox(0.09, 0.10, 0.18, 0.03), sx * 0.99, 1.12, -0.45, col);   // spiegel
+      for (const hz of [-0.25, 0.85]) at('black', rbox(0.03, 0.03, 0.16, 0.012), sx * 0.915, 0.90, hz);                                                      // deurgrepen
+      at('lens', rbox(0.48, 0.12, 0.05, 0.025), sx * 0.58, 0.80, -2.19, null, -sx * 0.2);              // koplamp, iets om de hoek gebogen
+      for (const dz of [-0.62, 0.45, 1.55]) at('black', new THREE.BoxGeometry(0.012, 0.62, 0.012), sx * 0.912, 0.67, dz);                           // deurnaden
+      at('taillight', rbox(0.42, 0.11, 0.08, 0.025), sx * 0.60, 0.90, 2.18, null, sx * 0.25);          // achterlicht
+      for (const wz of [-WZ, WZ]) {   // wiel: band, velgring, donkere schotel, 5 spaken, naaf (as langs X)
+        const WX = 0.74, wg = (k, g, dx, rx = 0) => statics.geo(k, g, M.clone().multiply(place(sx * (WX + dx), WY, wz, 0, 1, rx, rx ? 0 : PI / 2)));
+        wg('tyre', new THREE.CylinderGeometry(TR, TR, 0.235, 28), 0); wg('rim', new THREE.CylinderGeometry(0.225, 0.225, 0.10, 24), 0.075);
+        wg('black', new THREE.CylinderGeometry(0.19, 0.19, 0.02, 24), 0.125); wg('rim', new THREE.CylinderGeometry(0.05, 0.05, 0.03, 12), 0.135);
+        for (let k = 0; k < 5; k++) wg('rim', new THREE.BoxGeometry(0.03, 0.17, 0.05).translate(0, 0.105, 0), 0.132, k * PI * 2 / 5 + 0.3);
+      }
+    }
+    at('black', rbox(1.00, 0.18, 0.06, 0.03), 0, 0.64, -2.21); at('black', rbox(1.30, 0.14, 0.05, 0.03), 0, 0.38, -2.23);   // grille, onderste luchtinlaat
+    at('black', new THREE.BoxGeometry(0.06, 0.04, 0.12), 0, 1.575, 1.35);                                                      // haaienvin
+    at('colored', rbox(0.52, 0.11, 0.012, 0.01), 0, 0.48, -2.245, [0.9, 0.9, 0.88]); at('colored', rbox(0.52, 0.11, 0.012, 0.01), 0, 0.70, 2.225, [0.92, 0.72, 0.08]);   // blanco kentekens (wit voor, geel achter)
+    at('black', rbox(0.58, 0.16, 0.02, 0.01), 0, 0.70, 2.21, dark);                                                           // kentekenplaathouder
+  }
+  car(1.2, 16.2, 0, [0.025, 0.027, 0.032]); addCol(0.3, 2.1, 14.0, 18.4);          // onze auto, zwart, neus naar het huis (exterior_1)
+  car(-5.8, 25.4, PI / 2, [0.80, 0.82, 0.83]); addCol(-8.0, -3.6, 24.5, 26.3);    // overkant, wit, langs de stoep (voortuin_1 rechts)
 
   /* =================================================== BORDER (foto voortuin_1, rechts in beeld = −X) =================================================== */
   // grote groenblijver (laurier/photinia), drie stammen, kroon tot vlak boven de grond

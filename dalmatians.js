@@ -593,11 +593,17 @@ function leafDist(x, z, g, out) {
 function makeNav(H, opts) {
   const walls = H && H.colliders ? H.colliders[0] : [];
   const roomOf = (x, z) => (H && H.roomAt ? H.roomAt(0, x, z) : 'woonkamer');
-  const doors = (H && H.doors ? H.doors.filter((d) => d.l === 0 && d.col) : []).map(doorGeom);
-  const posts = [], doorCols = [], openRects = [];
-  for (const g of doors) { posts.push(...g.posts); doorCols.push(g.col); openRects.push(g.openRect); }
+  // walls is the host's live list (the "Nieuwe keuken" toggle splices it in place); doors are re-read by refreshDoors()
+  const doors = [], posts = [], doorCols = [], openRects = [];
+  function readDoors() {
+    doors.length = posts.length = doorCols.length = openRects.length = 0;
+    for (const d of H && H.doors ? H.doors.filter((d) => d.l === 0 && d.col) : []) doors.push(doorGeom(d));
+    for (const g of doors) { posts.push(...g.posts); doorCols.push(g.col); openRects.push(g.openRect); }
+  }
+  readDoors();
   const nodes = POIS.map((p, i) => ({ i, id: p[0], x: p[1], z: p[2], h: p[3], room: p[4], kind: p[5], door: null, spot: null, edges: [] }));
-  const addNode = (n) => { n.i = nodes.length; n.edges = []; nodes.push(n); return n; };
+  // a dead slot (removed bed, door of the other kitchen variant) is reused, so node indexes stay valid and the graph stays small
+  const addNode = (n) => { const k = nodes.findIndex((m) => m.kind === 'dead'); n.i = k >= 0 ? k : nodes.length; n.edges = []; nodes[n.i] = n; return n; };
   let furniture = [];
   const hits = (x, z, r, rects) => { for (let i = 0; i < rects.length; i++) { const c = rects[i]; if (x > c[0] - r && x < c[1] + r && z > c[2] - r && z < c[3] + r) return true; } return false; };
   const blocked = (x, z, r) => hits(x, z, r, walls) || hits(x, z, r, posts) || hits(x, z, r, openRects) || hits(x, z, r, furniture);
@@ -609,12 +615,20 @@ function makeNav(H, opts) {
   };
   const segmentFree = (x0, z0, x1, z1, r) => segFree(x0, z0, x1, z1, r, blockedRoute);
   // door passages: a node in the gap centre, one approach node 0.75 m into each room, linked only to the gap node
-  for (const g of doors) {
-    const [mx, mz] = g.mid, [nx, nz] = g.nrm, side = [];
-    for (const s of [1, -1]) for (const r of [0.75, 0.6, 0.9, 1.1]) { const x = mx + nx * r * s, z = mz + nz * r * s; if (!blocked(x, z, DOG_R) && roomOf(x, z)) { side.push([x, z, s]); break; } }
-    if (side.length < 2) continue; // one side is outside: no passage
-    const inner = side.map(([x, z, s]) => addNode({ id: 'a-' + g.hx.toFixed(1) + '/' + g.hz.toFixed(1) + (s > 0 ? '+' : '-'), x, z, h: 0, room: null, kind: 'via', door: null, spot: null }));
-    g.node = addNode({ id: 'd-' + g.hx.toFixed(1) + '/' + g.hz.toFixed(1), x: mx, z: mz, h: 0, room: null, kind: 'door', door: g.d, geom: g, spot: null, near: inner.map((n) => n.i) });
+  function addDoorNodes() {
+    for (const g of doors) {
+      const [mx, mz] = g.mid, [nx, nz] = g.nrm, side = [];
+      for (const s of [1, -1]) for (const r of [0.75, 0.6, 0.9, 1.1]) { const x = mx + nx * r * s, z = mz + nz * r * s; if (!blocked(x, z, DOG_R) && roomOf(x, z)) { side.push([x, z, s]); break; } }
+      if (side.length < 2) continue; // one side is outside: no passage
+      const inner = side.map(([x, z, s]) => addNode({ id: 'a-' + g.hx.toFixed(1) + '/' + g.hz.toFixed(1) + (s > 0 ? '+' : '-'), x, z, h: 0, room: null, kind: 'via', door: null, spot: null }));
+      g.node = addNode({ id: 'd-' + g.hx.toFixed(1) + '/' + g.hz.toFixed(1), x: mx, z: mz, h: 0, room: null, kind: 'door', door: g.d, geom: g, spot: null, near: inner.map((n) => n.i) });
+    }
+  }
+  addDoorNodes();
+  // the host swapped walls/doors (the "Nieuwe keuken" toggle): drop the door nodes, re-read the doors, rebuild the graph
+  function refreshDoors() {
+    for (const n of nodes) if (n.kind === 'door' || (n.kind === 'via' && n.id.startsWith('a-'))) { n.kind = 'dead'; n.door = null; }
+    readDoors(); addDoorNodes(); placeSofaNodes(); rebuildEdges();
   }
   function rebuildEdges() {
     for (const n of nodes) n.edges.length = 0;
@@ -756,7 +770,7 @@ function makeNav(H, opts) {
     else { const o0 = d.x - c[0] + r, o1 = c[1] - d.x + r, o2 = d.z - c[2] + r, o3 = c[3] - d.z + r, m = Math.min(o0, o1, o2, o3) * 0.5; if (m === o0 * 0.5) d.x -= m; else if (m === o1 * 0.5) d.x += m; else if (m === o2 * 0.5) d.z -= m; else d.z += m; }
     return true;
   }
-  return { nodes, sofas, beds, doors, addBed, removeBed, route, nearestNode, resolve, overlaps, blocked, segmentFree, roomOf, doorOpen, passable, setObstacles: (l) => { setObstacles(l); placeSofaNodes(); rebuildEdges(); }, furniture: () => furniture };
+  return { nodes, sofas, beds, doors, addBed, removeBed, route, nearestNode, resolve, overlaps, blocked, segmentFree, roomOf, doorOpen, passable, refreshDoors, setObstacles: (l) => { setObstacles(l); placeSofaNodes(); rebuildEdges(); }, furniture: () => furniture };
 }
 
 // ================================================================ SOUND (synthesised bark / whine, quiet, after a user gesture)
@@ -1471,6 +1485,12 @@ export function addDalmatians(THREE, scene, opts = {}) {
   }
 
   function setObstacles(list) { nav.setObstacles(list); }
+  // the host changed its walls/doors (HOUSE 'kitchen' event): new graph, and whoever was walking plans again
+  function refreshNav() {
+    nav.refreshDoors();
+    for (const d of dogs) if (d.state === 'walk' || d.state === 'waitdoor') { releaseBed(d); releaseSofa(d); d.goal = -1; idle(d, 0.5); }
+  }
+  if (H && typeof H.on === 'function') H.on('kitchen', refreshNav);
   // ---- rest spots. beds: live list of { id, x, z, y, r, heading, room, claim }. addBed({ id, x, z, y, r, heading, room })
   // registers a bed (the host places the mesh itself, e.g. the green bean bag in the office corner); rest('Gemma', 'id')
   // sends a dog there to curl up; place('Logan', { x, z, heading, pose }) puts a dog somewhere at once (pose: stand, sit,
@@ -1493,5 +1513,5 @@ export function addDalmatians(THREE, scene, opts = {}) {
     d.room = nav.roomOf(d.x, d.z) || d.room;
     return true;
   }
-  return { dogs, bed, bowls, beds: nav.beds, addBed, removeBed, rest, place, dispose, pet, call, update, setObstacles, nav, POSES };
+  return { dogs, bed, bowls, beds: nav.beds, addBed, removeBed, rest, place, dispose, pet, call, update, setObstacles, refreshNav, nav, POSES };
 }

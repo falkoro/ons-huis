@@ -550,14 +550,15 @@ export function install(H) {
   /* ---- window light ---- */
   RectAreaLightUniformsLib.init();
   const WINDOWS = [];
-  (function findWindows() {
+  function findWindows() { // from the host's live wall list (D.WALLS follows the "Nieuwe keuken" toggle); re-run on 'kitchen'
+    WINDOWS.length = 0;
     const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
     for (const w of D.WALLS || []) {
       const [l, axis, , , c0, c1, ops] = w; if (!ops || !LVL[l]) continue;
       const fl = LVL[l].floor;
       for (const op of ops) {
         const [a, b, type, sill = 0, head = 2.2] = op;
-        if (type !== 'w' && type !== 'g') continue;
+        if (type !== 'w' && type !== 'g' && type !== 's') continue; // 's' = schuifpui (Nieuwe keuken)
         const s = (a + b) / 2, y = fl + (sill + head) / 2;
         const P = (along, c) => (axis === 'x' ? V3(along, y, c) : V3(c, y, along));
         const lo = P(s, Math.min(c0, c1) - 0.3), hi = P(s, Math.max(c0, c1) + 0.3);
@@ -582,7 +583,8 @@ export function install(H) {
       WINDOWS.push({ code, lvl: ROOMS[idx].lvl, center: e.center, nIn: e.nIn.clone().normalize(), along: e.along, w: e.w, h: e.h, T: e.T, E: null });
     }
     for (const w of WINDOWS) w.area = w.w * w.h;
-  })();
+  }
+  findWindows();
   // sky irradiance through each window, from the HDR sky with the same lower-hemisphere blend the host uses for its probe
   let skySrc = null, skyS = null;
   function skySamples(tex) {
@@ -965,6 +967,7 @@ export function install(H) {
   applyLevel(st.choice === 'auto' ? deviceLevel : st.choice);
   scene.traverse(o => { if (o.material) for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m) m.needsUpdate = true; });
   H.on?.('change', () => { lastScan = -1e9; });
+  H.on?.('kitchen', () => { findWindows(); winSig = ''; lastScan = -1e9; });
 
   const api = {
     version: VERSION, ready: true, cfg: CFG, levels: LEVELS, map: MAP, windows: WINDOWS,
