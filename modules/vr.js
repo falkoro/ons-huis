@@ -55,6 +55,7 @@ function normStair(s) {
     o = { l: s.l ?? s.level ?? s.lvl, x0: s.x0, x1: s.x1, zBot: s.zBot ?? s.z0, zTop: s.zTop ?? s.z1, yBot: s.yBot ?? s.y0, yTop: s.yTop ?? s.y1 };
   }
   if (!o || ![o.l, o.x0, o.x1, o.zBot, o.zTop, o.yBot, o.yTop].every(Number.isFinite) || o.zBot === o.zTop) return null;
+  if (typeof s.y === 'function') o.yAt = s.y; // turning flight (stair B): height from (x, z)
   o.minZ = Math.min(o.zBot, o.zTop); o.maxZ = Math.max(o.zBot, o.zTop);
   o.area = (o.x1 - o.x0) * (o.maxZ - o.minZ);
   return o;
@@ -66,7 +67,7 @@ export function makePhysics(H) {
   const stairs = (Array.isArray(H.stairs) && H.stairs.length ? H.stairs : DEFAULT_STAIRS).map(normStair).filter(Boolean);
   const R = CFG.radius;
 
-  const yOn = (s, z) => s.yBot + clamp((z - s.zBot) / (s.zTop - s.zBot), 0, 1) * (s.yTop - s.yBot);
+  const yOn = (s, x, z) => s.yAt ? s.yAt(x, z) : s.yBot + clamp((z - s.zBot) / (s.zTop - s.zBot), 0, 1) * (s.yTop - s.yBot);
   const inFoot = (s, x, z) => x >= s.x0 && x <= s.x1 && z >= s.minZ && z <= s.maxZ;
   const touches = (s, l) => s.l === l || s.l + 1 === l;
   const overlap = (c, s) => Math.max(0, Math.min(c[1], s.x1) - Math.max(c[0], s.x0)) * Math.max(0, Math.min(c[3], s.maxZ) - Math.max(c[2], s.minZ));
@@ -104,12 +105,12 @@ export function makePhysics(H) {
   function onStair(i, y) { const s = stairs[i], mid = (floorY(s.l) + floorY(s.l + 1)) / 2; return { l: y >= mid ? s.l + 1 : s.l, y, s: i }; }
   // what you stand on at (x, z) coming from state st; null = can't go there (stair side, stairwell edge)
   function surface(st, x, z, pitch) {
-    if (st.s >= 0 && stairs[st.s] && inFoot(stairs[st.s], x, z)) return onStair(st.s, yOn(stairs[st.s], z));
+    if (st.s >= 0 && stairs[st.s] && inFoot(stairs[st.s], x, z)) return onStair(st.s, yOn(stairs[st.s], x, z));
     const cands = []; let blocked = false;
     for (let i = 0; i < stairs.length; i++) {
       const s = stairs[i];
       if (!touches(s, st.l) || !inFoot(s, x, z)) continue;
-      const y = yOn(s, z), dy = y - st.y;
+      const y = yOn(s, x, z), dy = y - st.y;
       if (dy > CFG.headroom) continue; // walking underneath it
       if (Math.abs(dy) <= CFG.step) cands.push({ i, y, dy }); else blocked = true;
     }

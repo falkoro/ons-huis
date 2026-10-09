@@ -945,18 +945,18 @@
     "own work: tools/blender/model_y.py (Blender 5.2)"
    ],
    "bbox": {
-    "w": 2.282,
+    "w": 2.255,
     "h": 1.616,
-    "d": 4.811,
+    "d": 4.813,
     "min": [
-     -1.141,
+     -1.127,
      0.004,
-     -2.424
+     -2.43
     ],
     "max": [
-     1.141,
+     1.127,
      1.62,
-     2.387
+     2.383
     ]
    },
    "facing": "+Z",
@@ -968,10 +968,10 @@
     1
    ],
    "surfaces": [],
-   "tris": 22054,
-   "trisSource": 22054,
-   "bytes": 127480,
-   "notes": "black Tesla Model Y 2025 (Juniper): front light strip, full-width rear light bar, TESLA wordmark and Dual Motor badge, blank Dutch plates; width incl. mirrors"
+   "tris": 27416,
+   "trisSource": 27416,
+   "bytes": 152912,
+   "notes": "black Tesla Model Y 2025 (Juniper): raked nose with the light strip and headlamp recesses, smoked rear light bar, panel gaps, 19\" Crossflow wheels with discs and calipers, body-colour mirrors, TESLA wordmark and Dual Motor badge, blank Dutch plates; width incl. mirrors"
   }
  ],
  "totalBytes": 4365024,

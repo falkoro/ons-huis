@@ -669,9 +669,11 @@ export function install(H) {
     const n = rectOn.length; if (!n) return;
     let pick = [];
     if (enabled) {
-      const cand = WINDOWS.filter(w => w.lvl === lvl);
-      cand.sort((a, b) => ((a.code === code ? -100 + -a.area : 0) + a.center.distanceTo(camPos)) - ((b.code === code ? -100 + -b.area : 0) + b.center.distanceTo(camPos)));
-      pick = cand.slice(0, n);
+      // the room's own windows by size only: ranked by distance too, a big window's light went on and off across whole walls
+      // as you walked through a room with more windows than lights (Normaal: 2). Other rooms' windows (seen through a door,
+      // they light the wall zones) by distance, a lit one keeps its light until another is half a metre nearer.
+      const had = new Set(rectOn.map(L => L.userData.win)), key = w => w.code === code ? -1000 - w.area : w.center.distanceTo(camPos) - (had.has(w) ? 0.5 : 0);
+      pick = WINDOWS.filter(w => w.lvl === lvl).sort((a, b) => key(a) - key(b)).slice(0, n);
     }
     const sig = pick.map(w => WINDOWS.indexOf(w)).join(',');
     if (sig !== winSig) {
@@ -892,7 +894,9 @@ export function install(H) {
     // while paused (photo.js / compare.js own the frame) a render of the main view is a still capture: it gets its window light
     // and the exposure for its own pose; the lights go dark again right after, so a path tracer never counts them
     const capture = st.paused;
-    placeWindows(_cam, code, lvl, !doll, envI);
+    // in a doorway (wall zone) or on a stair the windows of the room you came from stay lit: one swap per door, not two
+    if (code > 0 && code < 253) st.winRoom = code;
+    placeWindows(_cam, code > 252 && st.winRoom ? st.winRoom : code, lvl, !doll, envI);
     if ((st.frames % 10) === 0 || winSig !== st.maskSig || capture) { updateLightMasks(); st.maskSig = winSig; }
     fitShadow(doll ? 'doll' : 'walk', _cam, !inside);
     // exposure: a camera exposes for the room; outdoors the host's exposure stands

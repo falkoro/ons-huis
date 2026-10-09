@@ -126,10 +126,14 @@ input[type=color]{width:38px;height:28px;border:1px solid var(--line);border-rad
 #roomTag{position:absolute;left:16px;bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:3;pointer-events:none; /* stacked above #hint */
   background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);color:var(--ink);
   font:600 13px/1 var(--font-body);letter-spacing:.01em;padding:7px 14px;border-radius:999px;white-space:nowrap;box-shadow:var(--shadow)}
-#timeChip{position:absolute;right:372px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:4;display:inline-flex;align-items:center;gap:6px;
+#walkPad{position:absolute;right:372px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:4;display:flex;align-items:center;gap:8px}
+#walkPad[hidden]{display:none}
+#walkPad .round{width:38px;height:38px;padding:0;border-radius:50%;display:grid;place-items:center;background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--line);color:var(--ink);box-shadow:var(--shadow);cursor:pointer;touch-action:manipulation}
+#walkPad .round[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+#timeChip{display:inline-flex;align-items:center;gap:6px;
   background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);color:var(--ink);
   font:600 13px/1 var(--font-mono);font-variant-numeric:tabular-nums;padding:7px 12px;border-radius:999px;box-shadow:var(--shadow);cursor:pointer}
-#timeChip[hidden]{display:none}
 #joy{position:absolute;left:24px;bottom:calc(96px + env(safe-area-inset-bottom,0px));width:120px;height:120px;border-radius:50%;z-index:5;
   background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);touch-action:none}
 #joyKnob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(255,255,255,.85);box-shadow:0 2px 10px rgba(0,0,0,.25)}
@@ -172,7 +176,7 @@ display:grid;gap:12px;justify-items:center;max-width:min(420px,calc(100vw - 32px
   #roomTag{left:50%;transform:translateX(-50%);bottom:calc(68px + env(safe-area-inset-bottom,0px))}
   #walkStart{padding-bottom:28vh}
   #joy{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
-  #timeChip{right:16px;bottom:calc(68px + env(safe-area-inset-bottom,0px))}
+  #walkPad{right:16px;bottom:calc(68px + env(safe-area-inset-bottom,0px));flex-direction:column;align-items:flex-end} /* stacked above the clock: a row ran into the centred room chip */
   #toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
   #tools button{padding:5px 10px;font-size:12.5px}
 
@@ -305,7 +309,7 @@ html.vault-ok #vault{display:none}
   <div id="cross" hidden></div>
   <div id="tag" hidden></div>
   <div id="roomTag" hidden aria-live="polite"></div>
-  <button id="timeChip" type="button" hidden title="Tijd verzetten: ochtend, middag, avond, nacht (toets T)" aria-label="Tijd van de dag verzetten"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>13:00</span></button>
+  <div id="walkPad" hidden><button id="btnHop" class="round" type="button" title="Springen (spatie)" aria-label="Springen"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M6 10l6-6 6 6M5 20h14"/></svg></button><button id="btnDuck" class="round" type="button" aria-pressed="false" title="Bukken (C ingedrukt houden)" aria-label="Bukken"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M6 10l6 6 6-6M5 20h14"/></svg></button><button id="timeChip" type="button" title="Tijd verzetten: ochtend, middag, avond, nacht (toets T)" aria-label="Tijd van de dag verzetten"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>13:00</span></button></div>
   <div id="joy" hidden><div id="joyKnob"></div></div>
   <div id="walkStart" hidden><button id="btnLook">Klik om rond te kijken</button></div>
   <div id="walkTip" hidden role="status">Joystick linksonder: lopen · Sleep ergens anders: rondkijken · Tik op een deurklink: deur open of dicht</div>
@@ -344,15 +348,16 @@ const LV = [
   { id: 2, name: '2e verdieping (zolder)', floor: 5.39, ceil: 8.02, top: 8.02 },
 ];
 const LVSHORT = ['BG', '1e', '2e'];
-// main block pitched roof (outer surface), ridge along X
-const MR_Z = 8.23, MR_Y = 9.3, MR_K = 0.9;
-const mainOut = z => MR_Y - Math.abs(z - MR_Z) * MR_K;
+// main block pitched roof (outer surface), ridge along X. The front (street) slope is a little shallower than the back one
+// (MR_KF): the owner says the front roof runs further forward and the front attic has more room than a symmetric roof gave
+const MR_Z = 8.23, MR_Y = 9.3, MR_K = 0.9, MR_KF = 0.82;
+const mainOut = z => MR_Y - (z > MR_Z ? (z - MR_Z) * MR_KF : (MR_Z - z) * MR_K);
 const mainIn = z => mainOut(z) - 0.3;
 const COLLAR = 8.02;
 const atticTop = z => Math.min(COLLAR, mainIn(z));
 // wall tops under the roof end 5 cm inside the roof slab (3 cm inside the collar): a top flush with the plaster underside showed as a lit strip along the joint
-const atticWallTop = z => Math.min(COLLAR + 0.03, mainOut(z) - 0.2), ATTIC_WBRK = [MR_Z - (MR_Y - 0.23 - COLLAR) / MR_K, MR_Z, MR_Z + (MR_Y - 0.23 - COLLAR) / MR_K];
-const ATTIC_BRK = [MR_Z - (MR_Y - 0.3 - COLLAR) / MR_K, MR_Z, MR_Z + (MR_Y - 0.3 - COLLAR) / MR_K];
+const atticWallTop = z => Math.min(COLLAR + 0.03, mainOut(z) - 0.2), ATTIC_WBRK = [MR_Z - (MR_Y - 0.23 - COLLAR) / MR_K, MR_Z, MR_Z + (MR_Y - 0.23 - COLLAR) / MR_KF];
+const ATTIC_BRK = [MR_Z - (MR_Y - 0.3 - COLLAR) / MR_K, MR_Z, MR_Z + (MR_Y - 0.3 - COLLAR) / MR_KF];
 // left wing pitched roof
 const WR_Z = 3.92, WR_Y = 6.2, WR_K = 0.82;
 const wingOut = z => WR_Y - Math.abs(z - WR_Z) * WR_K;
@@ -411,20 +416,20 @@ const WALLS = [
   [0, 'x', 3.0, 9.22, 12.25, 12.47, [[3.53, 6.45, 'w', 0.5, 2.3], [7.27, 7.97, 'D', 0, 2.15, -1], [8.05, 8.6, 'w', 0, 2.15, 'ribbed']]], // beside the front door: a full-height reeded side light up to the meter cupboard (photos)
   [0, 'z', -0.22, 12.47, 9.0, 9.22],
   // ---- ground floor, interior
-  [0, 'z', 0, 4.0, 3.62, 3.72, [[2.2, 2.94, 'd', 0, 2.05, -1]]], // door just before the wall jog: the office's tall cabinet fills the jog (z 2.95-3.8), the open leaf stands beside the media shelving
+  [0, 'z', 0, 4.0, 3.62, 3.72, [[2.2, 2.94, 'd', 0, 2.45, -1, false, 'g', 2.05]]], // glazed door with a glazed transom (woonkamer_2.jpg), just before the wall jog: the office's tall cabinet fills the jog (z 2.95-3.8), the open leaf stands beside the media shelving
   [0, 'x', 3.0, 3.72, 3.8, 4.0],
   [0, 'x', 0, 3.0, 7.73, 7.8, [[1.3, 2.0, 'w', 0, 2.05, 'glass'], [2.0, 2.65, 'g', 0, 2.05, -1, true]]], // achterhal_1.jpg: glazed door with a fixed glass panel beside it, opens into the zitkamer
-  [0, 'z', 7.8, 9.06, 0.91, 0.97, [[8.0, 8.7, 'd', 0, 2.05, 1]]],
+  [0, 'z', 7.8, 9.06, 0.91, 0.97, [[8.0, 8.7, 'd', 0, 2.05, 1, true]]],
   // (the keuken/woonkamer wall x 6.57..6.63 is in KWALLS: it goes with the "Nieuwe keuken" toggle)
   [0, 'x', 6.63, 9.0, 3.95, 4.05],
   [0, 'z', 7.72, 12.25, 7.0, 7.07],
   [0, 'x', 6.57, 9.0, 7.58, 7.72, [[7.33, 8.02, 'd', 0, 2.05, -1, true]]],
 
-  [0, 'z', 7.72, 8.9, 8.17, 8.24, [[7.85, 8.55, 'd', 0, 2.05, -1]], { top: z => z <= 8.3 ? LV[0].top : lineY(FL.A, z) - 0.09, brk: [8.3, 8.31] }], // wc2 door wall: full height under the landing, then up into stair A's soffit (its tiled top used to poke up beside the treads)
+  [0, 'z', 7.72, 8.9, 8.17, 8.24, [[7.85, 8.55, 'd', 0, 2.05, -1, true]], { top: z => z <= 8.3 ? LV[0].top : lineY(FL.A, z) - 0.09, brk: [8.3, 8.31] }], // wc2 door wall: full height under the landing, then up into stair A's soffit (its tiled top used to poke up beside the treads)
   [0, 'x', 8.24, 9.0, 8.82, 8.9, null, { top: () => lineY(FL.A, 8.82) - 0.09 }], // wc2 / cupboard wall ends inside stair A's soffit (it used to poke up through the treads)
   // ---- first floor, main block
   [1, 'x', 3.03, 9.22, 3.99, 4.21, [[3.82, 6.54, 'w', 0.85, 2.2], [7.25, 8.68, 'w', 1.2, 2.2]], { top: 5.48 }],
-  [1, 'x', 3.03, 9.22, 12.25, 12.47, [[3.96, 6.54, 'w', 0.85, 2.2], [7.49, 8.35, 'w', 1.0, 2.2]], { top: 5.48 }],
+  [1, 'x', 3.03, 9.22, 12.25, 12.47, [[3.96, 6.54, 'w', 0.85, 2.2], [7.49, 8.35, 'w', 1.0, 2.2]], { top: mainOut(12.47) }],
   [1, 'z', 3.99, 7.85, 3.03, 3.25],
   [1, 'z', 7.85, 12.47, 3.03, 3.25],
   [1, 'z', 3.99, 12.47, 9.0, 9.22],
@@ -440,13 +445,14 @@ const WALLS = [
   [1, 'z', -0.22, 3.99, 3.6, 3.82, null, { top: wingOut, brk: [WR_Z] }],
   [1, 'x', 0, 2.05, 5.72, 5.82, [[1.06, 1.7, 'd', 0, 1.55, -1]], { top: wingIn(5.77) }],
   [1, 'z', 5.82, 7.85, 1.95, 2.05, null, { top: wingIn }],
-  // ---- attic
-  [2, 'z', 3.99, 12.47, 3.03, 3.25, null, { top: mainOut, brk: [MR_Z] }],
-  [2, 'z', 3.99, 12.47, 9.0, 9.22, null, { top: mainOut, brk: [MR_Z] }],
+  // ---- attic (the gable and party wall stop 5 cm inside the roof slab: level with its tiles they z-fought through it as a white strip)
+  [2, 'z', 3.99, 12.47, 3.03, 3.25, null, { top: z => mainOut(z) - 0.05, brk: [MR_Z] }],
+  [2, 'z', 3.99, 12.47, 9.0, 9.22, null, { top: z => mainOut(z) - 0.05, brk: [MR_Z] }],
   [2, 'x', 3.25, 9.0, 5.07, 5.12, [[4.05, 5.92, 'o', 0, 9]], { top: 6.3 }],
-  [2, 'x', 3.25, 9.0, 11.35, 11.4, null, { top: 6.3 }],
+  [2, 'x', 3.25, 9.0, 11.35, 11.4, null, { top: mainOut(11.4) - 0.2 }],
   [2, 'z', 5.12, 7.75, 6.7, 6.8, null, { top: atticWallTop, brk: ATTIC_WBRK }],
-  [2, 'x', 6.7, 9.0, 7.65, 7.75, [[7.2, 8.0, 'o', 0, 2.05]], { top: COLLAR }], // closes the back nook: stair B ends at this wall (photo), the nook is reached through the opening off the corridor
+  [2, 'x', 6.7, 7.06, 7.65, 7.75, null, { top: COLLAR }],
+  [2, 'x', 8.09, 9.0, 8.16, 8.26, null, { top: COLLAR }], // behind stair B's top winders (2e plan; cv unit and flue behind it): the painted brick wall of zolderR_1.jpg
   [2, 'z', 7.75, 11.35, 6.96, 7.06, [[8.0, 8.74, 'd', 0, 2.0, -1]], { top: atticWallTop, brk: ATTIC_WBRK }],
 
   // dormer (dakkapel)
@@ -470,19 +476,32 @@ const KWALLS = {
 };
 // holes in slabs (stairs): HOLES[l] is cut from the ceiling of level l and from the floor of level l + 1
 const HOLES = { 0: [[8.16, 9.0, 8.3, 10.34], [0, 0.97, 6.2, 7.73]], 1: [[8.09, 9.0, 8.3, 10.3]], 2: [] };
+// Stair B turns twice (1e and 2e plans, zolderR_3.jpg): from the landing heading +X, five winders round a newel at (BT.x, BT.zb)
+// to heading -Z, three straight treads, five winders round a newel at (BT.x, BT.zt), out heading -X onto the attic floor.
+// stepB(x, z) = the step coordinate 0..13: tread k (1..13) covers k - 1..k, risers lie on the whole numbers, 14 risers in all.
+const BT = { x: 8.2, zb: 9.62, zt: 9.1 };
+function stepB(x, z) {
+  const q = 10 / Math.PI, dx = Math.max(x - BT.x, 0); // 18 degrees per winder
+  if (z >= BT.zb) return Math.min(5, Math.atan2(dx, z - BT.zb) * q);
+  if (z >= BT.zt) return 5 + 3 * (BT.zb - z) / (BT.zb - BT.zt);
+  return 8 + Math.min(5, Math.atan2(BT.zt - z, dx) * q);
+}
 // Walkable stair flights. Each rises from zBot (yBot, level l) to zTop (yTop, level l + 1); zMin..zMax is the footprint
 // including the top landing. exits: [x0, x1, z0, z1, level] = where the walker may step off the flight (or on, from that level).
+// sAt(x, z) (optional): the step coordinate 0..n - 1 of a turning flight; the height then follows it instead of z.
 const FLIGHTS = [
   { id: 'A', name: 'Trap', l: 0, x0: 8.24, x1: 9.0, zBot: 10.55, zTop: 8.3, zMin: 8.23, zMax: 10.55, yBot: 0, yTop: 2.76, n: 12,
     exits: [[8.24, 9.0, 10.55, 11.3, 0], [7.6, 8.24, 10.3, 11.3, 0], [7.4, 8.24, 8.23, 8.8, 1]] },
-  { id: 'B', name: 'Zoldertrap', l: 1, x0: 8.2, x1: 9.0, zBot: 10.3, zTop: 8.3, zMin: 8.3, zMax: 10.3, yBot: 2.76, yTop: 5.39, n: 13,
-    exits: [[7.4, 8.2, 9.8, 10.34, 1], [7.4, 8.2, 8.26, 8.62, 2], [8.2, 9.0, 7.6, 8.3, 2]] },
+  { id: 'B', name: 'Zoldertrap', l: 1, x0: 8.2, x1: 9.0, zBot: 10.3, zTop: 8.3, zMin: 8.3, zMax: 10.3, yBot: 2.76, yTop: 5.39, n: 14, sAt: stepB,
+    exits: [[7.4, 8.2, BT.zb, 10.34, 1], [7.4, 8.2, 8.26, BT.zt, 2]] },
   { id: 'C', name: 'Trap (zitkamer)', l: 0, x0: 0, x1: 0.92, zBot: 7.73, zTop: 6.2, zMin: 5.82, zMax: 7.73, yBot: 0, yTop: 2.76, n: 12,
     exits: [[0.92, 1.8, 7.2, 7.73, 0], [0.92, 1.95, 5.82, 6.5, 1]] },
 ];
 const FL = Object.fromEntries(FLIGHTS.map(f => [f.id, f]));
 
 const SKYLIGHT = [4.38, 5.78, 1.85, 3.25];
+// the shaft's plaster lining (5 cm) stands in this outer rim: slab and flat roof stop at its back, so no two faces share a plane (they z-fought: the koepel flickered)
+const SKY_OUT = [SKYLIGHT[0] - 0.05, SKYLIGHT[1] + 0.05, SKYLIGHT[2] - 0.05, SKYLIGHT[3] + 0.05];
 
 /* ================= PALETTES, FLOORS, STYLES ================= */
 const PAINTS = [
@@ -1289,15 +1308,18 @@ const LEVER_NECK = cyl(0.009, 0.05, 10), LEVER_ARM = new THREE.BoxGeometry(0.135
 const HIT_MAT = new THREE.MeshBasicMaterial({ visible: false }), klinkHits = []; // invisible (never drawn) but raycastable
 
 function buildDoor(l, axis, op, c0, c1) {
-  const [a, b, type, , head = 2.05, swing = 1, shut = false] = op, fl = LV[l].floor, cm = (c0 + c1) / 2;
+  // glz: 'g' = a 'd' leaf glazed like the achterhal door (clear pane in a white frame); tr = the leaf's head when a glazed transom
+  // (bovenlicht) fills tr..head above it (woonkamer_2.jpg: the zitkamer door)
+  const [a, b, type, , head = 2.05, swing = 1, shut = false, glz, tr] = op, fl = LV[l].floor, cm = (c0 + c1) / 2, lh = tr || head;
   // fixed frame (kozijn)
   const fk = K(l, 'main', 'frame'), e0 = Math.min(c0, c1) - 0.012, e1 = Math.max(c0, c1) + 0.012;
-  abox(fk, axis, a, a + 0.05, fl, fl + head, e0, e1); abox(fk, axis, b - 0.05, b, fl, fl + head, e0, e1); abox(fk, axis, a, b, fl + head - 0.05, fl + head + 0.01, e0, e1);
+  abox(fk, axis, a, a + 0.05, fl, fl + head, e0, e1); abox(fk, axis, b - 0.05, b, fl, fl + head, e0, e1); abox(fk, axis, a, b, fl + lh - 0.05, fl + lh + 0.01, e0, e1);
+  if (tr) { abox(fk, axis, a, b, fl + head - 0.05, fl + head + 0.01, e0, e1); abox(K(l, 'glass', 'glass'), axis, a + 0.05, b - 0.05, fl + lh + 0.01, fl + head - 0.05, cm - 0.004, cm + 0.004); }
   if (type !== 'd') abox(fk, axis, a, b, fl, fl + 0.02, e0, e1);
   // dorpel under interior doors: light natural stone next to a wet room, a thin oak strip elsewhere (stays under the leaf)
   else { const mid = (a + b) / 2, at = c => axis === 'x' ? roomAt(l, mid, c) : roomAt(l, c, mid), wet = [at(e0 - 0.15), at(e1 + 0.15)].some(r => r && r.wet);
     abox(K(l, 'main', wet ? 'dorpelStone' : 'dorpelWood'), axis, a + 0.05, b - 0.05, fl, fl + 0.008, e0 - 0.006, e1 + 0.006); }
-  const W = b - a - 0.106, H = head - 0.06 - (type === 'd' ? 0.01 : 0.03), th = 0.042, slide = type === 's';
+  const W = b - a - 0.106, H = lh - 0.06 - (type === 'd' ? 0.01 : 0.03), th = 0.042, slide = type === 's';
   // 's' (schuifpui, only on the back facade): the pane a..mid is fixed on the outer track, the pane mid..b is the "leaf" on the
   // inner track and slides left over it. ponytail: slides along local x only (an axis-'x' wall); extend when a 'z' schuifpui comes.
   const mid = (a + b) / 2, Ws = slide ? (b - a) / 2 - 0.023 : W, f = 0.075;
@@ -1314,9 +1336,9 @@ function buildDoor(l, axis, op, c0, c1) {
   const base = axis === 'x' ? 0 : -Math.PI / 2; pivot.rotation.y = base;
   const meshes = [];
   const mk = (geo, mat, cast = true) => { const m = new THREE.Mesh(geo, mat); m.castShadow = cast; m.receiveShadow = true; pivot.add(m); meshes.push(m); return m; };
-  if (type === 'g' || slide) {
+  if (type === 'g' || slide || glz) {
     const fb = new Buckets();
-    fb.box('f', 0, f, 0, H, -th / 2, th / 2); fb.box('f', Ws - f, Ws, 0, H, -th / 2, th / 2); fb.box('f', 0, Ws, 0, 0.16, -th / 2, th / 2); fb.box('f', 0, Ws, H - f, H, -th / 2, th / 2); if (!slide) fb.box('f', 0, Ws, 0.95, 1.0, -th / 2, th / 2);
+    fb.box('f', 0, f, 0, H, -th / 2, th / 2); fb.box('f', Ws - f, Ws, 0, H, -th / 2, th / 2); fb.box('f', 0, Ws, 0, 0.16, -th / 2, th / 2); fb.box('f', 0, Ws, H - f, H, -th / 2, th / 2); if (!slide && !glz) fb.box('f', 0, Ws, 0.95, 1.0, -th / 2, th / 2);
     fb.build((k, g) => mk(g, M('frame')));
     const gl = mk(new THREE.BoxGeometry(Ws - 2 * f, H - f - 0.16, 0.008), M('glass'), false); gl.position.set(Ws / 2, 0.16 + (H - f - 0.16) / 2, 0);
   } else {
@@ -1326,7 +1348,7 @@ function buildDoor(l, axis, op, c0, c1) {
   }
   // deurklink: rosettes stay with the leaf; each lever is its own group on its spindle (it dips before the door swings), plus an invisible hit box
   // (on the schuifpui the grip sits on the leading stile)
-  const hb = new Buckets(), hx = slide ? 0.1 : W - 0.075, hy = 1.02 - (type === 'd' ? 0.01 : 0.025), hw = M(l === 0 && type === 'd' ? 'hwBlack' : 'hardware'), levers = [], hits = [];
+  const hb = new Buckets(), hx = slide ? 0.1 : W - 0.075, hy = 1.02 - (type === 'd' ? 0.01 : 0.025), hw = M(l === 0 && type === 'd' && !glz ? 'hwBlack' : 'hardware'), levers = [], hits = [];
   for (const sgn of [1, -1]) {
     const m = new THREE.Matrix4();
     m.makeRotationX(Math.PI / 2).setPosition(hx, hy, sgn * (th / 2 + 0.005)); hb.geo('h', cyl(0.027, 0.01, 20), m);
@@ -1378,12 +1400,13 @@ function buildFloorsAndSlabs() {
     // slab + ceiling above this room
     if (l === 2 || r.roof) continue; // roof: true = open to the roof, no slab (post.js reads it too)
     const y0 = LV[l].ceil, y1 = LV[l].top - 0.022;
-    for (const q of r.rects) for (const p of cutRect(q, [...HOLES[l], SKYLIGHT])) AB.box(kmap(l, 'ceil', { ny: 'ceiling', def: 'slab' }), p[0], p[1], y0, y1, p[2], p[3]);
+    for (const q of r.rects) for (const p of cutRect(q, [...HOLES[l], SKY_OUT])) AB.box(kmap(l, 'ceil', { ny: 'ceiling', def: 'slab' }), p[0], p[1], y0, y1, p[2], p[3]);
   }
   // skylight shaft
-  const [sx0, sx1, sz0, sz1] = SKYLIGHT, pk = K(0, 'ceil', 'plaster');
-  AB.box(pk, sx0 - 0.05, sx0, 2.51, 3.15, sz0 - 0.05, sz1 + 0.05); AB.box(pk, sx1, sx1 + 0.05, 2.51, 3.15, sz0 - 0.05, sz1 + 0.05);
-  AB.box(pk, sx0, sx1, 2.51, 3.15, sz0 - 0.05, sz0); AB.box(pk, sx0, sx1, 2.51, 3.15, sz1, sz1 + 0.05);
+  // lining up to the roof deck (2.98), the trim curb above it; its underside is the ceiling's own material
+  const [sx0, sx1, sz0, sz1] = SKYLIGHT, pk = kmap(0, 'ceil', { ny: 'ceiling', def: 'plaster' });
+  AB.box(pk, sx0 - 0.05, sx0, 2.51, 2.98, sz0 - 0.05, sz1 + 0.05); AB.box(pk, sx1, sx1 + 0.05, 2.51, 2.98, sz0 - 0.05, sz1 + 0.05);
+  AB.box(pk, sx0, sx1, 2.51, 2.98, sz0 - 0.05, sz0); AB.box(pk, sx0, sx1, 2.51, 2.98, sz1, sz1 + 0.05);
 }
 
 /* ---------- roofs ---------- */
@@ -1394,7 +1417,7 @@ function slope(l, x0, x1, zA, zB, out, th = 0.25, keys = { py: 'roofTile', ny: '
 function buildRoofs() {
   // flat roofs: back extension (with skylight) and ground-floor strip
   const fk = kmap(0, 'ceil', { py: 'bitumen', ny: 'ceiling', def: 'trim' });
-  for (const p of cutRect([3.62, 9.22, -0.32, 3.99], [SKYLIGHT])) AB.box(fk, p[0], p[1], 2.76, 2.98, p[2], p[3]);
+  for (const p of cutRect([3.62, 9.22, -0.32, 3.99], [SKY_OUT])) AB.box(fk, p[0], p[1], 2.76, 2.98, p[2], p[3]);
   AB.box(fk, -0.32, 3.0, 2.76, 2.98, 7.85, 9.38);
   const [sx0, sx1, sz0, sz1] = SKYLIGHT, ck = K(0, 'ceil', 'trim');
   AB.box(ck, sx0 - 0.08, sx0, 2.98, 3.15, sz0 - 0.08, sz1 + 0.08); AB.box(ck, sx1, sx1 + 0.08, 2.98, 3.15, sz0 - 0.08, sz1 + 0.08);
@@ -1470,9 +1493,71 @@ function bal(l, xa, za, xb, zb, y0, o = {}) {
   if (Math.abs(xb - xa) < 1e-6) slab3(k, xa - w, xa + w, za, zb, ya - 0.045, ya, yb - 0.045, yb);
   else AB.box(k, Math.min(xa, xb) - w, Math.max(xa, xb) + w, ya - 0.045, ya, za - w, za + w);
 }
+// stair B turns (see stepB): carpet treads and risers with the carpet round the nosings, cream closed stringers along the three
+// walls and on the open side between the two newels, a plaster underside that follows the treads, wooden wall handrail
+function buildTurnB(f) {
+  const { l, yBot, x1, zMin, zMax } = f, rise = (f.yTop - yBot) / f.n, tk = K(l, 'main', 'treadB'), sk = K(l, 'main', 'trapwit');
+  const ramp = s => yBot + s / (f.n - 1) * (f.yTop - yBot), soff = s => Math.max(LV[0].ceil, ramp(s) - 0.3);
+  const nose = s => Math.min(f.yTop, yBot + (s + 1) * rise); // nosing line: tread k's nosing sits on riser line k - 1
+  const P = (x, y, z) => new THREE.Vector3(x, y, z), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), UP = P(0, 1, 0), ONE = P(1, 1, 1);
+  // riser line k (0..13): [inner end, outer end, unit normal towards the higher treads]
+  const line = k => {
+    if (k <= 5) { const a = k * Math.PI / 10, sn = Math.sin(a), c = Math.cos(a), t = Math.min(sn > 1e-6 ? (x1 - BT.x) / sn : 9, c > 1e-6 ? (zMax - BT.zb) / c : 9);
+      return [[BT.x, BT.zb], [BT.x + sn * t, BT.zb + c * t], [c, -sn]]; }
+    if (k <= 8) { const z = BT.zb - (k - 5) * (BT.zb - BT.zt) / 3; return [[BT.x, z], [x1, z], [0, -1]]; }
+    const a = (k - 8) * Math.PI / 10, sn = Math.sin(a), c = Math.cos(a), t = Math.min(c > 1e-6 ? (x1 - BT.x) / c : 9, sn > 1e-6 ? (BT.zt - zMin) / sn : 9);
+    return [[BT.x, BT.zt], [BT.x + c * t, BT.zt - sn * t], [-sn, -c]];
+  };
+  const onX1 = p => Math.abs(p[0] - x1) < 1e-6, corner = k => [x1, k <= 5 ? zMax : zMin];
+  for (let k = 1; k <= 13; k++) {
+    const [a0, b0, n0] = line(k - 1), [a1, b1] = line(k), yt = yBot + k * rise, poly = [a0, b0];
+    if (onX1(b0) !== onX1(b1)) poly.push(corner(k));
+    poly.push(b1); if (Math.hypot(a1[0] - a0[0], a1[1] - a0[1]) > 1e-6) poly.push(a1);
+    while (poly.length < 4) poly.push(poly[0]);
+    AB.prism(tk, [...poly.map(([x, z]) => P(x, yt - 0.04, z)), ...poly.map(([x, z]) => P(x, yt, z))]);
+    // nosing round on the riser line, riser 2 cm behind it from the tread below (or the soffit for the first) to under this tread
+    const d = P(b0[0] - a0[0], 0, b0[1] - a0[1]), len = d.length(); d.normalize();
+    m4.compose(P((a0[0] + b0[0]) / 2, yt - 0.02, (a0[1] + b0[1]) / 2), q.setFromUnitVectors(UP, d), ONE); AB.geo(tk, gCyl(0.02, 0.02, len, 10), m4);
+    const r0 = k === 1 ? soff(0) : yt - rise - 0.02, o = (p, t) => [p[0] + n0[0] * t, p[1] + n0[1] * t];
+    const rq = [o(a0, 0.005), o(b0, 0.005), o(b0, 0.025), o(a0, 0.025)];
+    AB.prism(tk, [...rq.map(([x, z]) => P(x, r0, z)), ...rq.map(([x, z]) => P(x, yt - 0.04, z))]);
+  }
+  { const [a0, b0] = line(13), d = P(b0[0] - a0[0], 0, b0[1] - a0[1]), len = d.length(); d.normalize(); // the top nosing on the attic floor's edge
+    m4.compose(P((a0[0] + b0[0]) / 2, f.yTop - 0.02, (a0[1] + b0[1]) / 2), q.setFromUnitVectors(UP, d), ONE); AB.geo(tk, gCyl(0.02, 0.02, len, 10), m4); }
+  // plaster underside: one ruled strip per tread between its riser lines at their ramp height, so neighbours share their edges;
+  // the winders meet in a point at each newel, which the newel posts cover
+  const sk2 = K(l, 'main', 'plaster'), above = P(8.6, 9, 9.3);
+  for (let k = 1; k <= 13; k++) {
+    const [a0, b0] = line(k - 1), [a1, b1] = line(k), h0 = soff(k - 1), h1 = soff(k);
+    if (onX1(b0) !== onX1(b1)) {
+      const c = corner(k), hc = soff(stepB(c[0], c[1]));
+      AB.quad(sk2, P(a0[0], h0, a0[1]), P(b0[0], h0, b0[1]), P(c[0], hc, c[1]), P(a0[0], hc, a0[1]), above);
+      AB.quad(sk2, P(a0[0], hc, a0[1]), P(c[0], hc, c[1]), P(b1[0], h1, b1[1]), P(a1[0], h1, a1[1]), above);
+    } else AB.quad(sk2, P(a0[0], h0, a0[1]), P(b0[0], h0, b0[1]), P(b1[0], h1, b1[1]), P(a1[0], h1, a1[1]), above);
+  }
+  // closed stringers along the walls (outer face on the wall face), 30 cm below to 7 cm above the nosing line, sampled along the
+  // turn; and the open-side stringer between the newels, which runs straight
+  const sides = [[t => [8.2 + 0.8 * t, 10.3], [0, -1], [8.2, 10.34]], [t => [9.0, 10.3 - 2 * t], [-1, 0], [9.0, 0]], [t => [9.0 - 0.8 * t, 8.3], [0, 1], [0, 8.26]]];
+  for (const [at, [nx, nz], [ox, oz]] of sides) {
+    const N = 24, pts = [];
+    for (let i = 0; i <= N; i++) { const [x, z] = at(i / N), s = stepB(x, z), px = nx ? (ox || x) : x, pz = nz ? (oz || z) : z; pts.push([px, pz, Math.max(yBot, nose(s) - 0.3), nose(s) + 0.07]); }
+    const t = 0.03 + (nz ? Math.abs((oz || 0) - at(0)[1]) : Math.abs((ox || 0) - at(0)[0]));
+    for (let i = 0; i < N; i++) {
+      const [xa, za, ba, ta] = pts[i], [xb, zb, bb, tb] = pts[i + 1];
+      AB.prism(sk, [P(xa, ba, za), P(xa + nx * t, ba, za + nz * t), P(xb + nx * t, bb, zb + nz * t), P(xb, bb, zb), P(xa, ta, za), P(xa + nx * t, ta, za + nz * t), P(xb + nx * t, tb, zb + nz * t), P(xb, tb, zb)]);
+    }
+  }
+  slab3(sk, BT.x - 0.01, BT.x + 0.03, BT.zb, BT.zt, soff(5) - 0.02, nose(5) + 0.07, soff(8) - 0.02, nose(8) + 0.07);
+  // wall handrail on brackets along the long wall, 90 cm above the nosings
+  const hr = K(l, 'main', 'handrail'), hz = [];
+  for (let i = 0; i <= 20; i++) hz.push(10.15 - 1.7 * i / 20);
+  for (let i = 0; i < 20; i++) { const ya = nose(stepB(9.0, hz[i])) + 0.9, yb = nose(stepB(9.0, hz[i + 1])) + 0.9; slab3(hr, 8.95, 8.98, hz[i], hz[i + 1], ya - 0.07, ya, yb - 0.07, yb); }
+  for (const z of [9.95, 9.2, 8.45]) { const y = nose(stepB(9.0, z)) + 0.9 - 0.07; AB.box(K(l, 'main', 'hardware'), 8.975, 9.0, y - 0.03, y, z - 0.015, z + 0.015); }
+  return { nose, soff };
+}
 function buildStairs() {
   const A = FL.A, B = FL.B, C = FL.C, f1 = LV[1].floor, f2 = LV[2].floor, X = 8.22; // X: the one line of newels and spindles up both flights
-  const nA = z => lineY(A, z) + 0.28, nB = z => lineY(B, z) + 0.25; // where the spindles stand: just inside the stringers' top edge
+  const nA = z => lineY(A, z) + 0.28; // where the spindles stand: just inside the stringers' top edge
   const sb = (f, z) => lineY(f, z) + (f.yTop - f.yBot) / f.n - 0.3; // the stringers' bottom edge (buildFlight): where posts and the soffit stop
   // A, entree -> 1e (photos): walnut treads, cream risers and stringers, plaster underside, spindle balustrade on the open side
   buildFlight(A, { tread: 'treadA', riser: 'trapwit', soffit: true, open: 0.03 });
@@ -1485,31 +1570,30 @@ function buildStairs() {
   // the wet-room wall beside the top treads is plaster on the stair side (the wc2 tiles stop at the soffit)
   slab3(K(0, 'main', 'wall:entree'), 8.985, 9.0, 8.3, 8.82, sb(A, 8.3) - 0.02, LV[0].top, sb(A, 8.82) - 0.02, LV[0].top);
   bal(0, X, 10.45, X, 8.82, nA, { h: 0.85, p0: [-0.05, nA(10.45) + 0.93], p1: [sb(A, 8.82), f1 + 0.98] });
-  // B, 1e -> zolder (photos): carpet wrapped round the nosings, cream stringers, plaster underside, wooden wall handrail on brackets
-  buildFlight(B, { tread: 'treadB', riser: 'treadB', nose: 0.02, soffit: true });
-  slab3(K(1, 'main', 'handrail'), 8.95, 8.98, B.zBot, B.zTop, B.yBot + 1.02, B.yBot + 1.09, B.yTop + 1.02, B.yTop + 1.09);
-  for (const z of [9.9, 9.2, 8.5]) AB.box(K(1, 'main', 'hardware'), 8.975, 9.0, lineY(B, z) + 1.0, lineY(B, z) + 1.03, z - 0.015, z + 0.015);
+  // B, 1e -> zolder: turns twice round two newels on the open side (see stepB, buildTurnB)
+  const TB = buildTurnB(B), sIn = z => 5 + 3 * (BT.zb - z) / (BT.zb - BT.zt), yIn = z => TB.nose(sIn(z)) + 0.07;
   // C, zitkamer -> linkervleugel: open risers, dark wood, horizontal-rail balustrade
   buildFlight(C, { tread: 'treadC', stringer: 'treadC', nose: 0.008 });
   const ck = K(0, 'main', 'treadC');
   for (const z of [7.15, 6.3]) AB.box(ck, 0.92, 0.96, lineY(C, z), lineY(C, z) + 0.95, z - 0.02, z + 0.02);
   for (const h of [0.32, 0.62, 0.92]) slab3(ck, 0.925, 0.955, 7.15, 6.3, lineY(C, 7.15) + h, lineY(C, 7.15) + h + 0.035, lineY(C, 6.3) + h, lineY(C, 6.3) + h + 0.035);
   // landing strips that no room rect covers, in the landing's own floor
-  AB.box(K(1, 'main', 'floor:overloop'), 8.16, 8.24, f1 - 0.04, f1, 8.23, 8.8);
-  AB.box(K(1, 'main', 'floor:overloop'), 8.16, 8.2, f1 - 0.04, f1, 9.8, 10.34); AB.box(K(1, 'main', 'floor:overloop'), 8.2, 9.0, f1 - 0.04, f1, 10.3, 10.34);
-  AB.box(K(2, 'main', 'floor:zolderR'), 8.09, 8.2, f2 - 0.04, f2, 8.3, 10.3); AB.box(K(2, 'main', 'floor:zolderR'), 8.09, 9.0, f2 - 0.04, f2, 8.26, 8.3);
+  AB.box(K(1, 'main', 'floor:overloop'), 8.16, 8.24, f1 - 0.04, f1, 8.23, BT.zb);
+  AB.box(K(1, 'main', 'floor:overloop'), 8.16, 8.2, f1 - 0.04, f1, BT.zb, 10.34); AB.box(K(1, 'main', 'floor:overloop'), 8.2, 9.0, f1 - 0.04, f1, 10.3, 10.34);
+  AB.box(kmap(1, 'ceil', { def: 'ceiling' }), 8.09, 8.2, TB.soff(13), f2 - 0.04, 8.3, 10.3); // the attic floor's edge along the hole, down to the soffit
+  AB.box(K(2, 'main', 'floor:zolderR'), 8.09, 8.2, f2 - 0.04, f2, 8.26, 10.3);
   AB.box(kmap(1, 'main', { py: 'floor:zolderL', ny: 'ceiling', def: 'slab' }), 0, 0.88, LV[0].ceil, f1 + 0.004, 7.73, 7.85); // rim behind stair C's hole: the wall top below showed as a lit strip
   // railings along the open side of the stairwell: 1e landing (A's top newel to B's bottom newel), up B, round the attic hole, wing
-  bal(1, X, 8.82, X, 9.42, () => f1, { p0: null, p1: [f1, nB(9.42) + 0.93] });
-  bal(1, X, 9.42, X, 8.62, nB, { h: 0.85, p0: null, p1: null });
-  bal(2, X, 8.62, X, 10.27, () => f2, { p0: [sb(B, 8.62), f2 + 0.98] }); bal(2, X, 10.27, 9.0, 10.27, () => f2, { p0: null });
+  bal(1, X, 8.82, X, BT.zb, () => f1, { p0: null, p1: null });
+  bal(1, X, BT.zb, X, BT.zt, yIn, { h: 0.85, p0: [LV[0].ceil, yIn(BT.zb) + 0.93], p1: [TB.soff(8) - 0.06, f2 + 0.98] }); // floor-standing and hanging newel
+  bal(2, X, BT.zt, X, 10.27, () => f2, { p0: null }); bal(2, X, 10.27, 9.0, 10.27, () => f2, { p0: null });
   bal(1, 0.945, 6.5, 0.945, 6.75, () => f1, { h: 0.7 });
   // colliders: under-stair spaces, railings (the flights themselves are handled by the walker, see stepState)
   addCol(0, 8.17, 9.0, 8.9, 10.25); addCol(0, 0, 0.97, 6.2, 7.2);
-  addCol(1, 8.16, 8.3, 8.8, 9.8); addCol(1, 0.92, 0.97, 6.5, 6.75); addCol(1, 0, 1.95, 6.75, 7.85);
-  addCol(2, 8.14, 8.3, 8.62, 10.3); addCol(2, 8.09, 9.0, 10.22, 10.3);
+  addCol(1, 8.16, 8.3, 8.8, BT.zb); addCol(1, 0.92, 0.97, 6.5, 6.75); addCol(1, 0, 1.95, 6.75, 7.85);
+  addCol(2, 8.14, 8.3, BT.zt, 10.3); addCol(2, 8.09, 9.0, 10.22, 10.3);
   // attic low headroom + wing low headroom (not walkable)
-  addCol(2, 3.25, 3.9, 4.21, 6.1); addCol(2, 6.07, 9.0, 4.21, 6.1); addCol(2, 3.25, 9.0, 10.36, 11.4);
+  addCol(2, 3.25, 3.9, 4.21, 6.1); addCol(2, 6.07, 9.0, 4.21, 6.1); addCol(2, 3.25, 9.0, 10.8, 11.4); // front: the 1.5 m line under the shallower front slope
   addCol(1, 0, 3.6, -0.3, 2.1); addCol(1, 2.05, 3.03, 5.7, 7.9);
 }
 
@@ -1531,7 +1615,7 @@ function buildExterior() {
   // neighbour (party wall side)
   const nb = kmap('x', 'main', { py: 'bitumen', def: 'brick2' });
   AB.box(nb, 9.22, 15.5, 0, 5.48, 3.99, 12.47); AB.box(nb, 9.22, 15.5, 0, 2.95, -0.4, 3.99);
-  AB.prism(kmap('x', 'main', { nz: 'roofTile', pz: 'roofTile', px: 'brick2', nx: 'brick2', def: 'slab' }), [V(9.22, 5.12, 3.59), V(15.5, 5.12, 3.59), V(15.5, 5.12, 12.87), V(9.22, 5.12, 12.87), V(9.22, MR_Y, MR_Z), V(15.5, MR_Y, MR_Z), V(15.5, MR_Y, MR_Z), V(9.22, MR_Y, MR_Z)]);
+  AB.prism(kmap('x', 'main', { nz: 'roofTile', pz: 'roofTile', px: 'brick2', nx: 'brick2', def: 'slab' }), [V(9.22, 5.12, 3.59), V(15.5, 5.12, 3.59), V(15.5, mainOut(12.87), 12.87), V(9.22, mainOut(12.87), 12.87), V(9.22, MR_Y, MR_Z), V(15.5, MR_Y, MR_Z), V(15.5, MR_Y, MR_Z), V(9.22, MR_Y, MR_Z)]);
   const nwin = (x0, x1, y0, y1, z) => { xb('frame', x0 - 0.05, x1 + 0.05, y0 - 0.05, y1 + 0.05, z - 0.03, z + 0.03); xb('glassDark', x0, x1, y0, y1, z - 0.045, z + 0.045); };
   nwin(10.1, 12.6, 0.4, 2.3, -0.42); nwin(13.2, 14.6, 1.0, 2.2, -0.42); nwin(10.0, 12.6, 0.5, 2.3, 12.49); nwin(13.6, 14.3, 0, 2.1, 12.49);
   nwin(10.1, 12.6, 3.6, 4.95, 3.97); nwin(13.1, 14.6, 3.9, 4.95, 3.97); nwin(10.0, 12.6, 3.6, 4.95, 12.49); nwin(13.1, 14.3, 3.9, 4.95, 12.49);
@@ -1985,7 +2069,7 @@ const P = {
     f.box('dark', x - 0.415, y, z, 0.004, 0.24, 0.19); f.box('dark', x + 0.415, y, z, 0.004, 0.24, 0.19);
     f.box('bulb', x + 0.3, y - 0.085, z + 0.106, 0.012, 0.006, 0.002);
   },
-  // dark-grey two-door cabinet on legs (photos: woonkamer), the airco unit high on the wall beside it, a frame and a jug on top
+  // dark-grey two-door cabinet on legs (photos: woonkamer), a frame and a jug on top (the airco beside it is its own item: it stays in every style)
   cabinet(f, w = 1.1, d = 0.5, h = 1.85) {
     const z = 0.1, top = h + 0.12, y0 = 0.42, dw = w / 2 - 0.003, dh = top - y0 - 0.006, c = 'anthracite';
     f.box(c, 0, (0.12 + y0) / 2, z, w, y0 - 0.12, d); f.box(c, 0, top + 0.012, z, w + 0.04, 0.025, d + 0.03);
@@ -2004,7 +2088,6 @@ const P = {
     });
     f.box('woodDark', -0.25, top + 0.2, z - 0.12, 0.34, 0.4, 0.025); f.box('canvasBack', -0.25, top + 0.2, z - 0.105, 0.28, 0.34, 0.004);
     f.cyl('ceramicBeige', 0.22, top + 0.1, z - 0.02, 0.06, 0.2, 14, 0.045);
-    P.airco(f, w * 0.45, 2.18, -0.06);
   },
   // white chest of drawers (photos: sk1) with a 40" tv on top and the airco unit high on the wall beside it
   dresser(f, w = 1.0, d = 0.5, h = 1.3) {
@@ -2126,9 +2209,10 @@ const P = {
       f.geo('roofBoards', GEO[k] ||= plank(x1 - x0, L), (x0 + x1) / 2, y(zm) + n[1] * 0.012, zm + n[0] * 0.012, PI / 2 - a, 0, 0);
     }
   },
-  // zolderR (photos, "Huidig"): the wall that stair B runs up to is white-painted brick on the stair side (right of the nook opening and above it)
+  // zolderR (photos, "Huidig"): the wall behind stair B's top winders is white-painted brick on the stair side
   stairWallB(f) {
-    const H = COLLAR - LV[2].floor; f.box('brickPaint', 8.5, H / 2, 7.756, 1.0, H, 0.012); f.box('brickPaint', 7.6, (H + 2.05) / 2, 7.756, 0.8, H - 2.05, 0.012);
+    const H = COLLAR - LV[2].floor; // down to the wall stringer's top edge, which drops along the winders
+    f.box('brickPaint', 8.345, (H - 0.29) / 2, 8.266, 0.51, H + 0.29, 0.012); f.box('brickPaint', 8.8, (H - 0.57) / 2, 8.266, 0.4, H + 0.57, 0.012);
   },
   // woonkamer (photos): long linen curtains drawn open either side of the garden window, rail just under the ceiling
   gardenCurtains(f) {
@@ -2178,12 +2262,14 @@ const P = {
   // sk2: two blinds over the front window (z = 12.25; desk and wardrobe stand in the piers); sk3: one in the dormer
   sk2Blinds(f) { for (const [a, b] of [[3.92, 5.25], [5.25, 6.58]]) P.blind(f, a, b, 12.25, 2.3, 0.5, -1); },
   sk3Blinds(f) { P.blind(f, 4.17, 5.8, 4.55, 2.08, 0.45, 1); },
-  // recessed downlights in the ceiling (2.51)
-  downlights(f) {
-    for (const [x, z] of [[0.7, 0.9], [1.75, 0.9], [2.8, 0.9], [0.7, 2.3], [1.75, 2.3], [2.8, 2.3], [0.7, 3.5], [1.75, 3.5], [2.8, 3.4], [2.1, 6.9]]) {
+  // recessed downlights in the ceiling (2.51); the default grid is the zitkamer's (photos)
+  downlights(f, pts = [[0.7, 0.9], [1.75, 0.9], [2.8, 0.9], [0.7, 2.3], [1.75, 2.3], [2.8, 2.3], [0.7, 3.5], [1.75, 3.5], [2.8, 3.4], [2.1, 6.9]]) {
+    for (const [x, z] of pts) {
       f.cyl('trim', x, 2.502, z, 0.045, 0.012, 16); f.cyl('bulb', x, 2.494, z, 0.032, 0.006, 16);
     }
   },
+  // flush opal ceiling light (plafonnière), the fixture the halls have: the kitchen's lamp (no photo shows it; the owner: not a pendant)
+  plafonniere(f, ceil = 2.51) { f.cyl('plate', 0, ceil - 0.012, 0, 0.13, 0.024, 32, 0.14); f.sph('opal', 0, ceil - 0.024, 0, 0.125, 0.07, 0.125, 0, 0, 0, 24); },
   bench(f, w = 1.2) { f.box('wood', 0, 0.42, 0, w, 0.05, 0.38);
  f.box('fab2', 0, 0.47, 0, w - 0.04, 0.06, 0.34); for (const sx of [-1, 1]) f.box('wood', sx * (w / 2 - 0.04), 0.2, 0, 0.05, 0.4, 0.34); f.box('wood', 0, 0.12, 0, w - 0.1, 0.03, 0.3); },
   // ---- "Heringericht" pieces (the refurnished house; HER_ITEMS) ----
@@ -2341,6 +2427,10 @@ const P = {
 
 /* items per room: [id, label, x, z, ry, builder(f, room)] — positions in metres, ry = facing (front = +Z rotated) */
 const PI = Math.PI, HP = PI / 2;
+// woonkamer (owner): recessed spots over the living part and the alcove by the hall door; the dining part keeps its pendants.
+// The airco sits high on the x = 3.25 wall beside the cabinet (woonkamer_2.jpg), clear of it, in every look.
+const WK_SPOTS = [[4.3, 9.0], [6.0, 9.0], [4.3, 10.4], [6.0, 10.4], [4.3, 11.8], [6.0, 11.8], [8.0, 4.9], [8.0, 6.6]];
+const WK_FIXED = [['airco', 'Airco', 3.25, 4.95, HP, f => P.airco(f, 0, 2.3, 0.1)], ['spots', 'Inbouwspots', 0, 0, 0, f => P.downlights(f, WK_SPOTS)]];
 const ITEMS = {
   woonkamer: [
     ['bank', 'Bank', 6.52, 8.9, -HP, f => P.sofa(f, 2.3)], ['salontafel', 'Salontafel', 5.35, 8.9, HP, f => P.coffee(f, 1.15, 0.62)],
@@ -2350,16 +2440,16 @@ const ITEMS = {
     ['eettafel', 'Eettafel + stoelen', 5.15, 1.25, HP, (f, r) => state.style === 'huidig' ? P.roundTable(f, r.id) : P.table(f, 1.9, 0.95)],
     ['vloerlamp', 'Vloerlampen', 6.7, 10.45, 0, P.floorlamp], ['planten', 'Planten', 6.62, 11.9, 0, f => P.plant(f, 1.1)],
     ['hanglampen', 'Hanglampen', 5.15, 0.8, 0, f => state.style === 'huidig' ? P.globeCluster(f, 0, 0.45) : P.pendant(f, 0.8)], ['kunst', 'Wandkunst', 3.73, 1.25, HP, f => P.art(f, 0, 0.8, 1.0)],
-    ['gordijnen', 'Gordijnen', 0, 0, 0, P.gardenCurtains],
+    ['gordijnen', 'Gordijnen', 0, 0, 0, P.gardenCurtains], ...WK_FIXED,
   ],
-  keuken: [['hanglampen', 'Hanglamp', 7.55, 2.0, 0, f => P.pendant(f, 0.7)], ['planten', 'Kruidenplant', 8.72, 3.0, 0, f => P.plant(f, 0.45)], ['kunst', 'Wandkunst', 6.64, 1.25, HP, f => P.art(f, 3, 0.5, 0.65, 1.55)],
+  keuken: [['hanglampen', 'Plafonnière', 7.55, 2.0, 0, f => newKitchen ? P.pendant(f, 0.7) : P.plafonniere(f)], ['planten', 'Kruidenplant', 8.72, 3.0, 0, f => P.plant(f, 0.45)], ['kunst', 'Wandkunst', 6.64, 1.25, HP, f => P.art(f, 3, 0.5, 0.65, 1.55)],
     ['spullen', 'Keukenspullen', 0, 0, 0, P.kitchenProps]],
   // zitkamer (photos): corner sofa at the back, black shelving + tv on the x = 3.62 wall, curtains, downlights.
   // The corner x 1.1-3.0, z 4.6-6.1 stays empty on purpose: modules/office.js furnishes it (gaming desk + monitors).
   zitkamer: [
     ['bank', 'Hoekbank (plek van Gemma)', 0, 0, 0, P.cornerSofa], ['salontafel', 'Salontafel', 1.55, 1.95, 0, f => state.style !== 'huidig' && P.coffee(f, 0.9, 0.5)],
     ['kleed', 'Vloerkleed', 1.7, 1.8, 0, (f, r) => state.style !== 'huidig' && P.rug(f, r.id, 2.0, 2.2)], ['tv', 'Zwarte kast + tv', 0, 0, 0, P.mediaWall],
-    ['gordijnen', 'Gordijnen', 0, 0, 0, P.curtains], ['spots', 'Inbouwspots', 0, 0, 0, P.downlights],
+    ['gordijnen', 'Gordijnen', 0, 0, 0, P.curtains], ['spots', 'Inbouwspots', 0, 0, 0, f => P.downlights(f)],
     ['vloerlamp', 'Vloerlamp', 0.3, 2.78, 0, f => state.style !== 'huidig' && P.floorlamp(f)], ['planten', 'Plant', 0.35, 3.45, 0, f => state.style !== 'huidig' && P.plant(f, 0.9)],
     ['kunst', 'Wandkunst', 0.01, 1.45, HP, f => state.style !== 'huidig' && P.art(f, 1, 1.1, 0.75, 1.5)],
     ['posters', 'Posters (nu)', 0, 0, 0, f => state.style === 'huidig' && P.posters(f)], ['rgb', 'RGB-sfeerlicht (nu)', 0, 0, 0, f => state.style === 'huidig' && P.rgbWashes(f)],
@@ -2425,7 +2515,7 @@ const MODEL_MAP = {
   'woonkamer/fauteuil': ARM, 'woonkamer/leesstoel': { ...ARM, variant: 'lounge' },
   'woonkamer/boekenkast': () => state.style === 'industrieel' && { kind: 'bookshelf', w: 1.6, d: 0.32, h: 2.1 },
   'woonkamer/planten': PLANT(1.1), 'woonkamer/hanglampen': () => state.style !== 'huidig' && LAMP(0.8)(),
-  'keuken/hanglampen': LAMP(0.7), 'keuken/planten': { kind: 'plant', variant: 'small', y: 0.9, h: 0.3 }, // on the worktop
+  'keuken/hanglampen': () => newKitchen && LAMP(0.7)(), 'keuken/planten': { kind: 'plant', variant: 'small', y: 0.9, h: 0.3 }, // pendant only over the island; on the worktop
   'zitkamer/salontafel': () => state.style !== 'huidig' && { kind: 'coffee', w: 0.9, d: 0.5, h: 0.42 }, 'zitkamer/planten': () => state.style !== 'huidig' && PLANT(0.9),
   'entree/planten': PLANT(0.9), 'entree/hanglampen': LAMP(0.3),
   'sk1/nachtkastjes': () => state.style !== 'huidig' && NIGHT, 'sk1/fauteuil': ARM, 'sk1/planten': PLANT(1, 0.48), 'sk1/hanglampen': LAMP(0.55, 2.38),
@@ -2481,9 +2571,9 @@ const HER_ITEMS = {
     ['boekenkast', 'Boekenkast', 6.82, 11.1, -HP, f => P.bookshelf(f, 1.0, 2.0, 0.3)], ['eettafel', 'Eettafel + 6 stoelen', 5.15, 1.3, HP, f => P.dining(f, 2.0, 0.95)],
     ['vloerlamp', 'Vloerlampen', 6.72, 10.25, 0, P.floorlamp], ['planten', 'Planten', 6.75, 11.9, 0, f => P.plant(f, 1.1)],
     ['hanglampen', 'Hanglampen', 5.15, 0.85, 0, f => P.pendant(f, 0.8)], ['kunst', 'Wandkunst', 3.26, 5.4, HP, f => P.art(f, 0, 1.2, 0.8, 1.6)],
-    ['gordijnen', 'Gordijnen', 0, 0, 0, f => { P.gardenCurtains(f); P.frontCurtains(f); }],
+    ['gordijnen', 'Gordijnen', 0, 0, 0, f => { P.gardenCurtains(f); P.frontCurtains(f); }], ...WK_FIXED,
   ],
-  keuken: [['hanglampen', 'Hanglamp', 7.55, 2.0, 0, f => P.pendant(f, 0.7)], ['planten', 'Kruidenplant', 8.72, 3.0, 0, f => P.plant(f, 0.45)], ['kunst', 'Wandkunst', 6.64, 1.25, HP, f => P.art(f, 3, 0.5, 0.65, 1.55)],
+  keuken: [['hanglampen', 'Plafonnière', 7.55, 2.0, 0, f => newKitchen ? P.pendant(f, 0.7) : P.plafonniere(f)], ['planten', 'Kruidenplant', 8.72, 3.0, 0, f => P.plant(f, 0.45)], ['kunst', 'Wandkunst', 6.64, 1.25, HP, f => P.art(f, 3, 0.5, 0.65, 1.55)],
     ['spullen', 'Keukenspullen', 0, 0, 0, P.kitchenStyled]],
   // tv lounge: sofa along the left wall facing a low media unit on the right wall, armchair + floor lamp beyond the sofa
   zitkamer: [
@@ -2491,7 +2581,7 @@ const HER_ITEMS = {
     ['kleed', 'Vloerkleed', 1.75, 2.0, 0, (f, r) => P.rug(f, r.id, 2.0, 2.6)], ['fauteuil', 'Fauteuil', 0.7, 4.2, 0.7, P.armchair],
     ['tv', 'Tv-meubel + tv', 3.61, 1.35, -HP, f => P.tvUnit(f, 1.5)], ['bijzettafel', 'Bijzettafel', 0.45, 0.6, 0, f => P.stool(f, 0.2, 0.5)],
     ['vloerlamp', 'Vloerlamp', 0.4, 3.5, 0, P.floorlamp], ['planten', 'Plant', 0.45, 5.35, 0, f => P.plant(f, 0.9)],
-    ['kunst', 'Wandkunst', 0.01, 2.0, HP, f => P.art(f, 1, 1.2, 0.8, 1.55)], ['gordijnen', 'Gordijnen', 0, 0, 0, P.curtains], ['spots', 'Inbouwspots', 0, 0, 0, P.downlights],
+    ['kunst', 'Wandkunst', 0.01, 2.0, HP, f => P.art(f, 1, 1.2, 0.8, 1.55)], ['gordijnen', 'Gordijnen', 0, 0, 0, P.curtains], ['spots', 'Inbouwspots', 0, 0, 0, f => P.downlights(f)],
     ['hanglampen', 'Hanglamp', 1.65, 2.0, 0, f => P.pendant(f, 0.9)],
   ],
   entree: [['console', 'Sidetable', 7.25, 9.4, HP, f => P.console(f, 1.0)], ['spiegel', 'Spiegel', 7.08, 9.4, HP, f => P.mirror(f, 0.35, 1.5)],
@@ -2545,7 +2635,7 @@ const HER_EXTRA = {
 const HER_MODEL = {
   'woonkamer/salontafel': { kind: 'coffee', w: 1.15, d: 0.62, h: 0.42 }, 'woonkamer/fauteuil': ARM, 'woonkamer/leesstoel': { ...ARM, variant: 'lounge' },
   'woonkamer/boekenkast': () => state.style === 'industrieel' && { kind: 'bookshelf', w: 1.0, d: 0.3, h: 2.0 }, 'woonkamer/planten': PLANT(1.1, 0.5), 'woonkamer/hanglampen': LAMP(0.8),
-  'keuken/hanglampen': LAMP(0.7), 'keuken/planten': { kind: 'plant', variant: 'small', y: 0.9, h: 0.3 },
+  'keuken/hanglampen': () => newKitchen && LAMP(0.7)(), 'keuken/planten': { kind: 'plant', variant: 'small', y: 0.9, h: 0.3 },
   'zitkamer/salontafel': { kind: 'coffee', w: 0.9, d: 0.5, h: 0.42 }, 'zitkamer/planten': PLANT(0.9), 'zitkamer/fauteuil': ARM, 'zitkamer/hanglampen': LAMP(0.9),
   'entree/planten': PLANT(0.8, 0.4), 'entree/hanglampen': LAMP(0.3),
   'sk1/nachtkastjes': NIGHT, 'sk1/fauteuil': ARM, 'sk1/planten': PLANT(1, 0.48), 'sk1/hanglampen': LAMP(0.55, 2.38),
@@ -2963,7 +3053,7 @@ function applyKitchen() {
   }
   colliders[0].push(...cur.cols); doors.push(...cur.doors);
   const kfm = floorMeshes.find(m => m.userData.room === 'keuken'); if (kfm) kfm.material = M(newKitchen ? 'floor:woonkamer' : 'floor:keuken');
-  LAMP_SPOTS.find(s => s.id === 'keuken').pos.set(...(newKitchen ? [7.12, 1.7, 1.7] : [7.55, 1.7, 2.0]));
+  LAMP_SPOTS.find(s => s.id === 'keuken').pos.set(...(newKitchen ? [7.12, 1.7, 1.7] : [7.55, 2.35, 2.0])); // pendant over the island / flush light
   invalidatePicks();
 }
 function setNewKitchen(on) {
@@ -3061,7 +3151,7 @@ sun.shadow.bias = -0.00015; sun.shadow.normalBias = LOWQ ? 0.09 : 0.06; sun.shad
 const SUN_C = V(4.5, 0, 2); sun.target.position.copy(SUN_C); scene.add(sun, sun.target);
 // a light in every room; the toilets, halls and landings get a ceiling fixture of their own (y 0 = just under that ceiling, k scales for small rooms).
 // A fixed pool of 10 point lights follows the camera to the nearest spots: more lights would make every material shader heavier.
-const LAMP_SPOTS = [['woonkamer', 5.15, 1.55, 1.25], ['woonkamer', 5.35, 1.75, 8.9], ['keuken', 7.55, 1.7, 2.0], ['zitkamer', 1.6, 2.2, 2.0], ['entree', 7.65, 1.9, 9.3],
+const LAMP_SPOTS = [['woonkamer', 5.15, 1.55, 1.25], ['woonkamer', 5.35, 1.75, 8.9], ['woonkamer', 5.15, 2.35, 10.9, 0.7], ['woonkamer', 8.0, 2.35, 5.75, 0.55], ['keuken', 7.55, 2.35, 2.0], ['zitkamer', 1.6, 2.2, 2.0], ['entree', 7.65, 1.9, 9.3],
   ['sk1', 4.9, 4.45, 6.4], ['sk2', 4.6, 4.45, 10.6], ['badkamer', 7.7, 4.8, 6.2], ['sk3', 5.0, 7.3, 8.23], ['zolderL', 1.8, 4.9, 3.9],
   ['wc1', 0.45, 0, 8.43, 0.6], ['achterhal', 2.0, 0, 8.43, 0.5], ['wc2', 8.62, 0, 8.27, 0.6], ['overloop', 7.6, 0, 9.6, 0.55], ['wasruimte', 8.0, 0, 11.3, 0.7], ['zolderR', 7.55, 0, 9.8, 0.7]]
   .map(([id, x, y, z, k = 1]) => { const l = ROOM[id].lvl; return { id, l, k, pos: V(x, y || ceilAt(l, x, z) - 0.12, z) }; });
@@ -3136,10 +3226,14 @@ function clickSound() {
     const a = new Audio(CLICK); a.volume = 0.45; a.play().catch(() => { });
   } catch (e) { /* no audio: the rocker still tips */ }
 }
+// Every lamp of your own floor first (at most 8 per floor): with only a distance penalty a lamp upstairs took the slot of the
+// far end of the room you stand in, which then popped on and off as you walked. The rest by distance; a spot that has a light
+// keeps it until another is clearly nearer (no swapping back and forth at a tie while the head bobs).
 function placeLamps(cur, ref, lit) {
-  const on = LAMP_SPOTS.filter(s => lightOf(s.id) > 0 && lit(s)).map(s => [s, s.pos.distanceToSquared(ref) + (s.l === cur ? 0 : 30)]).sort((a, b) => a[1] - b[1]);
+  const on = LAMP_SPOTS.filter(s => lightOf(s.id) > 0 && lit(s)).map(s => [s, s.pos.distanceToSquared(ref) + (s.l === cur ? 0 : 1000) - (s.lit ? 2 : 0)]).sort((a, b) => a[1] - b[1]);
   let moved = false;
-  LAMPS.forEach((L, i) => { const s = on[i] && on[i][0]; L.p.intensity = s ? 11 * s.k * lightOf(s.id) : 0; if (s && !L.p.position.equals(s.pos)) { L.p.position.copy(s.pos); moved = true; } });
+  LAMP_SPOTS.forEach(s => { s.lit = false; });
+  LAMPS.forEach((L, i) => { const s = on[i] && on[i][0]; if (s) s.lit = true; L.p.intensity = s ? 11 * s.k * lightOf(s.id) : 0; if (s && !L.p.position.equals(s.pos)) { L.p.position.copy(s.pos); moved = true; } });
   if (moved) window.HOUSE?.post?.lightsMoved?.();
 }
 function updateLamps() {
@@ -3194,14 +3288,20 @@ const tagEl = $('#tag'), roomTagEl = $('#roomTag');
 let renderPaused = false;
 
 let eyeY = null, bobPh = 0, lastRoom, lastL = -1;
-const flightT = (f, z) => clamp((f.zBot - z) / (f.zBot - f.zTop), 0, 1);
-const flightY = (f, z) => f.yBot + flightT(f, z) * (f.yTop - f.yBot);
-const flightLvl = (f, z) => flightT(f, z) >= 0.5 ? f.l + 1 : f.l;
+// Space jumps (~0.45 m, feet only: hop is the height above the floor or stair the walker is on), hold C crouches (eye 1.0 m);
+// the phone's bukken button toggles the crouch
+const HOP_G = 9.81, HOP_V = Math.sqrt(2 * HOP_G * 0.45), CROUCH_EYE = 1.0;
+let hop = 0, hopV = 0, crouchTap = false;
+const crouching = () => !!(keys.KeyC || crouchTap);
+function jump() { if (mode === 'walk' && !hop && !hopV) hopV = HOP_V; }
+const flightT = (f, x, z) => clamp(f.sAt ? f.sAt(x, z) / (f.n - 1) : (f.zBot - z) / (f.zBot - f.zTop), 0, 1);
+const flightY = (f, x, z) => f.yBot + flightT(f, x, z) * (f.yTop - f.yBot);
+const flightLvl = (f, x, z) => flightT(f, x, z) >= 0.5 ? f.l + 1 : f.l;
 const inFoot = (f, x, z) => x >= f.x0 && x <= f.x1 && z >= f.zMin && z <= f.zMax;
 const exitAt = (f, x, z) => f.exits.find(e => x >= e[0] && x <= e[1] && z >= e[2] && z <= e[3]) || null;
 // absolute ceiling height above a walker: the eye ducks under the wing roof, the attic slopes and the flight overhead
 function ceilAt(l, x, z, f = null) {
-  if (f) return f.id === 'A' ? (z < FL.B.zBot ? flightY(FL.B, z) - 0.24 : LV[0].ceil) : f.id === 'C' ? wingIn(z) : atticTop(z);
+  if (f) return f.id === 'A' ? (z < FL.B.zBot ? flightY(FL.B, x, z) - 0.24 : LV[0].ceil) : f.id === 'C' ? wingIn(z) : atticTop(z);
   if (l === 0) return LV[0].ceil;
   if (l === 1) return (x < 3.03 || (x < 3.6 && z < 3.99)) ? wingIn(z) : LV[1].ceil;
   return atticTop(z);
@@ -3230,32 +3330,37 @@ function stepState(st, dx, dz) {
       if (e) { st.f = null; st.l = e[4]; st.x = nx; st.z = nz; resolve(st, activeCols(st.l)); st.y = LV[st.l].floor; return st; }
       nx = clamp(nx, f.x0 + 0.01, f.x1 - 0.01); nz = clamp(nz, f.zMin + 0.01, f.zMax - 0.01);
     }
-    st.x = nx; st.z = nz; st.y = flightY(f, nz); st.l = flightLvl(f, nz); return st;
+    st.x = nx; st.z = nz; st.y = flightY(f, nx, nz); st.l = flightLvl(f, nx, nz); return st;
   }
   for (const f of FLIGHTS) if ((f.l === st.l || f.l + 1 === st.l) && inFoot(f, x, z)) {
     const e = exitAt(f, st.x, st.z);
-    if (e && e[4] === st.l) { st.f = f; st.x = x; st.z = z; st.y = flightY(f, z); st.l = flightLvl(f, z); return st; }
+    if (e && e[4] === st.l) { st.f = f; st.x = x; st.z = z; st.y = flightY(f, x, z); st.l = flightLvl(f, x, z); return st; }
   }
   const px = st.x, pz = st.z; st.x = x; st.z = z; resolve(st, activeCols(st.l));
   if (FLIGHTS.some(f => f.l + 1 === st.l && inFoot(f, st.x, st.z))) { st.x = px; st.z = pz; } // never hover over a stairwell
   st.y = LV[st.l].floor; return st;
 }
 function syncCamera(dt) {
-  const eye = clamp(ceilAt(walker.l, walker.x, walker.z, walker.f) - walker.y - 0.14, 0.9, EYE), spd = Math.hypot(walker.vx, walker.vz);
+  const ceil = ceilAt(walker.l, walker.x, walker.z, walker.f) - 0.14, eye = clamp(ceil - walker.y, 0.9, crouching() ? CROUCH_EYE : EYE), spd = Math.hypot(walker.vx, walker.vz);
   bobPh += dt * spd * 7.5;
   const bob = REDUCED ? 0 : Math.sin(bobPh) * 0.012 * Math.min(1, spd / 1.4), ty = walker.y + eye;
   eyeY = (eyeY == null || dt <= 0) ? ty : eyeY + (ty - eyeY) * (1 - Math.exp(-dt * 12));
-  camera.position.set(walker.x, eyeY + bob, walker.z);
+  if (hop || hopV) { // exact arc per frame; the head stops at the ceiling (stair soffit, attic slope) and falls back from there
+    hop += hopV * dt - HOP_G * dt * dt / 2; hopV -= HOP_G * dt;
+    if (hop <= 0 && hopV < 0) hop = hopV = 0;
+    if (hop > ceil - eyeY) { hop = Math.max(0, ceil - eyeY); hopV = Math.min(hopV, 0); }
+  }
+  camera.position.set(walker.x, eyeY + hop + bob, walker.z);
 }
 function setWalker(o = {}) {
   const l = o.l ?? walker.l, x = o.x ?? walker.x, z = o.z ?? walker.z;
   Object.assign(walker, { l, x, z, vx: 0, vz: 0, f: null });
-  for (const f of FLIGHTS) if (inFoot(f, x, z) && flightLvl(f, z) === l) { walker.f = f; break; }
-  walker.y = walker.f ? flightY(walker.f, z) : LV[l].floor;
+  for (const f of FLIGHTS) if (inFoot(f, x, z) && flightLvl(f, x, z) === l) { walker.f = f; break; }
+  walker.y = walker.f ? flightY(walker.f, x, z) : LV[l].floor;
   eul.setFromQuaternion(camera.quaternion, 'YXZ');
   if (o.yaw != null) eul.y = o.yaw; if (o.pitch != null) eul.x = clamp(o.pitch, -1.45, 1.45);
   eul.z = 0; camera.quaternion.setFromEuler(eul); walker.yaw = eul.y; walker.pitch = eul.x;
-  eyeY = null; syncCamera(0); lastRoom = undefined;
+  eyeY = null; hop = hopV = 0; syncCamera(0); lastRoom = undefined;
   if (mode === 'walk') applyVisibility();
   return walker;
 }
@@ -3268,7 +3373,7 @@ function walkStep(dt) {
   f += -joy.y; s += joy.x;
   const len = Math.hypot(f, s); if (len > 1) { f /= len; s /= len; }
   eul.setFromQuaternion(camera.quaternion, 'YXZ'); walker.yaw = eul.y; walker.pitch = eul.x;
-  const yaw = eul.y, sp = (keys.ShiftLeft || keys.ShiftRight) ? 2.8 : 1.4;
+  const yaw = eul.y, sp = crouching() ? 0.7 : (keys.ShiftLeft || keys.ShiftRight) ? 2.8 : 1.4;
   const fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
   const tx = (fx * f + rx * s) * sp, tz = (fz * f + rz * s) * sp, k = REDUCED ? 1 : 1 - Math.exp(-dt * 10);
   walker.vx += (tx - walker.vx) * k; walker.vz += (tz - walker.vz) * k;
@@ -3293,7 +3398,7 @@ function setMode(m, o = {}) {
   if (m !== 'walk' && m !== 'doll') return;
   mode = m;
   $('#btnDoll').setAttribute('aria-pressed', String(m === 'doll')); $('#btnWalk').setAttribute('aria-pressed', String(m === 'walk'));
-  $('#cross').hidden = m !== 'walk'; $('#joy').hidden = $('#timeChip').hidden = !(m === 'walk' && COARSE);
+  $('#cross').hidden = m !== 'walk'; $('#joy').hidden = $('#walkPad').hidden = !(m === 'walk' && COARSE);
   $('#walkStart').hidden = !(m === 'walk' && !COARSE) || document.pointerLockElement === renderer.domElement;
   tagEl.hidden = true; roomTagEl.hidden = m !== 'walk';
   if (m === 'walk') {
@@ -3450,10 +3555,10 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyE' && (aim || window.HOUSE?.pickup?.carrying)) { if (!e.repeat) act(aim); return; }
   if (e.code === 'KeyT') { if (!e.repeat) stepTime(); return; }
   if (e.code === 'BracketLeft' || e.code === 'BracketRight') { glideTime((glide ? glide.to : state.time) + (e.code === 'BracketLeft' ? -1 : 1) * (e.shiftKey ? 2 : 0.5)); return; }
-
+  if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) jump(); return; } // no page scroll, no press on a focused button
   keys[e.code] = true; if (e.code.startsWith('Arrow')) e.preventDefault();
 });
-addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('keyup', e => { keys[e.code] = false; if (e.code === 'Space' && mode === 'walk' && !typing()) e.preventDefault(); });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 // touch joystick
 const joyEl = $('#joy'), knob = $('#joyKnob'); let joyId = null;
@@ -3466,8 +3571,8 @@ joyEl.addEventListener('pointerup', joyEnd); joyEl.addEventListener('pointercanc
 function setHint() {
   const h = $('#hint');
   if (mode === 'doll') h.innerHTML = 'Slepen: draaien · Rechts slepen: schuiven · Scrollen: zoomen · Klik een vloer om de kamer te kiezen, klik een deur om hem te openen of te sluiten';
-  else h.innerHTML = COARSE ? 'Joystick: lopen · Slepen: rondkijken · Tik op een deur, lade, tv, wc, lamp, lichtknop, meubel of hond · Klok: tijd verzetten' :
- '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> of pijltjes: lopen · Muis: kijken · <kbd>Shift</kbd>: sneller · <kbd>E</kbd>: deur, lade, tv, wc, licht, meubel oppakken · <kbd>T</kbd> <kbd>[</kbd><kbd>]</kbd>: tijd · <kbd>Esc</kbd>: muis vrij';
+  else h.innerHTML = COARSE ? 'Joystick: lopen · Slepen: rondkijken · Tik op een deur, lade, tv, wc, lamp, lichtknop, meubel of hond · Pijltjes: springen, bukken · Klok: tijd verzetten' :
+ '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> of pijltjes: lopen · Muis: kijken · <kbd>Shift</kbd>: sneller · <kbd>Spatie</kbd>: springen · <kbd>C</kbd>: bukken · <kbd>E</kbd>: deur, lade, tv, wc, licht, meubel oppakken · <kbd>T</kbd> <kbd>[</kbd><kbd>]</kbd>: tijd · <kbd>Esc</kbd>: muis vrij';
 }
 /* ---------- time of day while walking: T steps through the panel's parts of the day, [ / ] move half an hour (Shift: two),
    the clock chip (phone) does what T does. The time glides there in a second (applyTime only moves intensities and the
@@ -3489,6 +3594,8 @@ function glideTick(dt) {
   if (glide.t === 1) { glide = null; saveState(); }
 }
 $('#timeChip').onclick = stepTime;
+$('#btnHop').onclick = jump;
+$('#btnDuck').onclick = e => e.currentTarget.setAttribute('aria-pressed', String(crouchTap = !crouchTap));
 // every room at once (tool button 'Alle lampen'): auto -> off -> on -> auto
 function allLights(s) { for (const r of ROOMS) setLight(r.id, s); applyLights(); }
 const LAMPS_NEXT = { auto: ['off', 'Alle lampen uit'], off: ['on', 'Alle lampen aan'], on: ['auto', 'Lampen volgen weer de tijd van de dag'] };
@@ -3631,7 +3738,7 @@ function applyStyle(id) {
   setWalker({ x, z, l, yaw, pitch }) or setWalker(l, x, z, yaw)   teleport (snaps onto a stair flight when (x, z) lies on one)
   walkMove(st, dx, dz) -> { x, z, l, y, s }   the walker physics (stairs + sliding collisions) on any state; s = stair index or -1
   stairs                                  v1 arrays [l, x0, x1, zBot, zTop, yBot, yTop] that also carry { id, name, l, x0, x1, zBot, zTop,
-                                          yBot, yTop, zMin, zMax, exits }; ceilAt(l, x, z) -> ceiling Y
+                                          yBot, yTop, zMin, zMax, exits, y(x, z) = stair height }; ceilAt(l, x, z) -> ceiling Y
   roomAt(l, x, z) -> id | null, rooms, floors, doors, colliders, toggleDoor(door)
   pickables()                             visible meshes worth raycasting: walls, floors, furniture, stairs, doors, dogs (no helpers)
   setMode('walk' | 'doll'), mode, view, setInteractive(bool)   false: the app ignores canvas clicks / taps (e.g. while measuring)
@@ -3682,7 +3789,7 @@ const HOUSE = { // published as window.HOUSE once the house is built (end of the
   floors: LV.map(l => ({ ...l, y: l.floor })),
   rooms: ROOMS.map(r => ({ id: r.id, name: r.name, level: r.lvl, floorY: LV[r.lvl].floor, rects: r.rects.map(q => ({ x0: q[0], x1: q[1], z0: q[2], z1: q[3] })) })),
   data: { LV, ROOMS, get WALLS() { return WALLS.concat(KWALLS[newKitchen ? 'nw' : 'old']); }, HOLES, FLOORS, PAINTS, STYLES, FLIGHTS },
-  stairs: FLIGHTS.map(f => Object.assign([f.l, f.x0, f.x1, f.zBot, f.zTop, f.yBot, f.yTop], { id: f.id, name: f.name, l: f.l, x0: f.x0, x1: f.x1, zBot: f.zBot, zTop: f.zTop, yBot: f.yBot, yTop: f.yTop, zMin: f.zMin, zMax: f.zMax, exits: f.exits })),
+  stairs: FLIGHTS.map(f => Object.assign([f.l, f.x0, f.x1, f.zBot, f.zTop, f.yBot, f.yTop], { id: f.id, name: f.name, l: f.l, x0: f.x0, x1: f.x1, zBot: f.zBot, zTop: f.zTop, yBot: f.yBot, yTop: f.yTop, zMin: f.zMin, zMax: f.zMax, exits: f.exits, y: (x, z) => flightY(f, x, z) })),
   addToRoom(roomId, obj) { const r = ROOM[roomId]; (r ? G[r.lvl].main : EXT).add(obj); invalidatePicks(); return obj; },
   rebuildFurniture: () => buildAllFurniture(), setLook: her => setLook(!!her), get look() { return isHer() ? 'her' : 'nu'; }, get furnished() { return furnJob; },
   setNewKitchen: on => setNewKitchen(!!on), get newKitchen() { return newKitchen; },

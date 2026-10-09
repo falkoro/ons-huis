@@ -324,14 +324,22 @@ function spotRegion(g, W, H, rand, reg, o) {
   }
   g.restore();
 }
+// the grain is painted once into a 256 px tile (same stroke density) and laid over the atlas as a pattern: ~1k strokes per
+// boot instead of ~70k per dog. The dog's own random stream is still advanced as before, so its spots stay where they were.
+let GRAIN = null;
 function furGrain(g, W, H, rand) {
-  g.lineWidth = 1;
-  const n = Math.round((W * H) / 60);
-  for (let i = 0; i < n; i++) {
-    const x = rand() * W, y = rand() * H, l = 1 + rand() * 3;
-    g.strokeStyle = rand() < 0.5 ? 'rgba(150,140,125,0.09)' : 'rgba(255,255,255,0.35)';
-    g.beginPath(); g.moveTo(x, y); g.lineTo(x + (rand() - 0.5) * 1.5, y + l); g.stroke();
+  if (!GRAIN) {
+    const s = 256, c = makeCanvas(s, s), q = c.getContext('2d'), r = mulberry32(4242), n = Math.round((s * s) / 60);
+    q.lineWidth = 1;
+    for (let i = 0; i < n; i++) {
+      const x = r() * s, y = r() * s, l = 1 + r() * 3;
+      q.strokeStyle = r() < 0.5 ? 'rgba(150,140,125,0.09)' : 'rgba(255,255,255,0.35)';
+      q.beginPath(); q.moveTo(x, y); q.lineTo(x + (r() - 0.5) * 1.5, y + l); q.stroke();
+    }
+    GRAIN = c;
   }
+  g.fillStyle = g.createPattern(GRAIN, 'repeat'); g.fillRect(0, 0, W, H);
+  for (let i = 5 * Math.round((W * H) / 60); i > 0; i--) rand();
 }
 function fillRegion(g, W, H, reg, color) { g.fillStyle = color; g.fillRect(reg.u0 * W, (1 - reg.v1) * H, (reg.u1 - reg.u0) * W, (reg.v1 - reg.v0) * H); }
 
@@ -871,7 +879,7 @@ function bark(pitch = 1, n = 2) {
 }
 
 // ================================================================ POSES (bone euler targets, radians; root.y = height of the pelvis above the ground)
-// Each pose lists [rx, ry, rz] per bone; unlisted bones are 0. Leg bones: rx > 0 swings the limb forward (about +X).
+// Each pose lists [rx, ry, rz] per bone; unlisted bones are 0. Leg bones: rx > 0 swings the limb backward (about +X).
 const POSES = {
   stand: { rootY: 0.49, rootP: 0 },
   sit: { // bottom down, hocks flat, forelegs straight, head up a little
@@ -1091,7 +1099,7 @@ export function addDalmatians(THREE, scene, opts = {}) {
 
   // ---------------------------------------------------------------- collision: how deep is a body at (x, z, h, lift) in things
   // mode bits: 1 the drawn world (grid), 2 walls + jambs + shut / outside doors, 4 door leaves at their live angle, 8 the other dog
-  const NR = [], NL = [], PEN = { max: 0, px: 0, pz: 0 }, tmpN = [0, 0], MARGIN = 0.01;
+  const NR = [], NL = [], PEN = { max: 0, px: 0, pz: 0 }, tmpN = [0, 0], MARGIN = 0.01, DOG_GAP = 0.2; // DOG_GAP: extra room kept around the other dog (~0.5 m between the bodies)
   function setNear(x, z, R) {
     NR.length = 0; NL.length = 0;
     for (const c of nav.walls) if (c[1] > x - R && c[0] < x + R && c[3] > z - R && c[2] < z + R) NR.push(c);
@@ -1123,7 +1131,7 @@ export function addDalmatians(THREE, scene, opts = {}) {
     let tot = 0, mx = 0, px = 0, pz = 0, dep = 0;
     const add = () => { tot += dep; px += tmpN[0] * dep; pz += tmpN[1] * dep; if (dep > mx) mx = dep; };
     if (withDog) { trunkAt(o.body.trunk, o.x, o.z, o.heading, o.lift, TR, 0); trunkAt(body.trunk, x, z, h, lift, TR, 6); }
-    const rO = 0.09 * o.scale, rM = 0.09 * d.scale;
+    const rO = 0.09 * o.scale + DOG_GAP, rM = 0.09 * d.scale + DOG_GAP;
     for (let i = 0; i < body.nb; i++) {
       const q = 5 * i, lx = B[q], lz = B[q + 1], r = B[q + 2] + MARGIN, y0 = lift + B[q + 3], y1 = lift + B[q + 4];
       const wx = x + lx * c + lz * s, wz = z - lx * s + lz * c;
@@ -1236,7 +1244,25 @@ export function addDalmatians(THREE, scene, opts = {}) {
     }
     return false;
   }
+  // what a fit depends on: the spot itself and the world within reach of it (grid, rooms, walls, doors and their leaves).
+  // A rebuild elsewhere (the kitchen toggle re-reads the whole house) then keeps the fit instead of searching again.
+  // ponytail: nav.reachable (nodes up to 4 m away) is not in the key; a new wall that cuts a jump point off its floor is
+  // inside the box anyway
+  function fitKey(sp) {
+    const E = 2.7, b = sp.box || [sp.x - sp.r, sp.x + sp.r, sp.z - sp.r, sp.z + sp.r], x0 = b[0] - E, x1 = b[1] + E, z0 = b[2] - E, z1 = b[3] + E;
+    let h = 0; const mix = (v) => { h = (Math.imul(h, 31) + Math.round(v * 1000)) | 0; };
+    [sp.x, sp.z, sp.r, sp.hint, sp.ry, ...b].forEach(mix);
+    const i0 = Math.max(0, Math.floor((x0 - GX0) / GC)), i1 = Math.min(GNX - 1, Math.floor((x1 - GX0) / GC));
+    const j0 = Math.max(0, Math.floor((z0 - GZ0) / GC)), j1 = Math.min(GNZ - 1, Math.floor((z1 - GZ0) / GC));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * GNX + i; mix(W.hi[k]); mix(W.lo[k]); }
+    for (let z = z0; z <= z1; z += 0.25) for (let x = x0; x <= x1; x += 0.25) { const rm = nav.roomOf(x, z) || ''; for (let q = 0; q < rm.length; q++) h = (Math.imul(h, 31) + rm.charCodeAt(q)) | 0; }
+    for (const c of nav.walls) if (c[1] > x0 && c[0] < x1 && c[3] > z0 && c[2] < z1) for (let q = 0; q < 4; q++) mix(c[q]);
+    for (const g of nav.doors) if (g.mid[0] > x0 - g.W && g.mid[0] < x1 + g.W && g.mid[1] > z0 - g.W && g.mid[1] < z1 + g.W) { mix(g.mid[0]); mix(g.mid[1]); mix(g.d.angle); mix(g.ext ? 1 : 0); }
+    return h;
+  }
   function fitSpot(sp) {
+    const key = fitKey(sp); if (key === sp.fitKey) return; // nothing near it changed: the last fit stands
+    sp.fitKey = key;
     sp.ok = false; sp.poses = [];
     const seat = seatHeight(sp); if (seat == null) return;
     sp.seatY = sp.y = seat;
@@ -1271,7 +1297,7 @@ export function addDalmatians(THREE, scene, opts = {}) {
     }
   }
   function dropSpot(sp) {
-    sp.ok = false;
+    sp.ok = false; sp.fitKey = null;
     for (const d of dogs) { if (d.spot === sp) leaveSpot(d); if (d.target === sp) { d.target = null; if (d.state !== 'hop') idle(d, 0.5); } }
     if (sp.node >= 0) nav.kill(nav.nodes[sp.node]); sp.node = -1; sp.claim = null;
   }
@@ -1416,10 +1442,10 @@ export function addDalmatians(THREE, scene, opts = {}) {
   }
   // hops: on and off beds and sofas, and out of a squeeze. Position and heading ease along a straight line (checked clear
   // of walls and doors), the height arcs from the start support to the landing support.
-  function startHop(d, tx, tz, th, s0, s1, then) {
+  function startHop(d, tx, tz, th, s0, s1, then, arc = 0.28, dur0 = 0.6) {
     const dh = wrapAngle(th - d.heading), dist = Math.hypot(tx - d.x, tz - d.z);
-    const dur = Math.max(0.6, (1.5 * Math.abs(dh)) / 6, (1.5 * dist) / 3.8);
-    d.hop = { x0: d.x, z0: d.z, h0: d.heading, x1: tx, z1: tz, dh, s0, s1, dur, t: 0, then: then || null };
+    const dur = Math.max(dur0, (1.5 * Math.abs(dh)) / 6, (1.5 * dist) / 3.8);
+    d.hop = { x0: d.x, z0: d.z, h0: d.heading, x1: tx, z1: tz, dh, s0, s1, arc, dur, t: 0, then: then || null };
     setState(d, 'hop', dur + 1); d.pose = 'stand'; d.speed = 0; d.faceH = null; d.escT = 0; d.way = 0;
   }
   function land(d, sp) {
@@ -1438,7 +1464,17 @@ export function addDalmatians(THREE, scene, opts = {}) {
   }
   function leaveSpot(d, then) {
     const sp = d.spot; if (!sp) return false;
-    const st = canon(d, 'stand'); let f = null;
+    const st = canon(d, 'stand'), k = gCell(d.x, d.z); let f = null;
+    if (k >= 0 && Math.max(0, W.hi[k]) < sp.seatY - 0.05) { // the seat is gone from under the dog: it stands on the floor where it is
+      setNear(d.x, d.z, 1.4);
+      if (pen(d, d.x, d.z, d.heading, -st.footLo, st, 15, 1e-4) <= 1e-4) {
+        if (sp.claim === d) sp.claim = null;
+        d.spot = null; d.onSofa = false; d.sofa = null; d.bed = null;
+        if (sp.kind === 'sofa') d.sofaCool = 60 + Math.random() * 90; else d.bedCool = 40 + Math.random() * 60;
+        startHop(d, d.x, d.z, d.heading, sp.seatY, 0, then, 0, 0.3);
+        return true;
+      }
+    }
     if (sp.ok && Math.hypot(sp.px - d.x, sp.pz - d.z) < 0.05) {
       const th = Math.atan2(sp.jx - d.x, sp.jz - d.z);
       setNear(sp.jx, sp.jz, 1.4);
@@ -1830,10 +1866,10 @@ export function addDalmatians(THREE, scene, opts = {}) {
     d.ue = damp(d.ue, ue, 12, dt);
     d.walkBlend = damp(d.walkBlend, d.hop ? 0 : standW * sstep(0.01, 0.06, d.ue), 10, dt);
     d.trotBlend = damp(d.trotBlend, sstep(0.8, 1.15, Math.hypot(d.vx, d.vz)), 4, dt);
-    const stance = lerp(0.62, 0.5, d.trotBlend), A = Math.min(lerp(0.44, 0.5, d.trotBlend), 0.2 + d.ue * 0.45), sA = Math.sin(A);
+    const stance = lerp(0.62, 0.5, d.trotBlend), A = Math.min(lerp(0.3, 0.36, d.trotBlend), 0.12 + d.ue * 0.3), sA = Math.sin(A); // short steps: the legs stay under the dog
     const f = d.ue > 0.02 ? (stance * d.ue) / (2 * L * sA) : d.walkBlend > 0.01 ? 0.5 : 0, Tst = f > 1e-4 ? stance / f : 0;
     d.phase = (d.phase + dt * f) % 1;
-    const Wk = d.walkBlend, hp = d.hop, tuck = hp ? Math.sin(Math.PI * clamp(hp.t / hp.dur, 0, 1)) : 0, PW = d.paw;
+    const Wk = d.walkBlend, hp = d.hop, tuck = hp && hp.arc > 0 ? Math.sin(Math.PI * clamp(hp.t / hp.dur, 0, 1)) : 0, PW = d.paw;
     for (let i = 0; i < 4; i++) {
       const leg = LEGS[i], ux = U[2 * i], uz = U[2 * i + 1], o = 4 * i, side = leg.slice(-1);
       const ph = (d.phase + lerp(WALK_OFF[leg], TROT_OFF[leg], d.trotBlend)) % 1;
@@ -1857,8 +1893,8 @@ export function addDalmatians(THREE, scene, opts = {}) {
       }
     }
     const ph2 = d.phase * TAU * 2, bob = (0.008 * Math.sin(ph2) - 0.006 + 0.015 * d.trotBlend * Math.max(0, Math.sin(ph2 + 1))) * Wk;
-    E.neck[0] += 0.25 * Wk + 0.045 * Math.sin(ph2 + 0.6) * Wk; // head carried lower when walking, nodding with the forelegs
-    E.neck2[0] += -0.1 * Wk;
+    E.neck[0] += 0.07 * Wk + 0.035 * Math.sin(ph2 + 0.6) * Wk; // head carried up, nodding a little with the forelegs
+    E.neck2[0] += -0.03 * Wk;
     if (d.state === 'shake') { // whole-body shake from the head back, dying out
       const k = Math.sin(d.shakeT * 40) * sstep(0, 0.12, d.shakeT) * (1 - sstep(0.6, 1.05, d.shakeT));
       E.head[2] += 0.55 * k; E.neck2[2] += 0.35 * k; E.neck[2] += 0.25 * k; E.chest[2] += 0.18 * k; E.spine[2] += 0.1 * Math.sin(d.shakeT * 40 - 0.8) * (1 - sstep(0.6, 1.05, d.shakeT));
@@ -1866,7 +1902,7 @@ export function addDalmatians(THREE, scene, opts = {}) {
     }
     if (d.state === 'stretch' && pu === 'stretch') E.neck[0] += 0.15 * Math.sin(d.timer * 3);
     // hop arc: nose up on the way up, down on the way down
-    if (hp) { const t = clamp(hp.t / hp.dur, 0, 1); rootP += -0.5 * Math.cos(Math.PI * t) * (hp.s1 >= hp.s0 ? 1 : -1) * sstep(0, 0.2, Math.abs(hp.s1 - hp.s0)); }
+    if (hp && hp.arc > 0) { const t = clamp(hp.t / hp.dur, 0, 1); rootP += -0.5 * Math.cos(Math.PI * t) * (hp.s1 >= hp.s0 ? 1 : -1) * sstep(0, 0.2, Math.abs(hp.s1 - hp.s0)); }
 
     // breathing (ribs scale, slight chest lift); slow and deep while asleep, panting fast when happy / after a run
     d.pant = damp(d.pant, d.happy > 0.5 || d.petT > 0 ? 1 : 0, 1.5, dt);
@@ -1971,7 +2007,7 @@ export function addDalmatians(THREE, scene, opts = {}) {
   // height: the lowest point of the body rests on its support (floor, bed, seat), eased; in a hop it arcs between supports
   function liftStep(d, dt) {
     const hp = d.hop;
-    if (hp) { const t = clamp(hp.t / hp.dur, 0, 1), e = t * t * (3 - 2 * t); d.lift = lerp(hp.s0, hp.s1, e) + 0.28 * Math.sin(Math.PI * t) - d.body.footLo; return; }
+    if (hp) { const t = clamp(hp.t / hp.dur, 0, 1), e = t * t * (3 - 2 * t); d.lift = lerp(hp.s0, hp.s1, e) + hp.arc * Math.sin(Math.PI * t) - d.body.footLo; return; }
     const want = (d.spot ? d.spot.seatY : 0) - d.body.footLo, m = 1.9 * dt;
     d.lift += clamp(want - d.lift, -m, m);
   }

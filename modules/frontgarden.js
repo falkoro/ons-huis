@@ -405,7 +405,24 @@ export function install(H) {
       const M = H.models; if (!M) return void setTimeout(swap, 250);
       M.ready.then(() => { const g = M.place('car', { x: CAR.x, z: CAR.z, ry: PI, dress: false }); if (!g) return;   // model: neus +Z, dus een halve slag
         g.name = 'auto-oprit:tesla'; root.add(g); root.remove(fallback); fallback.traverse(o => o.geometry?.dispose());
-        g.traverse(o => { const m = o.material; if (m?.name === 'paint') m.envMapIntensity = 0.5; else if (m?.name === 'glass') m.envMapIntensity = 0.55; });   // zwarte lak en getint glas: minder luchtglans
+        // zwarte clearcoat-lak en getint glas spiegelen de échte lucht (horizon, donkere grond), niet de afgevlakte probe van de scene:
+        // één eigen PMREM van scene.background zodra de HDR-lucht er is; de sterkte volgt het uur via scene.environmentIntensity
+        const paintM = [], glassM = []; g.traverse(o => { const m = o.material; if (m?.name === 'paint') paintM.push(m); else if (m?.name === 'glass') glassM.push(m); });
+        let carEnv = null;
+        onTick(() => {
+          const bg = scene.background;
+          if (!carEnv && bg?.isTexture && H.renderer) {
+            const pm = new THREE.PMREMGenerator(H.renderer); carEnv = pm.fromEquirectangular(bg).texture; pm.dispose();
+            for (const m of [...paintM, ...glassM]) { m.envMap = carEnv; m.needsUpdate = true; }
+          }
+          const k = scene.environmentIntensity ?? 1; for (const m of paintM) m.envMapIntensity = k; for (const m of glassM) m.envMapIntensity = 1.15 * k;
+        });
+        // contactschaduw: zachte donkere vlek onder de auto (de bodem sluit het licht af), één canvas-gradient op een vlak net boven het grind
+        const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128; const cx = cv.getContext('2d');
+        cx.translate(128, 64); cx.scale(1, 0.5); const gr = cx.createRadialGradient(0, 0, 40, 0, 0, 124);
+        gr.addColorStop(0, 'rgba(0,0,0,0.9)'); gr.addColorStop(0.7, 'rgba(0,0,0,0.5)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); cx.fillStyle = gr; cx.fillRect(-128, -128, 256, 256);
+        const sh = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 5.1), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+        sh.rotation.x = -PI / 2; sh.position.set(CAR.x, 0.008, CAR.z); sh.renderOrder = 1; sh.name = 'auto-oprit:schaduw'; root.add(sh);
       });
     }; swap(); }
   car(-5.8, 25.4, PI / 2, [0.80, 0.82, 0.83]); addCol(-8.0, -3.6, 24.5, 26.3);    // overkant, wit, langs de stoep (voortuin_1 rechts)

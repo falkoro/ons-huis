@@ -635,32 +635,39 @@ function gamingChair(b, x, z, ry) {
   b.box('leather', L, 0.3, 0.1, 0.07, 0, 0.8, -0.06);                                                         // hoofdkussen
   b.pop(); b.pop();
 }
-// flightsim-rig (foto): zwart buisframe met alu zitrail, kuipstoel met tas, kolom met yoke en MOZA-gasquadrant, keyboard-tray
-// aan de muurkant en een zijplaat met het groen verlichte MOZA-paneel, trimwiel en een grijs schakelkastje.
-// Lokaal: piloot op (0, 0, 0), kijkt naar -z; de piloot zijn linkerhand (en de zijplaat) zit op -x.
+// flightsim-rig (foto): zilvergrijs aluminium buisframe (lage liggers, schuine achterbuizen tot op de vloer, zitrails), hoge zwarte
+// kuipstoel met lichtgrijze randen en tas, kolom met yoke en MOZA-gasquadrant, keyboard-tray aan de muurkant, zijplaat met het
+// groen verlichte MOZA-paneel, trimwiel en een grijs schakelkastje, pedalen op de ligger.
+// Lokaal: piloot op (0, 0, 0), kijkt naar -z; zijn linkerhand (en de zijplaat) zit op -x.
 function rig(T, b, x, z, ry) {
-  const S = '#141417', S2 = '#1f2024', G = '#3dff7a';
+  const S = '#141417', S2 = '#1f2024', G = '#3dff7a', AL = '#b4b7bd', E = '#6a6d73';
   b.push(x, 0, z, 0, ry, 0);
-  // frame
-  for (const sx of [-0.3, 0.3]) b.box('metal', FRM, 0.05, 0.05, 1.45, sx, 0.025, -0.375);
-  for (const zz of [-1.05, -0.3, 0.3]) b.box('metal', FRM, 0.65, 0.05, 0.05, 0, 0.025, zz);
-  for (const sx of [-0.33, 0.33]) b.cyl('metal', ALU, 0.014, 0.014, 0.5, 8, sx, 0.12, 0.1, HP, 0, 0);
-  for (const sx of [-0.33, 0.33]) for (const zz of [-0.1, 0.3]) b.box('metal', ALU, 0.03, 0.12, 0.03, sx, 0.08, zz);
-  b.box('metal', FRM, 0.46, 0.08, 0.5, 0, 0.15, 0.02);
-  // kuipstoel (laag, racing) met grijze middenbaan en hoofdsteun
-  b.push(0, 0.3, 0);
-  b.box('fabric', S, 0.5, 0.1, 0.5, 0, 0, 0, 0.1, 0, 0); b.box('fabric', '#3a3c40', 0.22, 0.102, 0.42, 0, 0.002, -0.02, 0.1, 0, 0);
-  for (const sx of [-1, 1]) b.box('fabric', S2, 0.08, 0.13, 0.46, sx * 0.25, 0.05, 0);
-  b.push(0, 0.1, 0.24, 0.26, 0, 0);
-  b.box('fabric', S, 0.54, 0.9, 0.1, 0, 0.45, 0); b.box('fabric', '#3a3c40', 0.24, 0.72, 0.102, 0, 0.42, 0);
-  for (const sx of [-1, 1]) b.box('fabric', S2, 0.09, 0.6, 0.16, sx * 0.26, 0.36, -0.03);
-  b.box('fabric', S2, 0.3, 0.13, 0.08, 0, 0.84, -0.03); b.box('fabric', '#4a4d52', 0.3, 0.025, 0.082, 0, 0.9, -0.03);
-  b.pop(); b.pop();
-  // sporttas op de zitting (zwart met petrol vak)
-  b.box('fabric', '#15161a', 0.42, 0.24, 0.3, 0.02, 0.5, -0.03, 0, 0.2, 0); b.box('fabric', '#2b6e78', 0.3, 0.18, 0.08, 0.0, 0.52, -0.15, 0, 0.2, 0);
-  b.box('solid', '#101012', 0.012, 0.03, 0.36, 0.02, 0.63, -0.03, 0, 0.2, 0);
+  // frame: twee lage liggers, dwarsbalken, schuine achterbuizen, zitrails
+  for (const sx of [-0.28, 0.28]) b.box('metal', AL, 0.05, 0.05, 1.25, sx, 0.025, -0.4);
+  for (const zz of [-1.0, -0.3, 0.2]) b.box('metal', AL, 0.61, 0.05, 0.05, 0, 0.025, zz);
+  for (const sx of [-0.28, 0.28]) for (const zz of [-0.12, 0.18]) b.box('metal', AL, 0.045, 0.22, 0.045, sx, 0.15, zz);
+  for (const sx of [-0.27, 0.27]) b.box('metal', AL, 0.035, 0.035, 0.5, sx, 0.26, 0.02);
+  b.box('metal', '#1d1d20', 0.46, 0.05, 0.48, 0, 0.26, 0.02);
+  // kuipstoel (foto): smalle racing-kuip, 0.54 breed, rug ~27 graden achterover, bovenkant ~1.17 m; zijprofiel als extrusie
+  // met afgeronde rand (X = naar voren, Y = omhoog), ry = HP legt X op -z (de piloot kijkt naar -z) en de extrusie op x
+  const prof = (pts, depth) => { const sh = new T.Shape(); sh.moveTo(pts[0][0], pts[0][1]); for (const [x, y] of pts.slice(1)) sh.lineTo(x, y); sh.closePath();
+    const g = new T.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2, curveSegments: 4 }); g.translate(0, 0, -depth / 2); return g; };
+  const SIDE = [[0.27, 0], [0.27, 0.13], [0.16, 0.19], [-0.1, 0.17], [-0.2, 0.2], [-0.52, 0.82], [-0.56, 0.89], [-0.67, 0.86], [-0.3, 0.02], [-0.28, 0]];   // wang: hoge rand, loopt door tot de hoofdsteun
+  const MID = [[0.26, 0.01], [0.26, 0.08], [-0.14, 0.09], [-0.2, 0.14], [-0.53, 0.78], [-0.56, 0.86], [-0.64, 0.84], [-0.3, 0.03], [-0.28, 0.01]];       // middenbaan: lage zitting, rugleuning, hoofdsteun
+  b.push(0, 0.285, 0);
+  b.geo('fabric', S, prof(MID, 0.44), 0, 0, 0, 0, HP, 0);
+  for (const sx of [-1, 1]) b.geo('fabric', S2, prof(SIDE, 0.05), sx * 0.245, 0, 0, 0, HP, 0);
+  b.push(0, 0.14, 0.2, 0.47, 0, 0);                                                                           // vlak van de rugleuning (voorkant)
+  b.box('fabric', '#3a3c40', 0.2, 0.56, 0.006, 0, 0.3, -0.003);                                                   // grijze middenbaan
+  for (const sx of [-1, 1]) { b.box('solid', '#08080a', 0.055, 0.03, 0.03, sx * 0.08, 0.6, -0.012); b.box('solid', E, 0.012, 0.6, 0.008, sx * 0.21, 0.32, -0.004); }   // gordelsleuven, lichte bies
+  b.pop();
+  b.box('fabric', '#3a3c40', 0.2, 0.004, 0.36, 0, 0.09, 0.0);                                                    // grijze baan op de zitting
+  b.pop();
+  // sporttas (donker petrol) over de zitting, leunt tegen de rug
+  b.box('fabric', '#1d4a46', 0.36, 0.26, 0.16, 0.03, 0.47, 0.1, 0.47, 0.15, 0); b.box('fabric', '#16383a', 0.3, 0.1, 0.17, 0.03, 0.4, 0.05, 0.47, 0.15, 0);
+  b.box('solid', '#101012', 0.012, 0.3, 0.03, 0.03, 0.5, 0.0, 0.47, 0.15, 0);
   // kolom + plaat (yoke, gasquadrant, keyboard-tray aan de muurkant)
-  b.box('metal', FRM, 0.06, 0.9, 0.06, 0, 0.45, -0.8); b.box('metal', FRM, 0.3, 0.04, 0.04, 0, 0.9, -0.95);
+  b.box('metal', AL, 0.06, 0.9, 0.06, 0, 0.45, -0.8); b.box('metal', AL, 0.3, 0.04, 0.04, 0, 0.9, -0.95);
   b.box('solid', BLK, 0.56, 0.025, 0.5, -0.05, 0.925, -0.85);
   // yoke: zwarte basis, as naar de piloot, naaf, twee horens omhoog met grepen en hoedje
   b.box('solid', '#141416', 0.2, 0.11, 0.26, 0, 0.99, -0.78); b.box('solid', '#1d1d21', 0.14, 0.03, 0.2, 0, 1.06, -0.78);
@@ -675,7 +682,7 @@ function rig(T, b, x, z, ry) {
   for (let i = 0; i < 6; i++) b.box('glow', G, 0.014, 0.004, 0.014, -0.32 + (i % 3) * 0.045, 1.062 + (i < 3 ? 0.012 : -0.003), -0.705 + (i < 3 ? -0.03 : 0.02), -0.3, 0, 0);
   for (let i = 0; i < 3; i++) b.cyl('solid', '#2a2a2e', 0.009, 0.009, 0.014, 8, -0.32 + i * 0.045, 1.03, -0.63);
   // zijplaat (piloot-links) aan een arm van de kolom: MOZA-paneel met groene toetsen, trimwiel, grijs schakelkastje
-  b.box('metal', FRM, 0.38, 0.04, 0.04, -0.2, 0.76, -0.78); b.box('metal', FRM, 0.04, 0.04, 0.5, -0.4, 0.76, -0.55);
+  b.box('metal', AL, 0.38, 0.04, 0.04, -0.2, 0.76, -0.78); b.box('metal', AL, 0.04, 0.04, 0.5, -0.4, 0.76, -0.55);
   b.box('solid', BLK, 0.32, 0.025, 0.52, -0.53, 0.78, -0.55);
   b.push(-0.53, 0.79, -0.4, 0, 0, -0.1);                                                                      // paneel iets naar de piloot gekanteld
   b.box('solid', '#1c1c20', 0.3, 0.05, 0.19, 0, 0.025, 0); b.box('solid', '#2a2b30', 0.3, 0.012, 0.03, 0, 0.03, 0.1);
@@ -693,6 +700,8 @@ function rig(T, b, x, z, ry) {
   b.geo('solid', '#141416', new T.TorusGeometry(0.06, 0.008, 6, 16, PI), 0.17, 0.99, -0.96, 0, 0, 0);
   b.box('solid', '#1a1a1d', 0.06, 0.04, 0.08, -0.33, 0.955, -1.03); b.box('glow', '#ff2020', 0.012, 0.006, 0.012, -0.33, 0.978, -1.0);
   b.box('solid', '#111114', 0.1, 0.07, 0.012, -0.3, 1.0, -0.93, -0.5, 0, 0); b.box('glow', '#2a3550', 0.085, 0.055, 0.002, -0.3, 1.0, -0.923, -0.5, 0, 0);
+  // pedalen op de ligger
+  b.box('solid', '#1a1a1d', 0.3, 0.03, 0.18, 0, 0.065, -0.92); for (const sx of [-1, 1]) b.box('solid', '#2a2b2f', 0.09, 0.14, 0.02, sx * 0.09, 0.15, -0.98, -0.5, 0, 0);
   b.pop();
 }
 // glazen gaming-pc (foto): zwarte kast, glas voor (+x) en opzij (+z); drie RGB-fans (groen/cyaan/roze) achter het voorglas, pompblok met
@@ -740,35 +749,50 @@ function wireStool(T, b, x, z) {
   b.cyl('solid', '#151517', 0.21, 0.21, 0.014, 24, x, 0.452, z);
 }
 // rond donkergroen (petrol) hondenbed, zitzak-achtig
-function roundBed(b, x, z) {
-  b.cyl('fabric', '#2c4a3e', 0.46, 0.5, 0.2, 28, x, 0.1, z); b.cyl('fabric', '#36584b', 0.35, 0.35, 0.15, 24, x, 0.085, z);
+function roundBed(b, x, z, r = 0.5) {
+  b.cyl('fabric', '#2c4a3e', r * 0.92, r, 0.2, 28, x, 0.1, z); b.cyl('fabric', '#36584b', r * 0.7, r * 0.7, 0.15, 24, x, 0.085, z);
 }
 
-/* ---------- "Huidig" (kantoor_1.jpg): alles langs de linkerwand (x = 0), kasten rechts ---------- */
+/* ---------- "Huidig" (kantoor_1.jpg): alles langs de linkerwand (x = 0), kasten rechts ----------
+ *  Foto, van voor (hal) naar achter: het zit-stabureau staat haaks op de muur voor de trapkop (x 0.08-1.24, z 5.5-6.24), de gebruiker zit
+ *  met de rug naar de hal, het 27"-scherm kijkt naar de hal; daarachter de glazen pc op een laag zwart kastje met het 32"-scherm aan een
+ *  wandarm erboven; de tweede toren ligt op een kastje bij de muur; de rig staat schuin (piloot kijkt naar de hoek muur/tuin) met de
+ *  draadkruk ervoor en het hondenbed tussen rig en gamestoel. */
 function buildHuidig(T, b) {
-  // bureau: zwart blad met grijze voorrand op donkergrijs stalen frame, x 0.03–0.68, z 4.6–6.33
-  b.box('solid', '#141416', 1.73, 0.03, 0.65, 0.355, 0.735, 5.465); b.box('metal', '#5a5c60', 1.73, 0.012, 0.012, 0.355, 0.728, 5.795);
-  for (const z of [4.66, 6.27]) { for (const x of [0.12, 0.6]) b.box('metal', '#2a2b2f', 0.05, 0.70, 0.05, x, 0.36, z); b.box('metal', '#2a2b2f', 0.56, 0.03, 0.05, 0.36, 0.015, z); b.box('metal', '#2a2b2f', 0.56, 0.03, 0.05, 0.36, 0.705, z); }
-  b.box('metal', '#2a2b2f', 0.04, 0.04, 1.55, 0.1, 0.62, 5.465);
-  // op het bureau: witte controller, donkerrode muismat, muis met blauw lampje, mok, zwart kastje onder het 27"-scherm
-  b.box('solid', '#e8e8ea', 0.16, 0.05, 0.1, 0.5, 0.775, 6.22, 0, 0.3, 0);
-  b.box('fabric', '#4d1a1e', 0.45, 0.004, 0.38, 0.46, 0.752, 5.95); for (let i = 0; i < 12; i++) b.box('fabric', '#7a3a2a', 0.02, 0.001, 0.02, 0.28 + hash(i, 1, 31) * 0.36, 0.7545, 5.78 + hash(i, 2, 31) * 0.34);
-  b.box('solid', '#1a1a1d', 0.06, 0.03, 0.1, 0.56, 0.768, 5.98); b.box('glow', '#3a7bff', 0.004, 0.004, 0.05, 0.56, 0.785, 5.97);
-  b.cyl('solid', '#efefef', 0.04, 0.036, 0.095, 12, 0.3, 0.8, 6.1);
-  b.box('solid', '#141416', 0.26, 0.05, 0.09, 0.26, 0.775, 5.62);
-  // monitor 1 (27", naar de stoel gedraaid), glazen pc met webcam, monitor 2 (32") op een arm boven de pc, tweede toren op kastje
-  monitor(b, 0.597, 0.336, 0.42, 1.06, 5.85, HP - 0.4, 0.75, false);
-  glassPc(T, b, 0.35, 0.75, 5.3);
-  monitor(b, 0.705, 0.397, 0.3, 1.45, 4.68, HP - 0.1, 0.75, true);
-  tower2(b, 0.33, 0.75, 4.3);
-  // rig (piloot kijkt naar de muur), draadstoel, hondenbed, gamestoel
-  rig(T, b, 1.65, 4.6, HP);
-  wireStool(T, b, 1.15, 5.1);
-  roundBed(b, 0.9, 5.8);
-  gamingChair(b, 0.9, 6.65, -2.45);
+  // bureau: zwart blad met lichtgrijze rand op een lichtgrijs zit-sta-frame (twee T-poten met voeten langs z, dwarsbalk, kabelgoot)
+  const DK = '#141416', FR = '#a3a6ab';
+  b.box('solid', DK, 1.16, 0.025, 0.74, 0.66, 0.735, 5.87);
+  b.box('metal', FR, 1.16, 0.025, 0.014, 0.66, 0.735, 6.247); b.box('metal', FR, 1.16, 0.025, 0.014, 0.66, 0.735, 5.493);
+  b.box('metal', FR, 0.014, 0.025, 0.74, 1.233, 0.735, 5.87);
+  for (const x of [0.34, 0.98]) { b.box('metal', FR, 0.075, 0.42, 0.075, x, 0.25, 5.87); b.box('metal', FR, 0.06, 0.28, 0.06, x, 0.6, 5.87); b.box('metal', FR, 0.07, 0.04, 0.62, x, 0.02, 5.87); b.box('metal', FR, 0.3, 0.03, 0.05, x, 0.705, 5.87); }
+  b.box('metal', FR, 0.6, 0.05, 0.05, 0.66, 0.66, 5.87); b.box('solid', '#1b1b1e', 1.0, 0.08, 0.3, 0.66, 0.68, 5.68);
+  // op het bureau: witte controller, donkerrode muismat, muis met blauw lampje, mok, papier, zwart kastje onder het 27"-scherm
+  b.box('solid', '#e8e8ea', 0.16, 0.05, 0.1, 0.2, 0.775, 6.12, 0, 0.6, 0);
+  b.box('fabric', '#4d1a1e', 0.45, 0.004, 0.38, 0.6, 0.75, 6.03); for (let i = 0; i < 12; i++) b.box('fabric', '#7a3a2a', 0.02, 0.001, 0.02, 0.42 + hash(i, 1, 31) * 0.36, 0.7525, 5.86 + hash(i, 2, 31) * 0.34);
+  b.box('solid', '#1a1a1d', 0.06, 0.03, 0.1, 0.7, 0.766, 6.1); b.box('glow', '#3a7bff', 0.004, 0.004, 0.05, 0.7, 0.783, 6.09);
+  b.cyl('solid', '#efefef', 0.04, 0.036, 0.095, 12, 1.08, 0.796, 5.72);
+  b.box('solid', '#f2f2ee', 0.21, 0.003, 0.3, 0.25, 0.75, 5.62, 0, 0.1, 0);
+  b.box('solid', '#141416', 0.26, 0.05, 0.09, 0.5, 0.773, 5.56);
+  // monitor 1 (27", kijkt naar de hal, iets naar de kamer gedraaid)
+  monitor(b, 0.597, 0.336, 0.5, 1.0, 5.6, 0.3, 0.748, false);
+  // laag zwart kastje (open vak met witte afstandsbediening) met de glazen pc erop; 32"-scherm aan een wandarm erboven
+  b.box('solid', '#121214', 0.5, 0.025, 0.55, 0.42, 0.338, 4.78); b.box('solid', '#121214', 0.5, 0.025, 0.55, 0.42, 0.04, 4.78);
+  for (const z of [4.52, 5.04]) b.box('solid', '#121214', 0.5, 0.3, 0.025, 0.42, 0.19, z);
+  b.box('solid', '#121214', 0.025, 0.3, 0.55, 0.18, 0.19, 4.78);
+  b.box('solid', '#eeeeee', 0.05, 0.02, 0.16, 0.5, 0.062, 4.9, 0, 0.3, 0);
+  glassPc(T, b, 0.42, 0.35, 4.78);
+  monitor(b, 0.705, 0.397, 0.46, 1.1, 4.45, PI / 4, null, false);
+  b.box('metal', '#232326', 0.36, 0.04, 0.04, 0.22, 1.1, 4.35); b.box('metal', '#232326', 0.02, 0.2, 0.12, 0.03, 1.1, 4.35);
+  // tweede toren op zijn kastje bij de muur
+  tower2(b, 0.95, 0.75, 4.2);
+  // rig (schuin, piloot kijkt naar de hoek muur/tuin), draadkruk ervoor, hondenbed, gamestoel naar de kamer gedraaid
+  rig(T, b, 1.35, 5.1, 0.95);
+  wireStool(T, b, 1.1, 5.9);
+  roundBed(b, 1.65, 6.3, 0.42);
+  gamingChair(b, 1.0, 6.75, -1.9);
   // kabels (zwarte slierten onder het bureau), rode pantoffel in het looppad, beige knuffel bij de bank
-  for (let i = 0; i < 4; i++) b.box('solid', '#0c0c0e', 0.012, 0.012, 1.2 + hash(i, 1, 21) * 0.4, 0.14 + hash(i, 2, 21) * 0.4, 0.012, 5.4, 0, hash(i, 3, 21) * 0.3 - 0.15, 0);
-  b.box('fabric', '#8a1a24', 0.27, 0.05, 0.11, 2.15, 0.025, 6.8, 0, 0.5, 0); b.box('fabric', '#8a1a24', 0.13, 0.07, 0.1, 2.2, 0.08, 6.77, 0, 0.5, 0);
+  for (let i = 0; i < 4; i++) b.box('solid', '#0c0c0e', 1.0 + hash(i, 1, 21) * 0.2, 0.012, 0.012, 0.6, 0.012, 5.6 + hash(i, 2, 21) * 0.4, 0, hash(i, 3, 21) * 0.3 - 0.15, 0);
+  b.box('fabric', '#8a1a24', 0.27, 0.05, 0.11, 2.25, 0.025, 7.25, 0, 0.5, 0); b.box('fabric', '#8a1a24', 0.13, 0.07, 0.1, 2.3, 0.08, 7.22, 0, 0.5, 0);
   b.cyl('fabric', '#d8c7a8', 0.06, 0.06, 0.2, 10, 2.0, 0.06, 3.2, 0, 0, HP); b.cyl('fabric', '#d8c7a8', 0.05, 0.05, 0.08, 10, 2.14, 0.08, 3.2, 0, 0, HP);
   // rechterwand: hoge zwarte kast met lichtgrijze randen en glazen deuren in de sprong van de wand (x 3.05–3.6, z 2.95–3.8)
   b.box('solid', '#121214', 0.55, 0.76, 0.85, 3.325, 0.38, 3.365);
@@ -800,11 +824,13 @@ function buildHuidig(T, b) {
   b.box('solid', '#111114', 0.012, 0.18, 0.25, 0, 0, 0); b.box('glow', '#16203a', 0.003, 0.165, 0.235, 0.007, 0, 0);
   for (let i = 0; i < 8; i++) b.box('glow', i % 3 ? '#4f8fe6' : '#e6eef8', 0.002, 0.012 + hash(i, 1, 41) * 0.03, 0.025, 0.009, -0.03 + hash(i, 2, 41) * 0.05, -0.095 + i * 0.028);
   b.pop();
+  const sn = Math.sin(PI / 4) * 0.012, cs = Math.cos(PI / 4) * 0.012;
   return {
-    stream: [0.432, 1.06, 5.85, HP - 0.4], sim: [0.312, 1.45, 4.68, HP - 0.1], pc: [[0.35, 0.99, 5.3, 0.46, 0.48, 0.25], [0.33, 0.98, 4.3, 0.47, 0.46, 0.22]],
-    spill: [[0.7, 0.42, 0.48, 0.754, 5.85, -HP, 0, 'warm'], [1.3, 1.0, 0.012, 1.05, 5.0, 0, HP, 'rgb']],
-    cols: [[0, 0.72, 4.55, 6.36], [0, 0.62, 4.1, 4.5], [0.52, 2.02, 4.26, 4.95], [0.95, 1.35, 4.9, 5.3], [0.6, 1.25, 6.3, 6.98], [3.02, 3.62, 2.94, 3.8], [2.48, 3.0, 4.9, 6.42]],
-    dogBed: { x: 0.9, z: 5.8, r: 0.5, top: 0.16 }, chair: { x: 0.9, z: 6.65, y: 0.52 },
+    stream: [0.5 + Math.sin(0.3) * 0.012, 1.0, 5.6 + Math.cos(0.3) * 0.012, 0.3], sim: [0.46 + sn, 1.1, 4.45 + cs, PI / 4],
+    pc: [[0.42, 0.59, 4.78, 0.46, 0.48, 0.25], [0.95, 0.98, 4.2, 0.47, 0.46, 0.22]],
+    spill: [[0.7, 0.42, 0.5, 0.75, 5.85, -HP, 0, 'warm'], [1.3, 1.0, 0.012, 0.9, 4.7, 0, HP, 'rgb']],
+    cols: [[0, 1.28, 5.45, 6.3], [0, 0.72, 4.45, 5.1], [0.68, 1.22, 4.03, 4.38], [0.6, 2.0, 4.35, 5.65], [0.88, 1.32, 5.68, 6.12], [0.62, 1.38, 6.38, 7.1], [3.02, 3.62, 2.94, 3.8], [2.48, 3.0, 4.9, 6.42]],
+    dogBed: { x: 1.65, z: 6.3, r: 0.42, top: 0.16 }, chair: { x: 1.0, z: 6.75, y: 0.52 },
   };
 }
 
