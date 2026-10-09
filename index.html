@@ -350,7 +350,7 @@ const WALLS = [
   [0, 'x', -0.22, 3.0, 9.06, 9.28, [[1.05, 1.7, 'w', 0.9, 2.2], [1.75, 2.5, 'D', 0, 2.2, 1]]],
 
   [0, 'z', 3.8, 12.47, 3.0, 3.25, [[10.04, 11.13, 'w', 0.8, 2.2]]],
-  [0, 'x', 3.0, 9.22, 12.25, 12.47, [[3.53, 6.45, 'w', 0.5, 2.3], [7.27, 7.97, 'D', 0, 2.15, -1], [8.05, 8.7, 'w', 1.0, 2.2]]],
+  [0, 'x', 3.0, 9.22, 12.25, 12.47, [[3.53, 6.45, 'w', 0.5, 2.3], [7.27, 7.97, 'D', 0, 2.15, -1], [8.05, 8.6, 'w', 0, 2.15, 'ribbed']]], // beside the front door: a full-height reeded side light up to the meter cupboard (photos)
   [0, 'z', -0.22, 12.47, 9.0, 9.22],
   // ---- ground floor, interior
   [0, 'z', 0, 4.0, 3.62, 3.72, [[2.47, 3.21, 'd', 0, 2.05, -1]]],
@@ -712,6 +712,14 @@ function texWicker() {
   }
   noise(ctx, S, 14, 43); return c;
 }
+// figured (reeded) glass: soft vertical streaks that break up the view
+function texReeds() {
+  const S = 128, c = mkCanvas(S), ctx = c.getContext('2d'), R = rng(57);
+  ctx.fillStyle = '#c8c8c8'; ctx.fillRect(0, 0, S, S);
+  for (let x = 0; x < S; x += 2) { const v = 150 + Math.round(R() * 105); ctx.fillStyle = `rgb(${v},${v},${v})`; ctx.fillRect(x, 0, 1 + Math.round(R() * 2), S); }
+  for (let i = 0; i < 40; i++) { const x = R() * S, w = 2 + R() * 5, v = R() < 0.5 ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.16)'; ctx.fillStyle = v; ctx.fillRect(x, 0, w, S); ctx.fillRect(x - S, 0, w, S); }
+  return c;
+}
 function texLino() {
   const S = 1024, c = mkCanvas(S), ctx = c.getContext('2d'), R = rng(31);
   ctx.fillStyle = '#c3ad86'; ctx.fillRect(0, 0, S, S);
@@ -793,7 +801,7 @@ const T = {
   brick: canvasTex(texBrick(0), 0.88, 0.875), brick2: canvasTex(texBrick(1), 0.88, 0.875), roof: canvasTex(texRoof(), 1.5),
   grass: canvasTex(texGrass(), 2.5), paving: canvasTex(texTiles(4, () => [40, 5, 58], '#6f6c66', 4, 81), 1.2),
   fence: canvasTex(texBoards(25, 25, 24, 4), 0.6, 1.8), shed: canvasTex(texBoards(28, 20, 34, 5), 0.8, 2.4),
-  rug: canvasTex(texRug(), 0.7), wicker: canvasTex(texWicker(), 0.16),
+  rug: canvasTex(texRug(), 0.7), reeds: canvasTex(texReeds(), 0.18), wicker: canvasTex(texWicker(), 0.16),
   asphalt: canvasTex((() => { const c = mkCanvas(256), x = c.getContext('2d'); x.fillStyle = '#44464a'; x.fillRect(0, 0, 256, 256); noise(x, 256, 30, 3); return c; })(), 1.5),
 };
 // procedural canvases are the fallback diffuse of each photo set until (unless) the jpg arrives
@@ -822,10 +830,10 @@ const STATIC_MAT = {
   plaster: () => bindSet(new MSM({ color: '#eeece6', roughness: 0.92 }), 'plaster', { ns: 0.45 }), ceiling: () => bindSet(new MSM({ color: '#f5f4f0', roughness: 0.95 }), 'plaster', { ns: 0.3 }),
   slab: () => new MSM({ color: '#a29f97', roughness: 1 }), trim: () => new MSM({ color: '#e7e5df', roughness: 0.7 }),
   frame: () => new MSM({ color: '#f2f1ec', roughness: 0.45 }), plate: () => new MSM({ color: '#fbfbfa', roughness: 0.28 }), // switch/socket plastic
-  dorpelStone: () => new MSM({ color: '#d3d0c9', roughness: 0.3 }), dorpelWood: () => new MSM({ color: '#a47d55', roughness: 0.55 }), ledRed: () => new MSM({ color: '#ff3020', emissive: '#ff2010', emissiveIntensity: 2.5 }),
+  dorpelStone: () => new MSM({ color: '#d3d0c9', roughness: 0.3 }), dorpelWood: () => new MSM({ color: '#a47d55', roughness: 0.55 }), shoeBrown: () => new MSM({ color: '#6b4a2e', roughness: 0.55 }), sole: () => new MSM({ color: '#e9e6df', roughness: 0.7 }), opal: () => new MSM({ color: '#f6f4ef', emissive: '#ffd9a6', emissiveIntensity: 0, roughness: 0.35 }), ledRed: () => new MSM({ color: '#ff3020', emissive: '#ff2010', emissiveIntensity: 2.5 }),
   fruitRed: () => new MSM({ color: '#9e1f1a', roughness: 0.35 }), fruitOrange: () => new MSM({ color: '#e07a1c', roughness: 0.55 }), fruitYellow: () => new MSM({ color: '#e8c53a', roughness: 0.5 }), fruitGreen: () => new MSM({ color: '#6e9a2c', roughness: 0.3 }),
   glass: () => new MSM({ color: '#c9dde6', transparent: true, opacity: 0.16, roughness: 0.04, metalness: 0.1, envMapIntensity: 2, depthWrite: false }),
-  ribbed: () => new MSM({ color: '#b9c4c6', transparent: true, opacity: 0.38, roughness: 0.25, metalness: 0.05, envMapIntensity: 1.5, depthWrite: false }), // reeded door glass: light through, no view
+  ribbed: () => new MSM({ color: '#8a9497', map: T.reeds, emissive: '#e1e7e9', emissiveMap: T.reeds, transparent: true, opacity: 0.8, roughness: 0.25, metalness: 0.05, envMapIntensity: 1.5, depthWrite: false }), // reeded door glass: light through, no view; dark at night (photos), glows by day (applyTime)
   glassDark: () => new MSM({ color: '#27313a', roughness: 0.08, metalness: 0.4 }),
   doorleaf: () => new MSM({ color: '#f3f2ee', roughness: 0.4 }), extdoor: () => new MSM({ color: '#24423a', roughness: 0.35 }),
   hardware: () => new MSM({ color: '#b9bbbd', metalness: 0.95, roughness: 0.32 }),
@@ -843,7 +851,7 @@ const STATIC_MAT = {
   towelBlue: () => bindSet(new MSM({ color: '#2c5d97', roughness: 1 }), 'fabric', { ns: 1 }), bathmat: () => bindSet(new MSM({ color: '#38393d', roughness: 1 }), 'fabric', { ns: 1.2 }),
   wicker: () => new MSM({ map: T.wicker, roughness: 0.85 }), scaleGlass: () => new MSM({ color: '#1d1f22', roughness: 0.12, metalness: 0.2 }), paper: () => new MSM({ color: '#f4f3ef', roughness: 0.95 }),
   ceramicBeige: () => new MSM({ color: '#ddd0b6', roughness: 0.12 }), // the entree toilet is an old 'bahama beige' one (photos)
-  frosted: () => new MSM({ color: '#e4ecee', emissive: '#e3eaee', transparent: true, opacity: 0.9, roughness: 0.6, metalness: 0, envMapIntensity: 0.8, depthWrite: false }), // bathroom window: obscured glass, glows with the daylight it scatters (applyTime)
+  frosted: () => new MSM({ color: '#a3acaf', emissive: '#e3eaee', transparent: true, opacity: 0.9, roughness: 0.6, metalness: 0, envMapIntensity: 0.8, depthWrite: false }), // bathroom window: obscured glass, glows with the daylight it scatters (applyTime)
   hob: () => new MSM({ color: '#0e0f10', roughness: 0.08, metalness: 0.3 }),
   soot: () => new MSM({ color: '#1a1918', roughness: 1 }), mirror: () => new MSM({ color: '#e8eef0', metalness: 1, roughness: 0.03 }),
   screen: () => new MSM({ color: '#0b0c0e', roughness: 0.12, metalness: 0.4 }), dark: () => new MSM({ color: '#2b2c2d', roughness: 0.6 }),
@@ -1071,21 +1079,22 @@ function buildWall(w) {
     if (sill > 0.001) emitPiece(l, axis, oa, ob, bot, () => fl + sill, c0, c1, brk);
     emitPiece(l, axis, oa, ob, () => fl + head, top, c0, c1, brk);
     s = ob;
-    if (type === 'w') buildWindow(l, axis, oa, ob, fl + sill, fl + head, c0, c1);
+    if (type === 'w') buildWindow(l, axis, oa, ob, fl + sill, fl + head, c0, c1, op[5]);
     else if ('dDg'.includes(type)) buildDoor(l, axis, op, c0, c1);
   }
   if (s < a1) emitPiece(l, axis, s, a1, bot, top, c0, c1, brk);
 }
-function buildWindow(l, axis, a, b, y0, y1, c0, c1) {
+function buildWindow(l, axis, a, b, y0, y1, c0, c1, glass = null) {
   const ft = 0.06, cm = (c0 + c1) / 2, d0 = cm - 0.045, d1 = cm + 0.045, k = K(l, 'main', 'frame');
   abox(k, axis, a, a + ft, y0, y1, d0, d1); abox(k, axis, b - ft, b, y0, y1, d0, d1);
   abox(k, axis, a, b, y1 - ft, y1, d0, d1); abox(k, axis, a, b, y0, y0 + ft, d0, d1);
   const nm = Math.max(0, Math.round((b - a) / 1.0) - 1);
   for (let i = 1; i <= nm; i++) { const m = a + (b - a) * i / (nm + 1); abox(k, axis, m - 0.03, m + 0.03, y0, y1, d0, d1); }
-  if (y1 - y0 > 1.7) abox(k, axis, a, b, y1 - 0.5, y1 - 0.45, d0, d1);
+  if (y1 - y0 > 1.7 && !glass) abox(k, axis, a, b, y1 - 0.5, y1 - 0.45, d0, d1);
   // the bathroom window has obscured glass (photos); every other window is clear
   const mid = (a + b) / 2, wet = l === 1 && (axis === 'x' ? mid > 6.68 && mid < 9.0 && cm > 4.0 && cm < 8.3 : cm > 6.6 && mid > 4.2 && mid < 8.13);
-  abox(K(l, 'glass', wet ? 'frosted' : 'glass'), axis, a + ft, b - ft, y0 + ft, y1 - ft, cm - 0.004, cm + 0.004);
+  abox(K(l, 'glass', glass || (wet ? 'frosted' : 'glass')), axis, a + ft, b - ft, y0 + ft, y1 - ft, cm - 0.004, cm + 0.004);
+  if (y0 <= LV[l].floor + 0.01) { if (axis === 'x') addCol(l, a, b, c0, c1); else addCol(l, c0, c1, a, b); return; } // floor-to-head glass: no sill, but you cannot walk through it
   // interior sill board
   abox(K(l, 'main', 'trim'), axis, a - 0.03, b + 0.03, y0 - 0.03, y0, Math.min(c0, c1) - 0.0, Math.max(c0, c1));
 }
@@ -1387,7 +1396,7 @@ function flushAB() {
   AB.build((key, g) => {
     const [l, cat, ...rest] = key.split('|'), mk = rest.join('|');
     const mesh = new THREE.Mesh(g, M(mk));
-    const glassy = mk === 'glass' || mk === 'frosted';
+    const glassy = mk === 'glass' || mk === 'frosted' || mk === 'ribbed';
     mesh.castShadow = !glassy; mesh.receiveShadow = !glassy;
     (l === 'x' ? EXT : G[+l][cat === 'glass' ? 'main' : cat]).add(mesh);
   });
@@ -2010,11 +2019,13 @@ function addMirror(l, x, z, ry, w, h = 0.7, yc = 1.55) {
   const c = Math.cos(ry), s = Math.sin(ry), fl = LV[l].floor, room = roomAt(l, x + 0.3 * s, z + 0.3 * c);
   const rt = new THREE.WebGLCubeRenderTarget(LOWQ ? 128 : 256, { type: THREE.HalfFloatType });
   const U = { uBoxMin: { value: V(0, 0, 0) }, uBoxMax: { value: V(0, 0, 0) }, uCubePos: { value: V(x + 0.45 * s, fl + yc, z + 0.45 * c) } };
-  const rect = room && room.rects.find(q => x + 0.3 * s >= q[0] && x + 0.3 * s <= q[1] && z + 0.3 * c >= q[2] && z + 0.3 * c <= q[3]);
+  const rect = room && room.rects.reduce((B, q) => [Math.min(B[0], q[0]), Math.max(B[1], q[1]), Math.min(B[2], q[2]), Math.max(B[3], q[3])], [1e9, -1e9, 1e9, -1e9]);
   if (rect) { U.uBoxMin.value.set(rect[0], fl, rect[2]); U.uBoxMax.value.set(rect[1], LV[l].ceil, rect[3]); }
   const mat = new MSM({ color: '#e8eef0', metalness: 1, roughness: 0.03, envMap: rt.texture });
   mat.onBeforeCompile = function (sh, R) {
     THREE.Material.prototype.onBeforeCompile.call(this, sh, R); // keep the post module's lighting patch
+    // ...except its indoor damping of reflections: that is for surfaces mirroring the sky, this mirror shows its own room
+    sh.fragmentShader = sh.fragmentShader.replace('reflectedLight.indirectSpecular *= postInKs * postSO * postTintV;', '');
     if (!rect) return;
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vMirW;')
@@ -2033,16 +2044,21 @@ function captureMirror(M) {
   try {
     G.forEach((g, i) => { g.main.visible = i <= M.l + 1; g.ceil.visible = true; });
     M.m.visible = false; renderer.shadowMap.autoUpdate = false;
-    M.cam.position.copy(M.U.uCubePos.value); M.cam.update(renderer, scene);
+    M.cam.position.copy(M.U.uCubePos.value);
+    const shade = window.HOUSE?.post?.shade; if (shade) shade(() => M.cam.update(renderer, scene)); else M.cam.update(renderer, scene);
   } finally { G.forEach((g, i) => { g.main.visible = vis[i][0]; g.ceil.visible = vis[i][1]; }); M.m.visible = true; renderer.shadowMap.autoUpdate = au; }
   M.at = performance.now();
 }
 // one capture per frame at most: first every mirror once, then the ones within reach every 2 s (4 s on phones)
+let mirrorStale = 0; // applyTime: the light changed, so every mirror is re-captured once the slider settles
 function mirrorTick() {
   if (renderPaused || renderer.xr.isPresenting || frames < 8 || !MIRRORS.length) return;
-  const now = performance.now(), every = LOWQ ? 4000 : 2000;
-  const M = MIRRORS.find(M => M.at < 0) || MIRRORS.find(M => now - M.at > every && camera.position.distanceTo(M.m.position) < 4.5);
-  if (M) captureMirror(M);
+  const now = performance.now(), every = LOWQ ? 4000 : 2000, near = M => camera.position.distanceTo(M.m.position) < 4.5;
+  if (mirrorStale && now - mirrorStale > 250) { mirrorStale = 0; for (const M of MIRRORS) M.at = -1; }
+  // a mirror you just walked (or jumped) up to is refreshed straight away, with this room's lamp already on
+  const M = MIRRORS.find(M => M.at < 0) || MIRRORS.find(M => near(M) && !M.near) || MIRRORS.find(M => now - M.at > every && near(M));
+  for (const m of MIRRORS) if (!near(m)) m.near = false;
+  if (M) { if (lampFactor > 0) updateLamps(); captureMirror(M); M.near = near(M); }
 }
 function buildFixtures() {
   const k = (l, m) => K(l, 'main', m), bx = (l, m, ...a) => AB.box(k(l, m), ...a);
@@ -2088,9 +2104,22 @@ function buildFixtures() {
   };
   // rookmelders (required since 2022): on the ceiling of the escape route on every floor, with the little red status LED
   for (const [l, x, z] of [[0, 7.65, 10.6], [1, 7.6, 8.7], [2, 7.57, 9.0]]) {
-    const f = kit(AB, x, ceilAt(l, x, z), z, 0); f.cyl(k(l, 'plate'), 0, -0.019, 0, 0.05, 0.032, 28, 0.056); f.cyl(k(l, 'plate'), 0, -0.002, 0, 0.06, 0.004, 28); f.cyl(k(l, 'ledRed'), 0.032, -0.0355, 0, 0.0028, 0.002, 8);
+    const f = kit(AB, x, ceilAt(l, x, z), z, 0); f.cyl(K(l, 'ceil', 'plate'), 0, -0.019, 0, 0.05, 0.032, 28, 0.056); f.cyl(K(l, 'ceil', 'plate'), 0, -0.002, 0, 0.06, 0.004, 28); f.cyl(K(l, 'ceil', 'ledRed'), 0.032, -0.0355, 0, 0.0028, 0.002, 8);
+  }
+  // flush opal ceiling lights in the rooms without a pendant (they carry the LAMP_SPOTS lights at night)
+  for (const [l, x, z] of [[0, 0.45, 8.43], [0, 2.0, 8.43], [0, 8.62, 8.27], [1, 7.6, 9.6], [1, 8.0, 11.3], [2, 7.55, 9.8]]) {
+    const f = kit(AB, x, ceilAt(l, x, z), z, 0); f.cyl(K(l, 'ceil', 'plate'), 0, -0.012, 0, 0.13, 0.024, 32, 0.14); f.sph(K(l, 'ceil', 'opal'), 0, -0.024, 0, 0.125, 0.07, 0.125, 0, 0, 0, 24);
   }
   basin(0, 0.0, 8.15, HP, 0.36); basin(0, 9.0, 8.5, -HP, 0.36); basin(1, 6.68, 5.4, HP, 0.6, 'ped'); basin(1, 7.03, 11.25, HP, 0.6, true);
+  // entree (photos): tall black-framed mirror on the meter-cupboard door, anthracite doormat, shoes kicked off by the door
+  addMirror(0, 8.6, 11.86, -HP, 0.32, 1.2, 1.45);
+  { const f = kit(AB, 8.6, 0, 11.86, -HP), b = k(0, 'black');
+    for (const sx of [-1, 1]) f.box(b, sx * 0.175, 1.45, 0.0125, 0.03, 1.26, 0.025);
+    for (const sy of [-1, 1]) f.box(b, 0, 1.45 + sy * 0.615, 0.0125, 0.32, 0.03, 0.025); }
+  { const f = kit(AB, 0, 0, 0);
+    f.soft(k(0, 'bathmat'), 7.62, 0.008, 11.93, 0.9, 0.016, 0.55, 0, 0.006);
+    const shoe = (x, z, r, up, so) => { const g = kit(AB, x, 0, z, r); g.soft(k(0, so), 0, 0.013, 0, 0.1, 0.026, 0.28, 0, 0.012); g.soft(k(0, up), 0, 0.05, -0.03, 0.09, 0.07, 0.2, 0, 0.03); g.soft(k(0, up), 0, 0.036, 0.085, 0.085, 0.04, 0.1, 0, 0.02); };
+    for (const [x, z, r, up, so] of [[8.38, 11.62, 1.3, 'black', 'sole'], [8.36, 11.76, 1.45, 'black', 'sole'], [7.3, 11.9, -0.4, 'shoeBrown', 'black'], [7.42, 11.84, -0.25, 'shoeBrown', 'black']]) shoe(x, z, r, up, so); }
   // navy towel over the bathroom radiator, toilet roll holders (on the walls without a door)
   { const L = LV[1].floor, f = kit(AB, 0, 0, 0), t = k(1, 'towelNavy');
     f.box(t, 8.3, L + 0.585, 4.305, 0.42, 0.36, 0.014); f.soft(t, 8.3, L + 0.765, 4.255, 0.42, 0.032, 0.105, 0, 0.012); }
@@ -2136,11 +2165,13 @@ Object.assign(sun.shadow.camera, { left: -15, right: 15, top: 15, bottom: -15, n
 // normalBias scaled with texel size kills the acne speckle on the sloped roofs without peter-panning the furniture
 sun.shadow.bias = -0.00015; sun.shadow.normalBias = LOWQ ? 0.09 : 0.06; sun.shadow.radius = 4;
 const SUN_C = V(4.5, 0, 2); sun.target.position.copy(SUN_C); scene.add(sun, sun.target);
-const LAMPS = [['woonkamer', 5.15, 1.55, 1.25], ['woonkamer', 5.35, 1.75, 8.9], ['keuken', 7.55, 1.7, 2.0], ['zitkamer', 1.6, 2.2, 2.0]
-, ['entree', 7.65, 1.9, 9.3],
-  ['sk1', 4.9, 4.45, 6.4], ['sk2', 4.6, 4.45, 10.6], ['badkamer', 7.7, 4.8, 6.2], ['sk3', 5.0, 7.3, 8.23], ['zolderL', 1.8, 4.9, 3.9]].map(([id, x, y, z]) => {
-  const p = new THREE.PointLight('#ffc27a', 0, 9, 2); p.position.set(x, y, z); scene.add(p); return { l: ROOM[id].lvl, p };
-});
+// a light in every room; the toilets, halls and landings get a ceiling fixture of their own (y 0 = just under that ceiling, k scales for small rooms).
+// A fixed pool of 10 point lights follows the camera to the nearest spots: more lights would make every material shader heavier.
+const LAMP_SPOTS = [['woonkamer', 5.15, 1.55, 1.25], ['woonkamer', 5.35, 1.75, 8.9], ['keuken', 7.55, 1.7, 2.0], ['zitkamer', 1.6, 2.2, 2.0], ['entree', 7.65, 1.9, 9.3],
+  ['sk1', 4.9, 4.45, 6.4], ['sk2', 4.6, 4.45, 10.6], ['badkamer', 7.7, 4.8, 6.2], ['sk3', 5.0, 7.3, 8.23], ['zolderL', 1.8, 4.9, 3.9],
+  ['wc1', 0.45, 0, 8.43, 0.3], ['achterhal', 2.0, 0, 8.43, 0.5], ['wc2', 8.62, 0, 8.27, 0.3], ['overloop', 7.6, 0, 9.6, 0.55], ['wasruimte', 8.0, 0, 11.3, 0.7], ['zolderR', 7.55, 0, 9.8, 0.7]]
+  .map(([id, x, y, z, k = 1]) => { const l = ROOM[id].lvl; return { l, k, pos: V(x, y || ceilAt(l, x, z) - 0.12, z) }; });
+const LAMPS = LAMP_SPOTS.slice(0, 10).map(() => { const p = new THREE.PointLight('#ffc27a', 0, 9, 2); scene.add(p); return { p }; });
 const C_SKY_DAY = new THREE.Color('#cfe0ee'), C_SKY_NIGHT = new THREE.Color('#2a3a5c'), C_SKY_GOLD = new THREE.Color('#e7b98f');
 let lampLevel = 0;
 const clamp = THREE.MathUtils.clamp, lerp = THREE.MathUtils.lerp, sstep = THREE.MathUtils.smoothstep;
@@ -2160,16 +2191,32 @@ function applyTime(h) {
   if (skyTex) { scene.background = skyTex; scene.backgroundIntensity = lerp(lerp(1.0, 0.55, gold), 0.03, nf); scene.backgroundBlurriness = 0.02; }
   else scene.background = bg;
   const lf = h >= 17.5 ? clamp((h - 17.5) / 1.5, 0, 1) : clamp((7.5 - h) / 1.0, 0, 1);
-  lampFactor = lf; updateLamps();
-  M('shade').emissiveIntensity = 1.6 * lf; M('bulb').emissiveIntensity = 5 * lf; M('globeAmber').emissiveIntensity = M('globeSmoke').emissiveIntensity = 0.9 * lf;
+  lampFactor = lf; updateLamps(); mirrorStale = performance.now();
+  M('shade').emissiveIntensity = 1.6 * lf; M('bulb').emissiveIntensity = 5 * lf; M('opal').emissiveIntensity = 1.4 * lf; M('globeAmber').emissiveIntensity = M('globeSmoke').emissiveIntensity = 0.9 * lf;
   for (const k of ['rgbRed', 'rgbPurple', 'rgbGreen', 'rgbOrange']) for (const [kk, op] of [[k, 1], [k + 'G', 0.3]]) { const m = M(kk); m.opacity = op * lf; m.visible = lf > 0.01; }
-  M('frosted').emissiveIntensity = 0.5 * (1 - nf) * lerp(1, 0.75, gold);
+  M('frosted').emissiveIntensity = 0.75 * (1 - nf) * lerp(1, 0.75, gold); M('ribbed').emissiveIntensity = 0.45 * (1 - nf) * lerp(1, 0.75, gold);
   M('curtainDay').visible = lf < 0.5; M('curtainEve').visible = lf >= 0.5;
   renderer.toneMappingExposure = lerp(lerp(1.0, 0.9, gold), 1.25, nf);
   $('#todOut').value = `${String(Math.floor(h) % 24).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
 }
 let lampFactor = 0;
-function updateLamps() { for (const L of LAMPS) L.p.intensity = (mode === 'walk' ? L.l <= walker.l + 1 : (view === 'out' || L.l <= view)) ? 11 * lampFactor : 0; }
+function placeLamps(cur, ref, lit) {
+  const on = LAMP_SPOTS.filter(lit).map(s => [s, s.pos.distanceToSquared(ref) + (s.l === cur ? 0 : 30)]).sort((a, b) => a[1] - b[1]);
+  let moved = false;
+  LAMPS.forEach((L, i) => { const s = on[i] && on[i][0]; L.p.intensity = s ? 11 * s.k * lampFactor : 0; if (s && !L.p.position.equals(s.pos)) { L.p.position.copy(s.pos); moved = true; } });
+  if (moved) window.HOUSE?.post?.lightsMoved?.();
+}
+function updateLamps() {
+  const walk = mode === 'walk';
+  placeLamps(walk ? walker.l : view === 'out' ? 0 : view, walk ? camera.position : orbit.target, s => walk ? s.l <= walker.l + 1 : (view === 'out' || s.l <= view));
+}
+// a one-off render at another pose (photo compare, tours): light the rooms around it and refresh the mirrors there first
+function prepareCapture(l, pos) {
+  placeLamps(l, pos, s => s.l <= l + 1);
+  for (const M of MIRRORS) if (M.l === l && M.m.position.distanceTo(pos) < 4.5) { captureMirror(M); M.near = false; }
+}
+let lampAt = 0;
+function lampTick() { const now = performance.now(); if (lampFactor > 0 && now - lampAt > 300) { lampAt = now; updateLamps(); } }
 
 
 /* ================= VIEWS ================= */
@@ -2592,7 +2639,7 @@ function applyStyle(id) {
   dogs                                    set by the dalmatian module below: { dogs, pet(obj), setObstacles(list), ... }
   Picking: one app-wide picker handles doors, klinken, floors, furniture and dogs; while measuring, call setInteractive(false).
 */
-const tickFns = new Set([mirrorTick]);
+const tickFns = new Set([mirrorTick, lampTick]);
 let interactive = true, toastTimer = 0;
 function pickables() {
   const out = [];
@@ -2631,7 +2678,7 @@ window.HOUSE = {
   stairs: FLIGHTS.map(f => Object.assign([f.l, f.x0, f.x1, f.zBot, f.zTop, f.yBot, f.yTop], { id: f.id, name: f.name, l: f.l, x0: f.x0, x1: f.x1, zBot: f.zBot, zTop: f.zTop, yBot: f.yBot, yTop: f.yTop, zMin: f.zMin, zMax: f.zMax, exits: f.exits })),
   addToRoom(roomId, obj) { const r = ROOM[roomId]; (r ? G[r.lvl].main : EXT).add(obj); invalidatePicks(); return obj; },
   rebuildFurniture: () => buildAllFurniture(),
-  onTick(fn) { tickFns.add(fn); return () => tickFns.delete(fn); },
+  onTick(fn) { tickFns.add(fn); return () => tickFns.delete(fn); }, prepareCapture,
   pauseRender(on = true) { renderPaused = !!on; },
   on(evt, fn) { if (!HUB[evt]) HUB[evt] = new Set(); HUB[evt].add(fn); return () => HUB[evt].delete(fn); },
   off(evt, fn) { HUB[evt]?.delete(fn); },

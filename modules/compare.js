@@ -140,6 +140,7 @@ export function capture(H, pose, W, H_) {
     cam.position.set(pose.x, floorY(H, level) + (pose.height ?? 1.55), pose.z);
     cam.quaternion.setFromEuler(new T.Euler((pose.pitch || 0) * DEG, (pose.yaw || 0) * DEG, (pose.roll || 0) * DEG, 'YXZ'));
     cam.fov = pose.fov || 68; cam.aspect = W / H_; cam.zoom = 1; cam.near = 0.05; cam.updateProjectionMatrix();
+    H.prepareCapture?.(level, cam.position);
     r.setPixelRatio(1); r.setSize(W, H_, false);
     r.render(H.scene, cam);
     const out = document.createElement('canvas'); out.width = W; out.height = H_;

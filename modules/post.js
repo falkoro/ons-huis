@@ -920,6 +920,14 @@ export function install(H) {
     get quality() { return st.level; },
     setQuality(q, persist = false) { if (q === 'auto' || LEVELS[q]) setChoice(q, persist); return st.level; },
     setToneMapping(name) { if (TM_BY_NAME[name] !== undefined) { CFG.tm = name; R.toneMapping = TM_BY_NAME[name]; } return CFG.tm; },
+    // a render outside the main view (the mirrors' cube captures): the same room-aware shading (lamps stay in their room,
+    // indoor sky share, lamp fill) but no screen-space AO, which only fits the main camera
+    shade(fn) {
+      if (!st.enabled) return fn();
+      updateLightMasks(); const p = U.postP0.value, x = p.x, w = p.w; p.x = 1; p.w = 0;
+      try { return fn(); } finally { p.x = x; p.w = w; }
+    },
+    lightsMoved() { if (st.enabled) updateLightMasks(); }, // the host moved point lights to other rooms: re-mask them now, not in 10 frames
     setEnabled(on) {
       st.enabled = !!on;
       if (!on) { restoreShadow(); for (const L of rectPool) L.intensity = 0; }
