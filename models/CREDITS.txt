@@ -1,0 +1,35 @@
+Ons Huis - 3D models
+
+All models are from Poly Haven (https://polyhaven.com) and are licensed CC0 1.0 (public domain).
+No attribution is required; it is listed here anyway. Optimised with gltf-transform (meshopt, WebP textures).
+
+id | name | author(s) | url | used in
+sofa_02 | Sofa 02 | Kirill Sannikov | https://polyhaven.com/a/sofa_02 | sofa-chesterfield.glb
+modern_arm_chair_01 | Modern Arm Chair 01 | Vibrant Nordic | https://polyhaven.com/a/modern_arm_chair_01 | armchair-leather.glb
+mid_century_lounge_chair | Mid Century Lounge Chair | Kuutti Siitonen | https://polyhaven.com/a/mid_century_lounge_chair | armchair-lounge.glb
+modern_coffee_table_01 | Modern Coffee Table 01 | Amin | https://polyhaven.com/a/modern_coffee_table_01 | coffee-concrete.glb
+painted_wooden_table | Painted Wooden Table | Kirill Sannikov | https://polyhaven.com/a/painted_wooden_table | table-trestle.glb
+wooden_table_02 | Wooden Table 02 | Serhii Khromov | https://polyhaven.com/a/wooden_table_02 | table-oak.glb
+painted_wooden_chair_01 | Painted Wooden Chair 01 | Kuutti Siitonen | https://polyhaven.com/a/painted_wooden_chair_01 | chair-white.glb
+dining_chair_02 | Dining Chair 02 | James Ray Cock | https://polyhaven.com/a/dining_chair_02 | chair-leather.glb
+potted_plant_01 | Potted Plant 01 | Rico Cilliers | https://polyhaven.com/a/potted_plant_01 | plant-large.glb
+potted_plant_02 | Potted Plant 02 | Rico Cilliers | https://polyhaven.com/a/potted_plant_02 | plant-medium.glb
+potted_plant_04 | Potted Plant 04 | James Ray Cock | https://polyhaven.com/a/potted_plant_04 | plant-small.glb
+modern_ceiling_lamp_01 | Modern Ceiling Lamp 01 | James Ray Cock | https://polyhaven.com/a/modern_ceiling_lamp_01 | pendant-globe.glb
+side_table_01 | Side Table 01 | James Ray Cock | https://polyhaven.com/a/side_table_01 | nightstand-oak.glb
+steel_frame_shelves_01 | Steel Frame Shelves 01 | James Ray Cock | https://polyhaven.com/a/steel_frame_shelves_01 | bookshelf-steel.glb
+modern_wooden_cabinet | Modern Wooden Cabinet | Patrik Pangerl | https://polyhaven.com/a/modern_wooden_cabinet | media-sideboard.glb
+book_encyclopedia_set_01 | Book Encyclopedia Set 01 | John Malcolm | https://polyhaven.com/a/book_encyclopedia_set_01 | books-row.glb, books-few.glb, books-stack.glb
+ceramic_vase_01 | Ceramic Vase 01 | James Ray Cock | https://polyhaven.com/a/ceramic_vase_01 | vase-white.glb
+ceramic_vase_02 | Ceramic Vase 02 | James Ray Cock | https://polyhaven.com/a/ceramic_vase_02 | vase-wide.glb
+ceramic_vase_03 | Ceramic Vase 03 | James Ray Cock | https://polyhaven.com/a/ceramic_vase_03 | vase-tall.glb
+ceramic_vase_04 | Ceramic Vase 04 | James Ray Cock | https://polyhaven.com/a/ceramic_vase_04 | vase-jug.glb
+wooden_bowl_01 | Wooden Bowl 01 | Oliver Harries | https://polyhaven.com/a/wooden_bowl_01 | fruitbowl-wood.glb
+food_pears_asian_01 | Pears Asian 01 | Amal Kumar | https://polyhaven.com/a/food_pears_asian_01 | fruitbowl-wood.glb
+food_apple_01 | Food Apple 01 | Oliver Harries | https://polyhaven.com/a/food_apple_01 | fruitbowl-wood.glb
+food_lime_01 | Food Lime 01 | Oliver Harries | https://polyhaven.com/a/food_lime_01 | fruitbowl-wood.glb
+bananas | Bananas | Alexander Shulha | https://polyhaven.com/a/bananas | fruitbowl-wood.glb
+throw_pillows_01 | Throw Pillows 01 | Serhii Khromov | https://polyhaven.com/a/throw_pillows_01 | pillows-chevron.glb
+wicker_basket_02 | Wicker Basket 02 | Kuutti Siitonen | https://polyhaven.com/a/wicker_basket_02 | basket-rattan.glb
+standing_picture_frame_01 | Standing Picture Frame 01 | James Ray Cock | https://polyhaven.com/a/standing_picture_frame_01 | frame-black.glb
+wall_clock | Wall Clock | PierreB3D | https://polyhaven.com/a/wall_clock | clock-wall.glb

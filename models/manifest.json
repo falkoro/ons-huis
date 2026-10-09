@@ -1,0 +1,941 @@
+{
+ "version": 1,
+ "generated": "2026-10-09T00:22:37.840Z",
+ "models": [
+  {
+   "kind": "armchair",
+   "variant": "leather",
+   "align": "centre",
+   "anchors": {
+    "seat": 0.4
+   },
+   "file": "glb/armchair-leather.glb",
+   "name": "armchair-leather",
+   "source": [
+    "modern_arm_chair_01"
+   ],
+   "bbox": {
+    "w": 0.82,
+    "h": 1.023,
+    "d": 0.987,
+    "min": [
+     -0.41,
+     0,
+     -0.493
+    ],
+    "max": [
+     0.41,
+     1.023,
+     0.493
+    ]
+   },
+   "facing": "+Z",
+   "origin": "floor-centre",
+   "units": "m",
+   "stretch": [
+    1.06,
+    1.06,
+    1.06
+   ],
+   "surfaces": [
+    {
+     "y": 0.38,
+     "area": 0.246
+    },
+    {
+     "y": 0.4,
+     "area": 0.258
+    },
+    {
+     "y": 0.52,
+     "area": 0.042
+    },
+    {
+     "y": 0.53,
+     "area": 0.058
+    },
+    {
+     "y": 0.54,
+     "area": 0.061
+    },
+    {
+     "y": 0.55,
+     "area": 0.089
+    },
+    {
+     "y": 0.56,
+     "area": 0.102
+    }
+   ],
+   "tris": 8916,
+   "trisSource": 8916,
+   "bytes": 225700,
+   "notes": "walnut frame lounge chair with black leather cushions"
+  },
+  {
+   "kind": "armchair",
+   "variant": "lounge",
+   "align": "centre",
+   "anchors": {
+    "seat": 0.38
+   },
+   "file": "glb/armchair-lounge.glb",
+   "name": "armchair-lounge",
+   "source": [
+    "mid_century_lounge_chair"
+   ],
+   "bbox": {
+    "w": 1.009,
+    "h": 1.169,
+    "d": 1.19,
+    "min": [
+     -0.504,
+     0,
+     -0.595
+    ],
+    "max": [
+     0.504,
+     1.169,
+     0.595
+    ]
+   },
+   "facing": "+Z",
+   "origin": "floor-centre",
+   "units": "m",
+   "stretch": [
+    1.04,
+    1.04,
+    1.04
+   ],
+   "surfaces": [
+    {
+     "y": 0.36,
+     "area": 0.029
+    },
+    {
+     "y": 0.68,
+     "area": 0.033
+    },
+    {
+     "y": 0.69,
+     "area": 0.044
+    },
+    {
+     "y": 0.7,
+     "area": 0.032
+    }
+   ],
+   "tris": 6148,
+   "trisSource": 6148,
+   "bytes": 199496,
+   "notes": "mid-century swivel lounge chair, plywood shell + cognac leather"
+  },
+  {
+   "kind": "coffee",
+   "variant": "concrete",
+   "align": "centre",
+   "anchors": {
+    "top": 0.39
+   },
+   "file": "glb/coffee-concrete.glb",
+   "name": "coffee-concrete",
+   "source": [
+    "modern_coffee_table_01"
+   ],
+   "bbox": {
+    "w": 1.202,
+    "h": 0.39,
+    "d": 0.6,
+    "min": [
+     -0.601,
+     0,
+     -0.3
+    ],
+    "max": [
+     0.601,
+     0.39,
+     0.3
+    ]
+   },
+   "facing": "+Z",
+   "origin": "floor-centre",
+   "units": "m",
+   "stretch": [
+    1.15,
+    1.08,
+    1.15
+   ],
+   "surfaces": [
+    {
+     "y": 0.03,
+     "area": 0.098
+    },
+    {
+     "y": 0.35,
+     "area": 0.131
+    },
+    {
+     "y": 0.39,
+     "area": 0.687
+    }
+   ],
+   "tris": 4504,
+   "trisSource": 4504,
+   "bytes": 123204,
+   "notes": "concrete top with oak inlay on oak sledge legs; rotated so the long side is X"
+  },
+  {
+   "kind": "desk",
+   "variant": "oak",
+   "alias": [
+    [
+     "table",
+     "oak"
+    ]
+   ],
+   "align": "centre",
+   "anchors": {
+    "top": 0.752
+   },
+   "file": "glb/table-oak.glb",
+   "name": "table-oak",
+   "source": [
+    "wooden_table_02"
+   ],
+   "bbox": {
+    "w": 1.066,
+    "h": 0.752,
+    "d": 0.664,
+    "min": [
+     -0.533,
+     0,
+     -0.332
+    ],
+    "max": [
+     0.533,
+     0.752,
+     0.332
+    ]
+   },
+   "facing": "+Z",
+   "origin": "floor-centre",
+   "units": "m",
+   "stretch": [
+    1.75,
+    1.03,
+    1.45
+   ],
+   "surfaces": [
+    {
+     "y": 0.75,
+     "area": 0.689
+    }
+   ],
+   "tris": 196,
+   "trisSource": 196,
+   "bytes": 127836,
+   "notes": "simple solid wood table, scaled 0.94 to 0.75 m; desk, and dining-table variant (stretched)"
+  },
+  {
+   "kind": "plant",
+   "variant": "large",
+   "align": "centre",
+   "anchors": {},
+   "file": "glb/plant-large.glb",
+   "name": "plant-large",
+   "source": [
+    "potted_plant_01"
+   ],
+   "bbox": {
+    "w": 0.587,
+    "h": 1.35,
+    "d": 0.634,
+    "min": [
+     -0.293,
+     0,
+     -0.317
+    ],
+    "max": [
+     0.293,
+     1.35,
+     0.317
+    ]
+   },
+   "facing": "+Z",
+   "origin": "floor-centre",
+   "units": "m",
+   "stretch": [
+    1,
+    1,
+    1
+   ],
+   "surfaces": [
+    {
+     "y": 0.17,
+     "area": 0.024
+    },
+    {
+     "y": 0.51,
+     "area": 0.092
+    },
+    {
+     "y": 0.52,
+     "area": 0.08
+    }
+   ],
+   "tris": 14079,
+   "trisSource": 176226,
+   "bytes": 490068,
+   "notes": "leafy shrub in a terracotta urn, 1.35 m"
+  },
+  {
+   "kind": "plant",
+   "variant": "medium",
+   "align": "centre",
+   "anchors": {},
+   "file": "glb/plant-medium.glb",
+   "name": "plant-medium",
+   "source": [
+    "potted_plant_02"
+   ],
+   "bbox": {
+    "w": 0.701,
+    "h": 0.84,
+    "d": 0.654,
+    "min": [
+     -0.351,
+     0.001,
+     -0.327
+    ],
+    "max": [
+     0.351,
+     0.84,
+     0.327
+    ]
+   },
+   "facing": "+Z",
+   "origin": "floor-centre",
+   "units": "m",
+   "stretch": [
+    1,
+    1,
+    1
+   ],
+   "surfaces": [
+    {
+     "y": 0.01,
+     "area": 0.032
+    },
+    {
+     "y": 0.32,
+     "area": 0.135
+    },
+    {
+     "y": 0.33,
+     "area": 0.066
+    }
+   ],
+   "tris": 10467,
+   "trisSource": 69806,
+   "bytes": 226224,
+   "notes": "arrowhead plant (syngonium) in a round terracotta pot, 0.84 m"
+  },
+  {
+   "kind": "plant",
+   "variant": "small",
+   "align": "centre",
+   "anchors": {},
+   "file": "glb/plant-small.glb",
+   "name": "plant-small",
+   "source": [
+    "potted_plant_04"
+   ],
+   "bbox": {
+    "w": 0.168,
+    "h": 0.267,
+    "d": 0.185,
+    "min": [
+     -0.084,
+     0,
+     -0.092
+    ],
+    "max": [
+     0.084,
+     0.267,
+     0.092
+    ]
+   },
+   "facing": "+Z",
+   "origin": "floor-centre",
+   "units": "m",
+   "stretch": [
+    1,
+    1,
+    1
+   ],
+   "surfaces": [
+    {
+     "y": 0.13,
+     "area": 0.017
+    },
+    {
+     "y": 0.14,
+     "area": 0.01
+    },
+    {
+     "y": 0.15,
+     "area": 0.007
+    }
+   ],
+   "tris": 8929,
+   "trisSource": 8929,
+   "bytes": 150320,
+   "notes": "haworthia succulent in a white pot, 0.27 m"
+  },
+  {
+   "kind": "pendant",
+   "variant": "globe",
+   "align": "centre",
+   "anchors": {},
+   "file": "glb/pendant-globe.glb",
+   "name": "pendant-globe",
+   "source": [
+    "modern_ceiling_lamp_01"
+   ],
+   "bbox": {
+    "w": 0.432,
+    "h": 0.952,
+    "d": 0.432,
+    "min": [
+     -0.216,
+     -0.952,
+     -0.216
+    ],
+    "max": [
+     0.216,
+     0,
+     0.216
+    ]
+   },
+   "facing": "+Z",
+   "origin": "top-centre",
+   "units": "m",
+   "stretch": [
+    1,
+    1,
+    1
+   ],
+   "surfaces": [
+    {
+     "y": -0.64,
+     "area": 0.008
+    },
+    {
+     "y": -0.6,
+     "area": 0.007
+    },
+    {
+     "y": -0.59,
+     "area": 0.012
+    },
+    {
+     "y": -0.58,
+     "area": 0.002
+    },
+    {
+     "y": 0,
+     "area": 0.011
+    }
+   ],
+   "tris": 5602,
+   "trisSource": 5602,
+   "bytes": 113144,
+   "notes": "opal glass globe on a cord; origin at the ceiling canopy (top centre); models.js stretches the cord to the requested drop"
+  },
+  {
+   "kind": "nightstand",
+   "variant": "oak",
+   "align": "back",
+   "anchors": {
+    "top": 0.55,
+    "shelf": 0.35
+   },
+   "file": "glb/nightstand-oak.glb",
+   "name": "nightstand-oak",
+   "source": [
+    "side_table_01"
+   ],
+   "bbox": {
+    "w": 0.55,
+    "h": 0.551,
+    "d": 0.45,
+    "min": [
+     -0.275,
+     0,
+     -0.225
+    ],
+    "max": [
+     0.275,
+     0.551,
+     0.225
+    ]
+   },
+   "facing": "+Z",
+   "origin": "floor-centre",
+   "units": "m",
+   "stretch": [
+    1.1,
+    1.1,
+    1.1
+   ],
+   "surfaces": [
+    {
+     "y": 0.05,
+     "area": 0.228
+    },
+    {
+     "y": 0.35,
+     "area": 0.228
+    },
+    {
+     "y": 0.55,
+     "area": 0.243
+    }
+   ],
+   "tris": 2756,
+   "trisSource": 2756,
+   "bytes": 151492,
+   "notes": "light oak open side table with a shelf"
+  },
+  {
+   "kind": "bookshelf",
+   "variant": "steel",
+   "align": "back",
+   "anchors": {
+    "shelves": [
+     0.13,
+     0.64,
+     1.15,
+     1.65
+    ],
+    "top": 2.13
+   },
+   "file": "glb/bookshelf-steel.glb",
+   "name": "bookshelf-steel",
+   "source": [
+    "steel_frame_shelves_01"
+   ],
+   "bbox": {
+    "w": 1.097,
+    "h": 2.141,
+    "d": 0.502,
+    "min": [
+     -0.549,
+     0,
+     -0.251
+    ],
+    "max": [
+     0.549,
+     2.141,
+     0.251
+    ]
+   },
+   "facing": "+Z",
+   "origin": "floor-centre",
+   "units": "m",
+   "stretch": [
+    1.5,
+    1.05,
+    0.65
+   ],
+   "surfaces": [
+    {
+     "y": 0.13,
+     "area": 0.508
+    },
+    {
+     "y": 0.64,
+     "area": 0.508
+    },
+    {
+     "y": 1.15,
+     "area": 0.508
+    },
+    {
+     "y": 1.65,
+     "area": 0.508
+    },
+    {
+     "y": 2.13,
+     "area": 0.508
+    }
+   ],
+   "tris": 4348,
+   "trisSource": 4348,
+   "bytes": 130960,
+   "notes": "black steel frame with oak boards (source in decimetres, scaled 0.1); width and depth may stretch"
+  },
+  {
+   "kind": "books",
+   "variant": "row",
+   "align": "centre",
+   "anchors": {},
+   "file": "glb/books-row.glb",
+   "name": "books-row",
+   "source": [
+    "book_encyclopedia_set_01"
+   ],
+   "bbox": {
+    "w": 0.551,
+    "h": 0.237,
+    "d": 0.163,
+    "min": [
+     -0.276,
+     0,
+     -0.082
+    ],
+    "max": [
+     0.276,
+     0.237,
+     0.082
+    ]
+   },
+   "facing": "+Z",
+   "origin": "floor-centre",
+   "units": "m",
+   "stretch": [
+    1.3,
+    1.3,
+    1.3
+   ],
+   "surfaces": [
+    {
+     "y": 0.23,
+     "area": 0.063
+    },
+    {
+     "y": 0.24,
+     "area": 0.021
+    }
+   ],
+   "tris": 24500,
+   "trisSource": 67306,
+   "bytes": 379492,
+   "notes": "row of 20 leather encyclopedia volumes, spines +Z"
+  },
+  {
+   "kind": "books",
+   "variant": "few",
+   "align": "centre",
+   "anchors": {},
+   "file": "glb/books-few.glb",
+   "name": "books-few",
+   "source": [
+    "book_encyclopedia_set_01"
+   ],
+   "bbox": {
+    "w": 0.186,
+    "h": 0.237,
+    "d": 0.163,
+    "min": [
+     -0.093,
+     0,
+     -0.082
+    ],
+    "max": [
+     0.093,
+     0.237,
+     0.082
+    ]
+   },
+   "facing": "+Z",
+   "origin": "floor-centre",
+   "units": "m",
+   "stretch": [
+    1.3,
+    1.3,
+    1.3
+   ],
+   "surfaces": [
+    {
+     "y": 0.23,
+     "area": 0.021
+    },
+    {
+     "y": 0.24,
+     "area": 0.007
+    }
+   ],
+   "tris": 9183,
+   "trisSource": 23574,
+   "bytes": 171120,
+   "notes": "seven volumes, spines +Z"
+  },
+  {
+   "kind": "books",
+   "variant": "stack",
+   "align": "centre",
+   "anchors": {},
+   "file": "glb/books-stack.glb",
+   "name": "books-stack",
+   "source": [
+    "book_encyclopedia_set_01"
+   ],
+   "bbox": {
+    "w": 0.26,
+    "h": 0.076,
+    "d": 0.209,
+    "min": [
+     -0.13,
+     0,
+     -0.104
+    ],
+    "max": [
+     0.13,
+     0.076,
+     0.104
+    ]
+   },
+   "facing": "+Z",
+   "origin": "floor-centre",
+   "units": "m",
+   "stretch": [
+    1.3,
+    1.3,
+    1.3
+   ],
+   "surfaces": [
+    {
+     "y": 0,
+     "area": 0.037
+    },
+    {
+     "y": 0.02,
+     "area": 0.037
+    },
+    {
+     "y": 0.03,
+     "area": 0.037
+    },
+    {
+     "y": 0.05,
+     "area": 0.075
+    },
+    {
+     "y": 0.08,
+     "area": 0.037
+    }
+   ],
+   "tris": 4649,
+   "trisSource": 10092,
+   "bytes": 109176,
+   "notes": "three volumes lying flat"
+  },
+  {
+   "kind": "vase",
+   "variant": "wide",
+   "align": "centre",
+   "anchors": {},
+   "file": "glb/vase-wide.glb",
+   "name": "vase-wide",
+   "source": [
+    "ceramic_vase_02"
+   ],
+   "bbox": {
+    "w": 0.218,
+    "h": 0.309,
+    "d": 0.218,
+    "min": [
+     -0.109,
+     0,
+     -0.109
+    ],
+    "max": [
+     0.109,
+     0.309,
+     0.109
+    ]
+   },
+   "facing": "+Z",
+   "origin": "floor-centre",
+   "units": "m",
+   "stretch": [
+    1.3,
+    1.3,
+    1.3
+   ],
+   "surfaces": [
+    {
+     "y": 0.01,
+     "area": 0.008
+    },
+    {
+     "y": 0.02,
+     "area": 0.006
+    },
+    {
+     "y": 0.31,
+     "area": 0.002
+    }
+   ],
+   "tris": 5427,
+   "trisSource": 11128,
+   "bytes": 81880,
+   "notes": "white stoneware urn vase 0.31 m"
+  },
+  {
+   "kind": "vase",
+   "variant": "jug",
+   "align": "centre",
+   "anchors": {},
+   "file": "glb/vase-jug.glb",
+   "name": "vase-jug",
+   "source": [
+    "ceramic_vase_04"
+   ],
+   "bbox": {
+    "w": 0.181,
+    "h": 0.342,
+    "d": 0.181,
+    "min": [
+     -0.091,
+     0,
+     -0.091
+    ],
+    "max": [
+     0.091,
+     0.342,
+     0.091
+    ]
+   },
+   "facing": "+Z",
+   "origin": "floor-centre",
+   "units": "m",
+   "stretch": [
+    1.3,
+    1.3,
+    1.3
+   ],
+   "surfaces": [
+    {
+     "y": 0.01,
+     "area": 0.01
+    }
+   ],
+   "tris": 4707,
+   "trisSource": 9000,
+   "bytes": 67436,
+   "notes": "white jug vase 0.34 m"
+  },
+  {
+   "kind": "basket",
+   "variant": "rattan",
+   "align": "centre",
+   "anchors": {},
+   "file": "glb/basket-rattan.glb",
+   "name": "basket-rattan",
+   "source": [
+    "wicker_basket_02"
+   ],
+   "bbox": {
+    "w": 0.347,
+    "h": 0.2,
+    "d": 0.254,
+    "min": [
+     -0.173,
+     0,
+     -0.127
+    ],
+    "max": [
+     0.173,
+     0.2,
+     0.127
+    ]
+   },
+   "facing": "+Z",
+   "origin": "floor-centre",
+   "units": "m",
+   "stretch": [
+    1.3,
+    1.3,
+    1.3
+   ],
+   "surfaces": [
+    {
+     "y": 0.01,
+     "area": 0.006
+    },
+    {
+     "y": 0.02,
+     "area": 0.01
+    },
+    {
+     "y": 0.16,
+     "area": 0.002
+    },
+    {
+     "y": 0.19,
+     "area": 0.006
+    }
+   ],
+   "tris": 10611,
+   "trisSource": 17850,
+   "bytes": 185708,
+   "notes": "woven rattan basket with its lid leaning against it"
+  },
+  {
+   "kind": "frame",
+   "variant": "black",
+   "align": "centre",
+   "anchors": {},
+   "file": "glb/frame-black.glb",
+   "name": "frame-black",
+   "source": [
+    "standing_picture_frame_01"
+   ],
+   "bbox": {
+    "w": 0.201,
+    "h": 0.25,
+    "d": 0.1,
+    "min": [
+     -0.1,
+     0,
+     -0.05
+    ],
+    "max": [
+     0.1,
+     0.25,
+     0.05
+    ]
+   },
+   "facing": "+Z",
+   "origin": "floor-centre",
+   "units": "m",
+   "stretch": [
+    1.3,
+    1.3,
+    1.3
+   ],
+   "surfaces": [
+    {
+     "y": 0.01,
+     "area": 0.002
+    },
+    {
+     "y": 0.03,
+     "area": 0
+    },
+    {
+     "y": 0.25,
+     "area": 0.003
+    }
+   ],
+   "tris": 1634,
+   "trisSource": 1634,
+   "bytes": 54696,
+   "notes": "standing black photo frame (rotated to face +Z)"
+  }
+ ],
+ "totalBytes": 4365024,
+ "note": "host copy: sofa, dining table/chairs, media sideboard and their decor stay procedural (bankstof switcher, real dining corner)"
+}
