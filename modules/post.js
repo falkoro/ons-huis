@@ -775,7 +775,7 @@ export function install(H) {
   /* ---- per-frame ---- */
   const _cam = new THREE.Vector3();
   function lampLevel() { let m = 0; scene.traverseVisible(o => { if (o.isPointLight && !o.userData.post) m = Math.max(m, o.intensity); }); return m; }
-  let lampK = 0, lampColor = new THREE.Color(1, 0.76, 0.48);
+  let lampK = 0, lampColor = new THREE.Color(1, 0.76, 0.48), refLamp = null;
   function frame(now) {
     const dt = st.last ? Math.min(0.25, (now - st.last) / 1000) : 0.016; st.last = now;
     const lv = LEVELS[st.level], mode = H.mode || 'walk';
@@ -785,11 +785,14 @@ export function install(H) {
     const inside = MAP.inside(_cam.x, _cam.y, _cam.z), code = MAP.code(_cam.x, _cam.y, _cam.z), lvl = levelOfY(_cam.y);
     st.inside = inside; st.room = code; st.lvl = lvl;
     const envI = scene.environmentIntensity ?? 1, night = clamp((1 - envI) / 0.95, 0, 1);
-    // lamp level: every 16 frames, and at once when the time of day moves (lamps switch with it)
-    if ((st.frames & 15) === 0 || Math.abs(envI - st.envI) > 1e-3) {
+    // lamp level: every 16 frames, and at once when the time of day moves or the lamps switch (one reference lamp is watched:
+    // between 17:30 and sunset the lamps come on while the sky, and so envI, stays the same); a still capture always measures
+    if ((st.frames & 15) === 0 || Math.abs(envI - st.envI) > 1e-3 || st.paused || (refLamp && refLamp.intensity !== st.refI)) {
       st.envI = envI;
       lampK = clamp(lampLevel() / 11, 0, 1);
-      scene.traverse(o => { if (o.isPointLight && !o.userData.post && o.intensity > 0) lampColor.copy(o.color); });
+      refLamp = null;
+      scene.traverse(o => { if (o.isPointLight && !o.userData.post) { refLamp ||= o; if (o.intensity > 0) lampColor.copy(o.color); } });
+      st.refI = refLamp ? refLamp.intensity : 0;
     }
     // indoor light share, AO
     const doll = mode !== 'walk';
@@ -804,7 +807,7 @@ export function install(H) {
     // and the exposure for its own pose; the lights go dark again right after, so a path tracer never counts them
     const capture = st.paused;
     placeWindows(_cam, code, lvl, !doll, envI);
-    if ((st.frames % 10) === 0 || winSig !== st.maskSig) { updateLightMasks(); st.maskSig = winSig; }
+    if ((st.frames % 10) === 0 || winSig !== st.maskSig || capture) { updateLightMasks(); st.maskSig = winSig; }
     fitShadow(doll ? 'doll' : 'walk', _cam, !inside);
     // exposure: a camera exposes for the room; outdoors the host's exposure stands
     // exposure: daylight and lamp light add up; a camera exposes for their sum (harmonic blend of the two exposures)
@@ -824,6 +827,7 @@ export function install(H) {
       const c = lampColor, r = Math.pow(1 / Math.max(0.05, c.r), wbK), g = Math.pow(1 / Math.max(0.05, c.g), wbK), b = Math.pow(1 / Math.max(0.05, c.b), wbK);
       const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b; wb.set(r / lum, g / lum, b / lum);
     } else wb.set(1, 1, 1);
+    if (!capture) st.wb = wb; // photo.js develops its path traced still with the same white balance
 
     R.info.autoReset = false; R.info.reset();
     try {
@@ -925,7 +929,7 @@ export function install(H) {
       const lv = LEVELS[st.level];
       return {
         version: VERSION, quality: st.level, choice: st.choice, device: deviceLevel, gpu: gpuName(R), auto: st.auto, scale: st.scale, dpr: R.getPixelRatio(),
-        toneMapping: TM_NAME[R.toneMapping], gain: +st.gain.toFixed(3), exposure: +(R.toneMappingExposure * st.gain).toFixed(3), inside: st.inside, room: st.room,
+        toneMapping: TM_NAME[R.toneMapping], gain: +st.gain.toFixed(3), wb: st.wb ? st.wb.toArray().map(v => +v.toFixed(4)) : [1, 1, 1], exposure: +(R.toneMappingExposure * st.gain).toFixed(3), inside: st.inside, room: st.room,
         ao: lv.ao ? (lv.ao === 1 ? 'vol' : 'half') : 'uit', windowLights: rectOn.length, msaa: curSamples, aa: lv.aa, calls: st.calls, triangles: st.tris,
         emaMs: +st.ema.toFixed(1), roofBaked: roofOK, windows: WINDOWS.length, size: sizeSig, shadow: sun ? { map: sun.shadow.mapSize.x, w: +(sun.shadow.camera.right - sun.shadow.camera.left).toFixed(2), normalBias: +sun.shadow.normalBias.toFixed(4), bias: sun.shadow.bias } : null,
       };
