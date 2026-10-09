@@ -1310,6 +1310,81 @@ const GEO = {};
 const gCyl = (rt, rb, h, seg = 18, open = false) => GEO[`c${rt},${rb},${h},${seg},${open}`] ||= new THREE.CylinderGeometry(rt, rb, h, seg, 1, open);
 const gSph = (seg = 14) => GEO['s' + seg] ||= new THREE.SphereGeometry(1, seg, Math.max(6, seg * 0.7 | 0));
 const gIco = () => GEO.ico ||= new THREE.IcosahedronGeometry(1, 1);
+// soft furnishings, built once per size. uvs are in metres like the box faces, so the fabric texture keeps its scale
+const metreUV = g => {
+  const P = g.attributes.position, N = g.attributes.normal, uv = new Float32Array(P.count * 2);
+  for (let i = 0; i < P.count; i++) {
+    const ax = Math.abs(N.getX(i)), ay = Math.abs(N.getY(i)), az = Math.abs(N.getZ(i));
+    const [a, b] = ax >= ay && ax >= az ? [P.getZ(i), P.getY(i)] : ay >= az ? [P.getX(i), P.getZ(i)] : [P.getX(i), P.getY(i)];
+    uv[i * 2] = a; uv[i * 2 + 1] = b;
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); return g;
+};
+// box with rounded edges (radius r): a box grid whose outer rows wrap around the edges, normals from the rounding
+const gRBox = (sx, sy, sz, r, k = 3) => GEO[`rb${sx},${sy},${sz},${r},${k}`] ||= (() => {
+  const n = 2 * k + 1, g = new THREE.BoxGeometry(2, 2, 2, n, n, n), P = g.attributes.position, N = g.attributes.normal;
+  const H = [sx / 2 - r, sy / 2 - r, sz / 2 - r], p = [0, 0, 0], d = [0, 0, 0];
+  for (let i = 0; i < P.count; i++) {
+    for (let a = 0; a < 3; a++) {
+      const t = Math.round((P.getComponent(i, a) + 1) / 2 * n), s = t <= k ? -1 : 1;
+      const off = t <= k ? (k - t) / k : (t - k - 1) / k; // 0 at the flat part .. 1 halfway round the edge
+      p[a] = s * H[a];
+      d[a] = Math.abs(N.getComponent(i, a)) > 0.5 ? s * r : s * r * Math.tan(off * Math.PI / 4); // the face's own axis sits on the surface
+    }
+    const L = Math.hypot(d[0], d[1], d[2]) || 1;
+    P.setXYZ(i, p[0] + d[0] / L * r, p[1] + d[1] / L * r, p[2] + d[2] / L * r); N.setXYZ(i, d[0] / L, d[1] / L, d[2] / L);
+  }
+  return metreUV(g);
+})();
+// pillow / cushion: a superellipsoid, near-square in plan with a lens-shaped section (thin seam, full middle) and a soft dent
+const gPillow = (w, t, d, dent = 0.15) => GEO[`pl${w},${t},${d},${dent}`] ||= (() => {
+  const nu = 40, nv = 18, pos = [], idx = [], sp = (v, e) => Math.sign(v) * Math.abs(v) ** e;
+  for (let j = 0; j <= nv; j++) {
+    const ph = -Math.PI / 2 + Math.PI * j / nv, cp = sp(Math.cos(ph), 0.8), y = sp(Math.sin(ph), 0.8);
+    for (let i = 0; i <= nu; i++) {
+      const th = -Math.PI + 2 * Math.PI * i / nu, x = cp * sp(Math.cos(th), 0.34), z = cp * sp(Math.sin(th), 0.34);
+      const sag = y > 0 ? 1 - dent * Math.exp(-(x * x + z * z) * 3) : 1; // where a head was
+      pos.push(x * w / 2, y * t / 2 * sag, z * d / 2);
+    }
+  }
+  for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { const a = j * (nu + 1) + i, b = a + nu + 1; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+  g.computeVertexNormals(); return metreUV(g);
+})();
+// fabric laid over a rounded block: a flat top (x within ±a, z from z0 to z1, at y 0) that rolls over the edges with
+// radius r, hangs ds at the sides and df at the foot (+z), and ends in a rolled hem; an end with no drop is turned
+// under instead (a folded edge). Soft folds grow towards the hem, the corners hang lower, like real bedding
+const gDrape = (o) => GEO['dr' + JSON.stringify(o)] ||= (() => {
+  const { a, z0, z1, r, ds, df = ds, dh = 0, rh = 0.022, seed = 1, floor = -9, amp = 1 } = o;
+  const prof = (s, drop) => { // distance along the cloth past the top's edge -> [out, down]
+    if (drop <= 0) { const t = Math.min(s / rh, Math.PI); return t < Math.PI ? [rh * Math.sin(t), -rh + rh * Math.cos(t)] : [-(s - Math.PI * rh), -2 * rh]; }
+    const q = Math.PI * r / 2; if (s <= q) return [r * Math.sin(s / r), -r + r * Math.cos(s / r)];
+    if (s <= q + drop) return [r, -r - (s - q)];
+    const t = Math.min((s - q - drop) / rh, Math.PI); if (t < Math.PI) return [r - rh + rh * Math.cos(t), -r - drop - rh * Math.sin(t)];
+    return [r - 2 * rh, -r - drop + (s - q - drop - Math.PI * rh)];
+  };
+  const len = drop => drop <= 0 ? Math.PI * rh + 0.02 : Math.PI * r / 2 + drop + Math.PI * rh + 0.02;
+  const Ls = len(ds), Lf = len(df), Lh = len(dh), x0 = -a - Ls, x1 = a + Ls, zA = z0 - Lh, zB = z1 + Lf;
+  const nu = Math.ceil((x1 - x0) / 0.035), nv = Math.ceil((zB - zA) / 0.035), pos = [], uvs = [], idx = [];
+  const wav = (u, v) => Math.sin(u * 6.1 + v * 1.7 + seed) * Math.sin(v * 4.3 - u * 2.2 + seed * 2) + 0.45 * Math.sin(u * 13.7 + v * 9.1 + seed * 3);
+  for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) {
+    const u = x0 + (x1 - x0) * i / nu, v = zA + (zB - zA) * j / nv, qx = Math.min(a, Math.max(-a, u)), qz = Math.min(z1, Math.max(z0, v));
+    const dx = u - qx, dz = v - qz, s = Math.hypot(dx, dz);
+    let X = u, Y = 0.006 * amp * wav(u, v), Z = v;
+    if (s > 1e-6) {
+      const end = dz > 0 ? df : dh, wEnd = Math.atan2(Math.abs(dz), Math.abs(dx)) / (Math.PI / 2);
+      const ps = prof(s, ds), pe = prof(s, end), out = ps[0] + (pe[0] - ps[0]) * wEnd, down = ps[1] + (pe[1] - ps[1]) * wEnd;
+      const hang = Math.max(0, Math.min(1, (-down - r) / 0.25)), e = qx + qz; // how far down the drop, position along the edge
+      const fold = 0.026 * amp * hang * (0.55 + 0.45 * Math.sin(e * 11 + seed) * Math.sin(e * 4.7 + seed * 1.3));
+      X = qx + dx / s * (out + fold); Z = qz + dz / s * (out + fold);
+      Y = Math.max(floor, down + 0.006 * amp * wav(u, v) * (1 - hang) - 0.012 * amp * hang * Math.sin(e * 7.3 + seed));
+    }
+    pos.push(X, Y, Z); uvs.push(u, v);
+  }
+  for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { const p = j * (nu + 1) + i, q = p + nu + 1; idx.push(p, q, p + 1, p + 1, q, q + 1); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); g.setIndex(idx); g.computeVertexNormals(); return g;
+})();
 function kit(b, x, y, z, ry = 0) {
   const base = new THREE.Matrix4().compose(V(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), V(1, 1, 1)), m = new THREE.Matrix4();
   const place = (cx, cy, cz, rx, ryy, rz, sx, sy, sz) => m.compose(_p.set(cx, cy, cz), _q.setFromEuler(_eu.set(rx, ryy, rz)), _s.set(sx, sy, sz)).premultiply(base);
@@ -1383,11 +1458,22 @@ const P = {
     f.box(state.style === 'klassiek' ? 'fab' : 'wood', 0, 0.46, 0, 0.46, 0.04, 0.45);
     f.box('wood', 0, 0.68, -0.21, 0.44, 0.34, 0.03); for (const sx of [-1, 1]) f.cyl(L, sx * 0.19, 0.62, -0.2, 0.012, 0.32, 6);
   },
+  // head end at -z. Rounded frame and mattress, a duvet that rolls over the mattress edge and hangs down, its top turned
+  // back over the pillows, a plaid across the foot and a channel-tufted upholstered headboard
   bed(f, w = 1.8, L = 2.1, base = 'wood') {
-    f.box(base, 0, 0.17, 0, w + 0.08, 0.26, L + 0.08); f.box('bedding', 0, 0.4, 0.02, w, 0.22, L - 0.04);
-    f.box('bedding', 0, 0.53, 0.25, w + 0.05, 0.06, L * 0.72); f.box('fab2', 0, 0.565, L * 0.33, w + 0.07, 0.07, 0.45);
-    for (const sx of [-1, 1]) f.box('bedding', sx * w / 4, 0.58, -L / 2 + 0.3, w / 2 - 0.12, 0.13, 0.42, sx * 0.04);
-    f.box('fab', 0, 0.62, -L / 2 - 0.03, w + 0.14, 1.05, 0.09);
+    const T = 0.51, a = w / 2 - 0.04, r = 0.085, Y = T + 0.045, z0 = -L / 2 + 0.62, z1 = L / 2 - 0.04, W = w + 0.14;
+    f.geo(base, gRBox(w + 0.06, 0.24, L + 0.06, 0.02), 0, 0.18, 0);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.cyl(legMat(), sx * (w / 2 - 0.08), 0.03, sz * (L / 2 - 0.1), 0.025, 0.06, 10);
+    f.geo('bedding', gRBox(w, 0.22, L - 0.04, 0.04), 0, T - 0.11, 0.02);
+    f.geo('bedding', gDrape({ a, z0, z1, r, ds: 0.2, rh: 0.022, seed: w, floor: 0.02 - Y }), 0, Y, 0);
+    f.geo('bedding', gDrape({ a, z0, z1: z0 + 0.32, r: r + 0.03, ds: 0.17, df: 0, rh: 0.028, seed: w + 2, floor: 0.02 - Y }), 0, Y + 0.03, 0);
+    f.geo('fab2', gDrape({ a, z0: z1 - 0.62, z1: z1 - 0.16, r: r + 0.02, ds: 0.3, df: 0, rh: 0.012, seed: w + 4, amp: 0.6, floor: 0.02 - Y }), 0, Y + 0.02, 0);
+    const pw = w > 1.7 ? 0.72 : 0.68, px = w > 1.7 ? 0.43 : 0.39;
+    for (const sx of [-1, 1]) f.geo('bedding', gPillow(pw, 0.17, 0.5), sx * px, T + 0.125, -L / 2 + 0.31, 0.25, sx * 0.03, 0);
+    if (state.style !== 'huidig') for (const sx of [-1, 1]) f.geo('fab2', gPillow(0.46, 0.13, 0.46, 0.05), sx * 0.26, T + 0.23, -L / 2 + 0.5, 1.1, -sx * 0.08, sx * 0.03);
+    f.box('fab', 0, 0.6, -L / 2 - 0.06, W, 1.0, 0.05);
+    const n = Math.round(W / 0.22), cw = W / n;
+    for (let i = 0; i < n; i++) f.geo('fab', gRBox(cw - 0.004, 0.98, 0.07, 0.03), -W / 2 + cw * (i + 0.5), 0.64, -L / 2 - 0.02);
   },
   nightstand(f) {
     f.box('wood', 0, 0.3, 0, 0.46, 0.4, 0.38); f.box(legMat(), 0, 0.05, 0, 0.4, 0.1, 0.32);
