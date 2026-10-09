@@ -687,6 +687,20 @@ function texCarpet() {
   for (let i = 0; i < 3000; i++) { const x = R() * S, y = R() * S; ctx.strokeStyle = R() < .5 ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.05)'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (R() - .5) * 6, y + (R() - .5) * 6); ctx.stroke(); }
   return c;
 }
+// wool rug: near-white so the chosen rug colour multiplies through; fine loop weave, heathered fibres, soft pile shading
+function texRug() {
+  const S = 512, c = mkCanvas(S), ctx = c.getContext('2d'), R = rng(27);
+  ctx.fillStyle = '#efede8'; ctx.fillRect(0, 0, S, S);
+  for (let i = 0; i < 46; i++) {
+    const x = R() * S, y = R() * S, r = 60 + R() * 140, dark = R() < 0.5;
+    wrap9(S, (dx, dy) => { const g = ctx.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r); g.addColorStop(0, dark ? 'rgba(60,50,40,.032)' : 'rgba(255,255,255,.04)'); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(x + dx - r, y + dy - r, r * 2, r * 2); });
+  }
+  for (let y = 0; y < S; y += 4) { ctx.fillStyle = 'rgba(0,0,0,.05)'; ctx.fillRect(0, y, S, 1); }
+  for (let x = 0; x < S; x += 4) { ctx.fillStyle = 'rgba(255,255,255,.05)'; ctx.fillRect(x, 0, 1, S); }
+  noise(ctx, S, 26, 29);
+  for (let i = 0; i < 7000; i++) { const x = R() * S, y = R() * S, a = R() * Math.PI * 2, l = 1.5 + R() * 3; ctx.strokeStyle = R() < 0.5 ? 'rgba(255,255,255,.08)' : 'rgba(40,30,20,.08)'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke(); }
+  return c;
+}
 function texLino() {
   const S = 1024, c = mkCanvas(S), ctx = c.getContext('2d'), R = rng(31);
   ctx.fillStyle = '#c3ad86'; ctx.fillRect(0, 0, S, S);
@@ -768,6 +782,7 @@ const T = {
   brick: canvasTex(texBrick(0), 0.88, 0.875), brick2: canvasTex(texBrick(1), 0.88, 0.875), roof: canvasTex(texRoof(), 1.5),
   grass: canvasTex(texGrass(), 2.5), paving: canvasTex(texTiles(4, () => [40, 5, 58], '#6f6c66', 4, 81), 1.2),
   fence: canvasTex(texBoards(25, 25, 24, 4), 0.6, 1.8), shed: canvasTex(texBoards(28, 20, 34, 5), 0.8, 2.4),
+  rug: canvasTex(texRug(), 0.7),
   asphalt: canvasTex((() => { const c = mkCanvas(256), x = c.getContext('2d'); x.fillStyle = '#44464a'; x.fillRect(0, 0, 256, 256); noise(x, 256, 30, 3); return c; })(), 1.5),
 };
 // procedural canvases are the fallback diffuse of each photo set until (unless) the jpg arrives
@@ -820,14 +835,14 @@ const STATIC_MAT = {
   appliance: () => new MSM({ color: '#f1f2f1', roughness: 0.3 }), boiler: () => new MSM({ color: '#e9eae8', roughness: 0.4 }),
   grass: () => bindSet(new MSM({ roughness: 1 }), 'grass', { ns: 0.7 }), paving: () => bindSet(new MSM({ roughness: 0.85 }), 'paving', { ns: 0.9 }),
   fence: () => new MSM({ map: T.fence, roughness: 0.9 }), shed: () => new MSM({ map: T.shed, roughness: 0.9 }),
-  asphalt: () => new MSM({ map: T.asphalt, roughness: 0.95 }), hedge: () => new MSM({ color: '#3d5a2d', roughness: 1 }),
+  asphalt: () => new MSM({ map: T.asphalt, roughness: 0.95 }), hedge: () => new MSM({ color: '#22331a', roughness: 1 }),
   meadow: () => new MSM({ color: '#6c7f55', roughness: 1 }), soil: () => new MSM({ color: '#4a3b2c', roughness: 1 }),
   leaf: () => new MSM({ color: '#4f6d3a', roughness: 0.8, side: THREE.DoubleSide }), leaf2: () => new MSM({ color: '#6f8f4c', roughness: 0.8 }),
   canvasBack: () => new MSM({ color: '#e9e5dc', roughness: 0.9 }), blanket: () => new MSM({ color: '#b8694b', roughness: 0.95 }),
   book1: () => new MSM({ color: '#2f3b50', roughness: 0.8 }), book2: () => new MSM({ color: '#b8694b', roughness: 0.8 }), book3: () => new MSM({ color: '#d8cfbd', roughness: 0.8 }), book4: () => new MSM({ color: '#6f7752', roughness: 0.8 }),
   bulb: () => new MSM({ color: '#fff7e6', emissive: '#ffd9a0', emissiveIntensity: 0 }),
   walnut: () => new MSM({ color: '#4b3427', roughness: 0.38 }), taupe: () => bindSet(new MSM({ color: '#a89886', roughness: 0.97 }), 'fabric', { ns: 0.8 }),
-  rugGrey: () => bindSet(new MSM({ color: '#8e8b85', roughness: 1 }), 'fabric', { ns: 0.9 }), // the round felt rug under the dining table (photos)
+  rugGrey: () => bindSet(new MSM({ color: '#8e8b85', map: T.rug, roughness: 1 }), 'fabric', { ns: 0.9 }), // the round felt rug under the dining table (photos)
   sofaDark: () => bindSet(new MSM({ color: '#353236', roughness: 1 }), 'fabric', { ns: 0.8 }), // the zitkamer corner sofa is near-black (photos)
   sofaCush: () => bindSet(new MSM({ color: '#4a464b', roughness: 1 }), 'fabric', { ns: 0.8 }),
   poster0: () => new MSM({ map: posterTex(0), roughness: 0.35 }), poster1: () => new MSM({ map: posterTex(1), roughness: 0.35 }), poster2: () => new MSM({ map: posterTex(2), roughness: 0.35 }),
@@ -856,7 +871,7 @@ function M(key) {
   else if (kind === 'wall' && ROOM[id]?.wet) m = bindSet(new MSM({ color: state.rooms[id]?.wall || '#eeece6', roughness: 0.22 }), 'wandtegels', { rough: 0.22 });
   else if (kind === 'wall') m = bindSet(new MSM({ color: state.rooms[id]?.wall || '#eeece6', roughness: 0.9 }), 'plaster', { ns: 0.45 });
   else if (kind === 'floor') { const rs = state.rooms[id]; m = bindSet(new MSM({ color: rs.tint, roughness: FLOORS[rs.floor].rough }), rs.floor, { rough: FLOORS[rs.floor].rough }); }
-  else if (kind === 'rug') m = bindSet(new MSM({ color: state.rooms[id]?.rug || '#e4ddcf', roughness: 1 }), 'fabric', { ns: 0.9 });
+  else if (kind === 'rug') m = bindSet(new MSM({ color: state.rooms[id]?.rug || '#e4ddcf', map: T.rug, roughness: 1 }), 'fabric', { ns: 0.9 });
   else if (kind === 'art') m = new MSM({ map: artTex(+id), roughness: 0.85 });
   else if (key in STYLE_MAT) {
     m = new MSM({ color: sc(key), roughness: STYLE_MAT[key] });
@@ -1503,7 +1518,7 @@ const P = {
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.box(legMat(), sx * (w / 2 - 0.05), 0.2, sz * (d / 2 - 0.05), 0.04, 0.4, 0.04);
     f.cyl('pot', 0.2, 0.47, 0.05, 0.06, 0.1, 14, 0.05); f.box('book2', -0.25, 0.435, -0.05, 0.28, 0.03, 0.2, 0.2);
   },
-  rug(f, id, w, d) { f.box('rug:' + id, 0, 0.007, 0, w, 0.012, d); },
+  rug(f, id, w, d) { f.geo('rug:' + id, gRBox(w, 0.012, d, 0.005, 2), 0, 0.007, 0); },
   table(f, w = 1.9, d = 0.95) {
     f.box('wood', 0, 0.74, 0, w, 0.04, d);
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.box('wood', sx * (w / 2 - 0.1), 0.36, sz * (d / 2 - 0.1), 0.06, 0.72, 0.06);
@@ -1511,7 +1526,7 @@ const P = {
   },
   // the real dining corner (photos): round walnut table on a crossed plank base, round grey rug, a vase of cotton stems
   roundTable(f, id, r = 0.55) {
-    f.cyl('rugGrey', 0, 0.007, 0, 1.05, 0.012, 48);
+    f.geo('rugGrey', GEO.rugRound ||= metreUV(new THREE.CylinderGeometry(1.05, 1.05, 0.012, 72)), 0, 0.007, 0);
     f.cyl('walnut', 0, 0.742, 0, r, 0.036, 48); f.cyl('walnut', 0, 0.715, 0, r * 0.42, 0.02, 24);
     for (const a of [PI / 4, -PI / 4]) f.box('walnut', 0, 0.36, 0, r * 1.15, 0.7, 0.05, a);
     f.cyl('pot', 0.12, 0.86, -0.06, 0.055, 0.2, 14, 0.04);

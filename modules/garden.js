@@ -307,6 +307,8 @@ const DECK = { x0: -0.28, x1: 2.72, z0: -9.9, z1: -6.9, h: 0.08 };
 const RIM_Y = DECK.h + 0.90, WATER_Y = RIM_Y - 0.11, FLOOR_Y = RIM_Y - 0.80;
 const SHED = { x0: 6.0, x1: 9.4, z0: -10.9, z1: -8.4, h: 2.3 }, STRIP = { x0: 7.7, x1: 9.3, z0: -15.1, z1: -10.9, h: 2.1 };
 const HEDGE = { a: [-1.1, -10.1], b: [6.0, -10.5], w: 0.6, h: 1.8 };
+// voortuin: gras tussen gevel en voorhaag (host-plaatsen), het tegelpad naar de zijdeur loopt er doorheen
+const FRONT_LAWNS = [[-0.75, 3.0, 9.28, 17.6], [3.0, 7.0, 12.47, 17.6], [8.3, 9.35, 12.47, 17.6]];
 const BEDS = [[-0.3, 2.0, -5.1, -3.35], [-0.85, -0.3, -6.9, -3.0], [2.75, 5.95, -9.9, -7.7], [8.7, 9.3, -8.3, -3.4]];
 const STONES1 = [[2.75, -3.65], [2.55, -4.3], [2.3, -4.95], [2.0, -5.55], [1.45, -5.95]];
 const STONES2 = Array.from({ length: 8 }, (_, i) => { const t = i / 7; return [6.3 + 0.85 * t + 0.25 * Math.sin(PI * t), -3.6 - 4.55 * t]; });
@@ -535,22 +537,33 @@ export function install(H) {
   const dark = c => [c[0] * 0.5, c[1] * 0.5, c[2] * 0.5];
   const lump = (th, ph) => 0.9 + 0.2 * Math.abs(Math.sin(th * 2.5 + ph * 3.1)) * Math.abs(Math.cos(th * 1.7 - ph * 2.3));
   const C = { hedge: [[0.07, 0.15, 0.05], [0.20, 0.33, 0.10]], green: [[0.18, 0.34, 0.12], [0.40, 0.56, 0.22]], box: [[0.12, 0.26, 0.09], [0.26, 0.42, 0.14]], copper: [[0.12, 0.05, 0.05], [0.28, 0.11, 0.09]], maple: [[0.09, 0.02, 0.03], [0.21, 0.045, 0.055]], olive: [[0.42, 0.48, 0.36], [0.68, 0.72, 0.56]], lav: [[0.40, 0.46, 0.36], [0.56, 0.62, 0.5]], blossom: [[0.92, 0.70, 0.78], [0.99, 0.90, 0.94]], tree: [[0.16, 0.30, 0.10], [0.36, 0.52, 0.18]], birch: [[0.20, 0.32, 0.09], [0.46, 0.52, 0.14]] };
-  // haag: kern + bladkaarten op de buitenvlakken
-  {
-    const [ax, az] = HEDGE.a, [bx, bz] = HEDGE.b, L = Math.hypot(bx - ax, bz - az), ang = Math.atan2(bz - az, bx - ax), nx = -Math.sin(ang), nz = Math.cos(ang);
-    const core = new THREE.BoxGeometry(L, HEDGE.h - 0.1, HEDGE.w - 0.12); statics.geo('colored', core, place((ax + bx) / 2, (HEDGE.h - 0.1) / 2, (az + bz) / 2, -ang), [0.07, 0.14, 0.05]);
-    addCol(Math.min(ax, bx), Math.max(ax, bx), Math.min(az, bz) - HEDGE.w / 2, Math.max(az, bz) + HEDGE.w / 2);
-    for (let i = 0; i < Q.hedge; i++) {
+  // haag: kern + bladkaarten op de buitenvlakken. Achterhaag met eigen kern; de lage voorhagen van de host (0,75 m) krijgen
+  // alleen bladkaarten om hun doos heen
+  function hedgeRun(ax, az, bx, bz, w, h, n, core) {
+    const L = Math.hypot(bx - ax, bz - az), ang = Math.atan2(bz - az, bx - ax), nx = -Math.sin(ang), nz = Math.cos(ang);
+    if (core) {
+      statics.geo('colored', new THREE.BoxGeometry(L, h - 0.1, w - 0.12), place((ax + bx) / 2, (h - 0.1) / 2, (az + bz) / 2, -ang), [0.07, 0.14, 0.05]);
+      addCol(Math.min(ax, bx), Math.max(ax, bx), Math.min(az, bz) - w / 2, Math.max(az, bz) + w / 2);
+    }
+    const side = 0.62 * h * 2 / (h * 2 + w);   // aandeel bladkaarten op de zijvlakken, naar oppervlak
+    for (let i = 0; i < n; i++) {
       const t = Rp(), f = Rp(), px = ax + (bx - ax) * t, pz = az + (bz - az) * t, dd = 0.04 * Math.sin(t * L * 1.9 + 0.7) * Math.cos(t * L * 0.6) + 0.025 * Math.sin(t * L * 5.3 + 2) + (Rp() - .5) * 0.06;
       let x, y, z, ox, oy, oz;
-      if (f < 0.42) { x = px + nx * (HEDGE.w / 2 + 0.03 + dd); z = pz + nz * (HEDGE.w / 2 + 0.03 + dd); y = 0.1 + Rp() * (HEDGE.h - 0.15); ox = nx; oy = 0.15; oz = nz; }       // tuinzijde (+z)
-      else if (f < 0.62) { x = px - nx * (HEDGE.w / 2 + 0.03 + dd); z = pz - nz * (HEDGE.w / 2 + 0.03 + dd); y = 0.1 + Rp() * (HEDGE.h - 0.15); ox = -nx; oy = 0.15; oz = -nz; }
-      else { const u = (Rp() - .5) * HEDGE.w; x = px + nx * u; z = pz + nz * u; y = HEDGE.h - 0.05 + Rp() * 0.1; ox = u * 0.8; oy = 1; oz = 0; }
+      if (f < side * 0.68) { x = px + nx * (w / 2 + 0.03 + dd); z = pz + nz * (w / 2 + 0.03 + dd); y = 0.1 + Rp() * (h - 0.15); ox = nx; oy = 0.15; oz = nz; }
+      else if (f < side) { x = px - nx * (w / 2 + 0.03 + dd); z = pz - nz * (w / 2 + 0.03 + dd); y = 0.1 + Rp() * (h - 0.15); ox = -nx; oy = 0.15; oz = -nz; }
+      else { const u = (Rp() - .5) * w; x = px + nx * u; z = pz + nz * u; y = h - 0.05 + Rp() * 0.1; ox = u * 0.8; oy = 1; oz = 0; }
       leafAt(x + (Rp() - .5) * 0.08, y, z + (Rp() - .5) * 0.08, ox + (Rp() - .5) * 0.9, oy + (Rp() - .5) * 0.6, oz + (Rp() - .5) * 0.9, 0.9 + Rp() * 0.5, mixCol(C.hedge[0], C.hedge[1], Rp()));
     }
   }
+  hedgeRun(HEDGE.a[0], HEDGE.a[1], HEDGE.b[0], HEDGE.b[1], HEDGE.w, HEDGE.h, Q.hedge, true);
+  // voorhagen (host: x -1.05..-0.75 z 9.28..18; z 17.6..17.9 x -0.75..7.0 en 8.3..9.35), zelfde bladdichtheid per m2
+  const hd = Q.hedge / 30;
+  for (const [ax, az, bx, bz] of [[-0.9, 9.28, -0.9, 18.0], [-0.75, 17.75, 7.0, 17.75], [8.3, 17.75, 9.35, 17.75]]) {
+    const L = Math.hypot(bx - ax, bz - az); hedgeRun(ax, az, bx, bz, 0.3, 0.75, Math.round(hd * L * 1.8), false);
+  }
   // gazon-ondergrond over de grasplaat van de host (y 0): rustige vlekkerige grasmat; de sprieten erop vervagen snel met afstand
   statics.box({ py: 'lawn', def: 'lawn' }, -0.85, 9.35, -0.03, 0.004, -15.15, -3.0);
+  for (const [x0, x1, z0, z1] of FRONT_LAWNS) statics.box({ py: 'lawn', def: 'lawn' }, x0, x1, -0.03, 0.004, z0, z1);
   // borders (schors)
   for (const [x0, x1, z0, z1] of BEDS) statics.box({ py: 'mulch', def: 'mulch' }, x0, x1, -0.02, 0.025, z0, z1);
   // struiken
@@ -755,13 +768,14 @@ export function install(H) {
     };
     gm.customProgramCacheKey = () => 'garden-grass';
     // plaatsing: gazonrechthoeken minus vlonder, borders, tegels, schuur
-    const lawns = [[-0.3, 5.95, -9.9, -3.35], [5.95, 9.25, -8.3, -3.35]];
-    const blocked = [[DECK.x0, DECK.x1, DECK.z0, DECK.z1], [0.67, 1.77, -6.9, -6.2], ...BEDS, [SHED.x0 - 0.2, SHED.x1, SHED.z0, SHED.z1 + 0.2], [5.9, 6.6, -8.3, -7.6]];
+    const lawns = [[-0.3, 5.95, -9.9, -3.35], [5.95, 9.25, -8.3, -3.35], ...FRONT_LAWNS];
+    const blocked = [[DECK.x0, DECK.x1, DECK.z0, DECK.z1], [0.67, 1.77, -6.9, -6.2], ...BEDS, [SHED.x0 - 0.2, SHED.x1, SHED.z0, SHED.z1 + 0.2], [5.9, 6.6, -8.3, -7.6], [1.5, 2.75, 9.28, 11.1], [-1.1, -0.7, 9.2, 18.1], [-0.8, 9.4, 17.55, 17.95]];
     const circles = [...STONES1, ...STONES2].map(([x, z]) => [x, z, 0.3]).concat(BOLLARDS.map(([x, z]) => [x, z, 0.08]));
     const free = (x, z) => { for (const b of blocked) if (x > b[0] && x < b[1] && z > b[2] && z < b[3]) return false; for (const c of circles) if ((x - c[0]) ** 2 + (z - c[1]) ** 2 < c[2] * c[2]) return false; return true; };
     const R = rng(123), inst = [], areas = lawns.map(l => (l[1] - l[0]) * (l[3] - l[2])), tot = areas.reduce((a, b) => a + b, 0);
     let guard = 0;
-    while (inst.length < Q.grass && guard++ < Q.grass * 4) {
+    const nGrass = Math.round(Q.grass * tot / (areas[0] + areas[1]));   // voortuin met dezelfde dichtheid als achter
+    while (inst.length < nGrass && guard++ < nGrass * 4) {
       let r = R() * tot, li = 0; while (r > areas[li] && li < lawns.length - 1) { r -= areas[li]; li++; }
       const l = lawns[li], x = l[0] + R() * (l[1] - l[0]), z = l[2] + R() * (l[3] - l[2]);
       if (!free(x, z)) continue;
