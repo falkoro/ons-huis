@@ -1,10 +1,15 @@
 /* garden.js — de achtertuin van Ons Huis (add-on voor de woning-walkthrough)
  *
- *  - Jacuzzi (Wellis Malaga, 218 x 218 x 90 cm) op een houten vlonder met opstap: antraciet kuip, parelgrijze
- *    acrylschaal met zitjes en ligplek, hoofdsteunen, jets, waterval. Grijs isolatiedeksel (2 x 2 vakken) dat
- *    met E / klik / tik opengaat (dubbelvouwen en op de lifter achter de kuip hangen) en weer dicht.
- *    Open: water met bewegende rimpels (dubbele normal map), opstijgende bubbels uit de jets, stoom
- *    ('s avonds meer) en een onderwater-LED (cyaan) die 's avonds aangaat (HOUSE.garden.setLed).
+ *  - Jacuzzi (Wellis Malaga, 218 x 218 x 90 cm) op een houten vlonder met opstap: vierkante kuip met afgeschuinde hoeken,
+ *    ombouw van grijze horizontale planken met antracieten hoekstijlen (logo-paneel licht 's avonds mee), brede witte
+ *    acrylrand, gevormde schaal met hoekzitjes, dieper middenzitje, zijzitjes, ligplek, filterhoek, grijze hoofdsteunen,
+ *    ~30 chroomjets, waterval, bedieningspaneel. Onder water: dieptetint, bewegende caustieken (shell-shader).
+ *    Grijs vinyl deksel (2 helften, taps, stiksels, banden) dat met E / klik / tik dubbelvouwt en op de dekselbeugel
+ *    achter de kuip komt te staan (coverIt); knop "Jacuzzi" in de werkbalk doet hetzelfde.
+ *    Open: water met bewegende rimpels, Fresnel-spiegeling en schuim; "bubbels aan/uit" via het water (bubblesIt):
+ *    roering, extra rimpels, schuim langs de wanden en opstijgende bubbels uit de lage jets. Lichte damp ('s avonds meer).
+ *    's Avonds LED: 45 s kleurcyclus over waterlijn-LED's, de grote LED, het water en de schaal (alleen kleur/sterkte,
+ *    nooit het aantal lichten; HOUSE.garden.setLed overrulet).
  *  - Schuurtje (berging 2016, x 6.0–9.4 / z −10.9…−8.4) + strookberging, houten rabatdelen, deur, raampje,
  *    EPDM-dak met boeiboord, zinken goot, regenpijp en regenton. Buurpand 2022 achter de haag als context.
  *  - Achterhaag met instanced bladkaarten, gazon met instanced graspollen (wind + afstandsvervaging),
@@ -41,7 +46,7 @@ const Q = ENV.coarse
 /* =====================================================================================================
  *  CANVAS-TEXTUREN (procedureel, geen downloads)
  * ===================================================================================================== */
-function mkCanvas(w, h = w) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+function mkCanvas(w, h = w) { const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d', { willReadFrequently: true }); return c; } // CPU canvas: pixels are read back (noise, normal maps), which on a GPU canvas waits for the GPU
 function tex(c, su = 1, sv = su, srgb = true) {
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / su, 1 / sv);
   if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
@@ -54,7 +59,7 @@ function normalFromHeight(hc, strength = 2) {
   const H = (x, y) => src[(((y + h) % h) * w + ((x + w) % w)) * 4] / 255;
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const dx = (H(x + 1, y) - H(x - 1, y)) * strength, dy = (H(x, y + 1) - H(x, y - 1)) * strength;
-    const l = Math.hypot(dx, dy, 1), i = (y * w + x) * 4;
+    const l = Math.sqrt(dx * dx + dy * dy + 1), i = (y * w + x) * 4;
     d[i] = 128 + (-dx / l) * 127; d[i + 1] = 128 + (dy / l) * 127; d[i + 2] = 128 + (1 / l) * 127; d[i + 3] = 255;
   }
   ctx.putImageData(img, 0, 0); return out;
@@ -98,15 +103,21 @@ function texCover() {
   noise(x, W, H, W * 4, 0.07, R);
   return { map: c, nor: normalFromHeight(hc, 1.3) };
 }
-// verticale ribbels (kuip van de spa)
-function texRibs() {
-  const S = Q.tex / 2, c = mkCanvas(S), x = c.getContext('2d'), hc = mkCanvas(S), hx = hc.getContext('2d'), n = 8, w = S / n, R = rng(9);
-  for (let i = 0; i < n; i++) {
-    const g = x.createLinearGradient(i * w, 0, (i + 1) * w, 0); g.addColorStop(0, '#2c2e31'); g.addColorStop(0.5, '#45484c'); g.addColorStop(1, '#2a2c2f'); x.fillStyle = g; x.fillRect(i * w, 0, w, S);
-    const h = hx.createLinearGradient(i * w, 0, (i + 1) * w, 0); h.addColorStop(0, '#404040'); h.addColorStop(0.5, '#c0c0c0'); h.addColorStop(1, '#404040'); hx.fillStyle = h; hx.fillRect(i * w, 0, w, S);
+// caustieken: dunne lichte lijnen waar een som van sinussen door nul gaat (tileable, grijs)
+function texCaustic() {
+  const S = 256, c = mkCanvas(S), x = c.getContext('2d'), img = x.createImageData(S, S), d = img.data;
+  const waves = [[2, 3, 1.0, 0.0], [-3, 2, 0.8, 1.3], [4, -1, 0.6, 2.1], [1, 5, 0.5, 0.7], [-2, -4, 0.45, 2.9]];
+  for (let y = 0; y < S; y++) for (let xx = 0; xx < S; xx++) {
+    const u = xx / S, v = y / S; let h = 0; for (const [a, b, amp, ph] of waves) h += amp * Math.sin(2 * PI * (a * u + b * v) + ph);
+    const k = Math.pow(1 - Math.min(1, Math.abs(h) / 1.1), 5) * 255, i = (y * S + xx) * 4; d[i] = d[i + 1] = d[i + 2] = k; d[i + 3] = 255;
   }
-  noise(x, S, S, S * 3, 0.06, R);
-  return { map: c, nor: normalFromHeight(hc, 1.4) };
+  x.putImageData(img, 0, 0); return c;
+}
+// schuimvlekken (grijs, tileable): zachte blobs
+function texFoam() {
+  const S = 128, c = mkCanvas(S), x = c.getContext('2d'), R = rng(57); x.fillStyle = '#000'; x.fillRect(0, 0, S, S);
+  for (let i = 0; i < 240; i++) { const r = 3 + R() * 9, cx = R() * S, cy = R() * S, a = 0.5 + R() * 0.5; for (const [ox, oy] of [[0, 0], [S, 0], [-S, 0], [0, S], [0, -S]]) { const g = x.createRadialGradient(cx + ox, cy + oy, 0, cx + ox, cy + oy, r); g.addColorStop(0, `rgba(255,255,255,${a})`); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(cx + ox - r, cy + oy - r, 2 * r, 2 * r); } }
+  return c;
 }
 function texSpeckle(base, a, b, n = 2500) {
   const S = 256, c = mkCanvas(S), x = c.getContext('2d'), R = rng(13);
@@ -165,7 +176,7 @@ function texWaterNormal() {
   const h = (u, v) => { let s = 0; for (const [a, b, amp, ph] of waves) s += amp * Math.sin(2 * PI * (a * u + b * v) + ph); return s; };
   const e = 1 / S, k = 0.55;
   for (let y = 0; y < S; y++) for (let xx = 0; xx < S; xx++) {
-    const u = xx / S, v = y / S, dx = (h(u + e, v) - h(u - e, v)) * k, dy = (h(u, v + e) - h(u, v - e)) * k, l = Math.hypot(dx, dy, 1), i = (y * S + xx) * 4;
+    const u = xx / S, v = y / S, dx = (h(u + e, v) - h(u - e, v)) * k, dy = (h(u, v + e) - h(u, v - e)) * k, l = Math.sqrt(dx * dx + dy * dy + 1), i = (y * S + xx) * 4;
     d[i] = 128 + (-dx / l) * 127; d[i + 1] = 128 + (-dy / l) * 127; d[i + 2] = 128 + (1 / l) * 127; d[i + 3] = 255;
   }
   x.putImageData(img, 0, 0); return c;
@@ -275,18 +286,15 @@ function cylBetween(mg, k, a, b, r, col) {
   const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize());
   mg.geo(k, new THREE.CylinderGeometry(r, r, l, 8), new THREE.Matrix4().compose(mid, q, new THREE.Vector3(1, 1, 1)), col);
 }
-function rsqShape(h, r) {
-  const s = new THREE.Shape(); s.moveTo(-h + r, -h); s.lineTo(h - r, -h); s.absarc(h - r, -h + r, r, -PI / 2, 0, false); s.lineTo(h, h - r);
-  s.absarc(h - r, h - r, r, 0, PI / 2, false); s.lineTo(-h + r, h); s.absarc(-h + r, h - r, r, PI / 2, PI, false); s.lineTo(-h, -h + r); s.absarc(-h + r, -h + r, r, PI, 1.5 * PI, false); return s;
-}
-// omtrek van een afgerond vierkant: n punten {x, z, nx, nz, s} (s = booglengte 0..1)
-function rsqRing(h, r, n) {
-  const st = 2 * (h - r), arc = PI * r / 2, side = st + arc, out = [];
-  for (let i = 0; i < n; i++) {
-    const s = i / n * 4 * side, k = Math.floor(s / side), u = s - k * side; let x, z, nx, nz;
-    if (u <= st) { x = -(h - r) + u; z = -h; nx = 0; nz = -1; } else { const a = -PI / 2 + (u - st) / r; x = (h - r) + r * Math.cos(a); z = -(h - r) + r * Math.sin(a); nx = Math.cos(a); nz = Math.sin(a); }
-    const th = k * PI / 2, c = Math.cos(th), sn = Math.sin(th);
-    out.push({ x: x * c - z * sn, z: x * sn + z * c, nx: nx * c - nz * sn, nz: nx * sn + nz * c, s: i / n });
+// omtrek van een vierkant met afgeschuinde hoeken (halve breedte h, afschuining c): punten {x, z, nx, nz, s}, met de klok mee
+// vanaf de achterzijde (-z); nx/nz = buitennormaal van het segment dat bij het punt begint, s = omtrekpositie 0..1
+function octRing(h, c, k = 6) {
+  const P = [[-h + c, -h], [h - c, -h], [h, -h + c], [h, h - c], [h - c, h], [-h + c, h], [-h, h - c], [-h, -h + c]], L = P.map((p, i) => Math.hypot(P[(i + 1) % 8][0] - p[0], P[(i + 1) % 8][1] - p[1])), per = L.reduce((a, b) => a + b, 0), out = [];
+  let s = 0;
+  for (let i = 0; i < 8; i++) {
+    const p = P[i], q = P[(i + 1) % 8], n = i % 2 ? 1 : k, dx = q[0] - p[0], dz = q[1] - p[1], l = L[i], nx = dz / l, nz = -dx / l;
+    for (let j = 0; j < n; j++) { const t = j / n; out.push({ x: p[0] + dx * t, z: p[1] + dz * t, nx, nz, s: (s + l * t) / per }); }
+    s += l;
   }
   return out;
 }
@@ -301,6 +309,14 @@ function rbox(w, h, d, r) {
 /* =====================================================================================================
  *  INSTALL
  * ===================================================================================================== */
+// The heavy procedural textures don't need the house, so they are made while the module waits for HOUSE, one per poll (each
+// its own short task), instead of all inside install(), which froze the page for ~0.5 s; install() makes any not made yet
+const EARLY = {
+  water: texWaterNormal, deck: () => texWood(1, 28, 22, 36, 6, { gap: 3 }), teak: () => texWood(2, 32, 48, 50, 5, { gap: 1, knots: false }),
+  clad: () => texWood(3, 24, 26, 24, 8, { gap: 2, rabat: true }), cab: () => texWood(4, 210, 4, 40, 6, { gap: 2, knots: false }),
+  cover: texCover, wicker: texWicker, caustic: texCaustic, foam: texFoam, lawn: texLawn, mulch: texMulch, stone: texStone,
+}, early = {};
+const made = k => early[k] ??= EARLY[k]();
 // vaste maten (modelcoördinaten, meters; zie EXTERIOR-NOTES: jacuzzi x −0.3…2.75, z −9.9…−6.9)
 const JX = 1.22, JZ = -8.40, TUB_H = 1.09, RIM_R = 0.22;
 const DECK = { x0: -0.28, x1: 2.72, z0: -9.9, z1: -6.9, h: 0.08 };
@@ -326,25 +342,28 @@ export function install(H) {
   hideHostShed(H); hideHostTrees(H);
 
   /* ---- texturen + materialen ---- */
-  const deckW = texWood(1, 28, 22, 36, 6, { gap: 3 }), teakW = texWood(2, 32, 48, 50, 5, { gap: 1, knots: false }), cladW = texWood(3, 24, 26, 24, 8, { gap: 2, rabat: true });
-  const coverT = texCover(), ribsT = texRibs(), wickT = texWicker();
+  const deckW = made('deck'), teakW = made('teak'), cladW = made('clad');
+  const coverT = made('cover'), wickT = made('wicker'), cabW = made('cab');
+  const caustT = tex(made('caustic'), 1, 1, false), foamT = tex(made('foam'), 1, 1, false);
+  const uPhase = { value: 0 }, uAgit = { value: 0 }, uLed = { value: new THREE.Color(0, 0, 0) };   // water/schaal: fase, roering (bubbels), LED-kleur
   const MSM = THREE.MeshStandardMaterial, MPM = THREE.MeshPhysicalMaterial;
   const mat = {
     deck: new MSM({ map: tex(deckW.map, 2.4, 0.84), normalMap: tex(deckW.nor, 2.4, 0.84, false), normalScale: new THREE.Vector2(0.7, 0.7), roughness: 0.85 }),
     teak: new MSM({ map: tex(teakW.map, 1.2, 0.5), normalMap: tex(teakW.nor, 1.2, 0.5, false), normalScale: new THREE.Vector2(0.4, 0.4), roughness: 0.6 }),
     clad: new MSM({ map: tex(cladW.map, 2.2, 1.16), normalMap: tex(cladW.nor, 2.2, 1.16, false), normalScale: new THREE.Vector2(0.9, 0.9), roughness: 0.9 }),
     cladDark: new MSM({ map: tex(cladW.map, 2.2, 1.16), color: '#6a6a6a', roughness: 0.95 }),
-    cabinet: new MSM({ map: tex(ribsT.map, 0.5, 0.9), normalMap: tex(ribsT.nor, 0.5, 0.9, false), normalScale: new THREE.Vector2(0.8, 0.8), roughness: 0.72 }),
+    cabinet: new MSM({ map: tex(cabW.map, 1.6, 1), normalMap: tex(cabW.nor, 1.6, 1, false), normalScale: new THREE.Vector2(0.6, 0.6), roughness: 0.82 }),
+    pillow: new MSM({ color: '#8d9195', roughness: 0.75 }),
     shell: new MPM({ map: tex(texSpeckle('#e2e5e4', '#cfd4d3', '#f4f6f5'), 0.5), roughness: 0.2, clearcoat: 0.7, clearcoatRoughness: 0.12, envMapIntensity: 1.1 }),
-    water: new MPM({ color: '#b9e4ec', transparent: true, opacity: 0.42, roughness: 0.08, metalness: 0, clearcoat: 0.6, clearcoatRoughness: 0.06, envMapIntensity: 1.1, depthWrite: false, emissive: '#15b0d6', emissiveIntensity: 0, side: THREE.DoubleSide }),
+    water: new MPM({ color: '#a9dde8', transparent: true, opacity: 0.3, roughness: 0.06, metalness: 0, clearcoat: 0.5, clearcoatRoughness: 0.05, envMapIntensity: 1.2, depthWrite: false, emissive: '#15b0d6', emissiveIntensity: 0, side: THREE.DoubleSide }),
     coverTop: new MSM({ map: tex(coverT.map, 1, 1), normalMap: tex(coverT.nor, 1, 1, false), normalScale: new THREE.Vector2(1.2, 1.2), roughness: 0.6 }),
-    vinyl: new MSM({ color: '#565a5e', roughness: 0.62 }), vinylDark: new MSM({ color: '#2d2f32', roughness: 0.5 }),
+    vinyl: new MSM({ color: '#53575b', roughness: 0.7 }), vinylDark: new MSM({ color: '#2d2f32', roughness: 0.55 }),
     chrome: new MSM({ color: '#d9dbdd', metalness: 0.95, roughness: 0.18 }), alu: new MSM({ color: '#34363a', metalness: 0.65, roughness: 0.42 }),
     epdm: new MSM({ map: tex(texFlat('#36383b', 2000, 0.08), 1.5), roughness: 0.92 }), fascia: new MSM({ color: '#26282a', roughness: 0.45 }),
     zinc: new MSM({ color: '#a2a7aa', metalness: 0.75, roughness: 0.32 }), frameDark: new MSM({ color: '#2a2c2e', roughness: 0.5 }),
     glassDark: new MPM({ color: '#18232a', roughness: 0.06, metalness: 0.25, clearcoat: 1 }),
-    concrete: new MSM({ map: tex(texFlat('#a3a29c', 1800, 0.1), 0.7), roughness: 0.95 }), stone: new MSM({ map: tex(texStone(), 1), roughness: 0.9 }),
-    mulch: new MSM({ map: tex(texMulch(), 0.8), roughness: 1 }), lawn: new MSM({ map: tex(texLawn(), 4, 4), roughness: 1 }), bark: new MSM({ color: '#4d3e32', roughness: 0.95 }), birch: new MSM({ map: tex(texBirch(), 1, 1), roughness: 0.85 }),
+    concrete: new MSM({ map: tex(texFlat('#a3a29c', 1800, 0.1), 0.7), roughness: 0.95 }), stone: new MSM({ map: tex(made('stone'), 1), roughness: 0.9 }),
+    mulch: new MSM({ map: tex(made('mulch'), 0.8), roughness: 1 }), lawn: new MSM({ map: tex(made('lawn'), 4, 4), roughness: 1 }), bark: new MSM({ color: '#4d3e32', roughness: 0.95 }), birch: new MSM({ map: tex(texBirch(), 1, 1), roughness: 0.85 }),
     colored: new MSM({ vertexColors: true, roughness: 0.9 }),
     wicker: new MSM({ map: tex(wickT.map, 0.18), normalMap: tex(wickT.nor, 0.18, 0.18, false), normalScale: new THREE.Vector2(0.6, 0.6), roughness: 0.8 }),
     cushion: new MSM({ map: tex(texFlat('#cbc7be', 1500, 0.07), 0.6), roughness: 0.95 }), accent: new MSM({ map: tex(texFlat('#b3863a', 1500, 0.07), 0.6), roughness: 0.95 }),
@@ -357,79 +376,128 @@ export function install(H) {
   mat.coverTop.map.wrapS = mat.coverTop.map.wrapT = THREE.ClampToEdgeWrapping; mat.coverTop.normalMap.wrapS = mat.coverTop.normalMap.wrapT = THREE.ClampToEdgeWrapping;
   const cladV = mat.clad.clone(); cladV.map = mat.clad.map.clone(); cladV.map.rotation = PI / 2; cladV.map.center.set(0.5, 0.5); cladV.normalMap = mat.clad.normalMap.clone(); cladV.normalMap.rotation = PI / 2; cladV.normalMap.center.set(0.5, 0.5); mat.cladV = cladV;
 
-  // water: twee bewegende normal-lagen (onBeforeCompile op de physical material)
-  const waterNor = tex(texWaterNormal(), 0.55, 0.55, false); mat.water.normalMap = waterNor; mat.water.normalScale.set(0.22, 0.22);
-  const uWater = { value: 0 };
+  // water: twee bewegende normal-lagen + een fijne derde bij roering, schuim langs de wanden (jets) als de bubbels aanstaan,
+  // Fresnel-opaciteit (spiegelend onder een schuine hoek). uPhase loopt sneller bij roering (geen fasesprong)
+  const waterNor = tex(made('water'), 0.55, 0.55, false); mat.water.normalMap = waterNor; mat.water.normalScale.set(0.2, 0.2);
   mat.water.onBeforeCompile = sh => {
-    sh.uniforms.uTime = uWater;
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uTime;')
-      .replace('texture2D( normalMap, vNormalMapUv ).xyz * 2.0 - 1.0', '(texture2D( normalMap, vNormalMapUv + vec2(uTime*0.021, uTime*0.013) ).xyz + texture2D( normalMap, vNormalMapUv * 1.63 + vec2(-uTime*0.017, uTime*0.026) ).xyz) - 1.0');
+    sh.uniforms.uPhase = uPhase; sh.uniforms.uAgit = uAgit; sh.uniforms.uFoam = { value: foamT };
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vJUv;').replace('#include <uv_vertex>', '#include <uv_vertex>\nvJUv = uv;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uPhase, uAgit; uniform sampler2D uFoam; varying vec2 vJUv;')
+      .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nfloat jFoam = 0.0;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        { float ed = max(abs(vJUv.x), abs(vJUv.y)) / 0.93;
+          float f1 = texture2D(uFoam, vJUv * 0.8 + vec2(uPhase * 0.05, -uPhase * 0.03)).r, f2 = texture2D(uFoam, vJUv * 1.5 - vec2(uPhase * 0.04, uPhase * 0.06)).r;
+          jFoam = smoothstep(0.45, 0.9, f1 * f2 * 2.4 + 0.12 * uAgit) * uAgit * (0.3 + 0.7 * smoothstep(0.4, 0.85, ed));
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.96, 0.98, 0.99), jFoam); }`)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.85, jFoam);')
+      .replace('texture2D( normalMap, vNormalMapUv ).xyz * 2.0 - 1.0', '(texture2D( normalMap, vNormalMapUv + vec2(uPhase*0.021, uPhase*0.013) ).xyz + texture2D( normalMap, vNormalMapUv * 1.63 + vec2(-uPhase*0.017, uPhase*0.026) ).xyz - 1.0) + (texture2D( normalMap, vNormalMapUv * 3.3 + vec2(uPhase*0.09, -uPhase*0.12) ).xyz * 2.0 - 1.0) * uAgit * 0.9')
+      .replace('#include <opaque_fragment>', `float jFr = pow(1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), 3.0);
+        gl_FragColor = vec4(outgoingLight, clamp(diffuseColor.a + 0.35 * jFr + 0.8 * jFoam, 0.0, 1.0));`);
   };
   mat.water.customProgramCacheKey = () => 'garden-water';
+  // schaal: onder de waterlijn blauwer naarmate het dieper is, bewegende caustieken, en 's avonds de LED-gloed
+  mat.shell.onBeforeCompile = sh => {
+    sh.uniforms.uPhase = uPhase; sh.uniforms.uAgit = uAgit; sh.uniforms.uLed = uLed; sh.uniforms.uCaust = { value: caustT }; sh.uniforms.uWaterY = { value: WATER_Y };
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vJWP;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvJWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uPhase, uAgit, uWaterY; uniform vec3 uLed; uniform sampler2D uCaust; varying vec3 vJWP;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        { float jd = uWaterY - vJWP.y;
+          if (jd > 0.0) { float jf = clamp(jd / 0.75, 0.0, 1.0); vec2 cu = vJWP.xz * 1.4;
+            float c1 = texture2D(uCaust, cu + vec2(uPhase * 0.035, uPhase * 0.028)).r, c2 = texture2D(uCaust, cu * 1.37 + vec2(-uPhase * 0.03, uPhase * 0.022)).r, ca = min(c1, c2) * 2.2;
+            diffuseColor.rgb *= mix(vec3(1.0), vec3(0.6, 0.85, 0.93), 0.25 + 0.65 * jf) * (1.0 + ca * (0.35 + 0.3 * uAgit));
+            totalEmissiveRadiance += uLed * (0.35 + 0.65 * ca) * smoothstep(0.0, 0.12, jd); } }`);
+  };
+  mat.shell.customProgramCacheKey = () => 'garden-shell';
 
   const statics = new Merger();            // alles wat nooit beweegt -> één mesh per materiaal
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const meshes = {};
   const api = { installed: true, root, mat, Q, ENV };
-  const aimTargets = [];
+  // richtdoelen voor de host (interactOf): label/act worden in het interactieblok ingevuld
+  const coverIt = { label: () => 'deksel ' + (api.cover.target === 2 ? 'dicht' : 'open'), act: null, on: () => api.cover.target === 2 };
+  const bubblesIt = { label: () => (api.bubbles ? 'bubbels uit' : 'bubbels aan'), act: null, on: () => api.bubbles };
 
-  /* =================================================== JACUZZI =================================================== */
+  /* =================================================== JACUZZI (Wellis Malaga) =================================================== */
+  // kuip: vierkant met afgeschuinde hoeken; buitenring (kleine afschuining) voor rand en ombouw, binnenring (grote afschuining)
+  // voor de schaal, zodat de hoekplateaus breder zijn (bekerhouders, bedieningspaneel) zoals bij de Malaga
   const jac = new THREE.Group(); root.add(jac);
+  const RING_O = octRing(1, 0.24), RING_I = octRing(1, 0.5);
   {
     // vlonder + opstap
     const dk = { py: 'deck', def: 'fascia' };
     statics.box(dk, DECK.x0, DECK.x1, -0.01, DECK.h, DECK.z0, DECK.z1);
     statics.box(dk, 0.67, 1.77, 0, 0.22, -6.9, -6.2); statics.box(dk, 0.67, 1.77, 0.22, 0.44, -6.9, -6.5);
     addCol(DECK.x0, DECK.x1, DECK.z0, DECK.z1); addCol(0.67, 1.77, -6.9, -6.2);
-    // kuip (antraciet, ribbels)
-    // open wand (geen deksel-cap: die zou de schaal en het water afdekken)
-    const sm = new Merger(), N = 72;
-    { const ring = rsqRing(TUB_H, RIM_R, N), y0 = DECK.h, y1 = RIM_Y - 0.05;
-      for (let i = 0; i < N; i++) { const a = ring[i], b = ring[(i + 1) % N], na = [a.nx, 0, a.nz], nb = [b.nx, 0, b.nz], sb = b.s || 1;
-        sm.tri('cabinet', [[JX + a.x, y0, JZ + a.z], [JX + b.x, y0, JZ + b.z], [JX + b.x, y1, JZ + b.z]], [na, nb, nb], [[a.s * 8, y0], [sb * 8, y0], [sb * 8, y1]]);
-        sm.tri('cabinet', [[JX + a.x, y0, JZ + a.z], [JX + b.x, y1, JZ + b.z], [JX + a.x, y1, JZ + a.z]], [na, nb, na], [[a.s * 8, y0], [sb * 8, y1], [a.s * 8, y1]]); } }
-    // schaal: rand + binnenwand (sweep langs afgerond vierkant), vloer, zitjes
-    const prof = [[1.09, RIM_Y - 0.06], [1.09, RIM_Y - 0.01], [1.07, RIM_Y], [0.99, RIM_Y], [0.955, RIM_Y - 0.025], [0.94, RIM_Y - 0.22], [0.9, FLOOR_Y + 0.08], [0.84, FLOOR_Y]];
-    const rings = prof.map(([h, y]) => ({ y, pts: rsqRing(h, RIM_R * h / TUB_H + 0.05, N) }));
-    for (let s = 0; s < rings.length - 1; s++) {
-      const A = rings[s], B = rings[s + 1], dh = prof[s + 1][0] - prof[s][0], dy = B.y - A.y;
+    const sm = new Merger(), N = RING_O.length;
+    // mantel: wand (ring r0 op hoogte y0, schaal h0) naar (r1, y1, h1); uv = (omtrek, hoogte)
+    const loft = (k, r0, h0, y0, r1, h1, y1, uvf) => {
+      const dh = h1 - h0, dy = y1 - y0;
       for (let i = 0; i < N; i++) {
-        const j = (i + 1) % N, a0 = A.pts[i], a1 = A.pts[j], b0 = B.pts[i], b1 = B.pts[j];
-        const nrm = p => { const v = new THREE.Vector3(p.nx * dy, -dh, p.nz * dy); return v.lengthSq() ? v.normalize().toArray() : [0, 1, 0]; };
-        const P = p => [JX + p.x, 0, JZ + p.z], uv = (p, y) => [p.s * 7, y];
-        const pa0 = P(a0), pa1 = P(a1), pb0 = P(b0), pb1 = P(b1); pa0[1] = pa1[1] = A.y; pb0[1] = pb1[1] = B.y;
-        sm.tri('shell', [pa0, pa1, pb1], [nrm(a0), nrm(a1), nrm(b1)], [uv(a0, A.y), uv(a1, A.y), uv(b1, B.y)]);
-        sm.tri('shell', [pa0, pb1, pb0], [nrm(a0), nrm(b1), nrm(b0)], [uv(a0, A.y), uv(b1, B.y), uv(b0, B.y)]);
+        const j = (i + 1) % N, a0 = r0[i], a1 = r0[j], b0 = r1[i], b1 = r1[j];
+        const n = p => { const v = new THREE.Vector3(a0.nx * dy, -dh, a0.nz * dy); return v.lengthSq() ? v.normalize().toArray() : [0, 1, 0]; };
+        const P = (p, h, y) => [JX + p.x * h, y, JZ + p.z * h], s1 = a1.s || 1;
+        sm.tri(k, [P(a0, h0, y0), P(a1, h0, y0), P(b1, h1, y1)], [n(), n(), n()], [uvf(a0.s, y0), uvf(s1, y0), uvf(s1, y1)]);
+        sm.tri(k, [P(a0, h0, y0), P(b1, h1, y1), P(b0, h1, y1)], [n(), n(), n()], [uvf(a0.s, y0), uvf(s1, y1), uvf(a0.s, y1)]);
       }
+    };
+    // ombouw: grijze horizontale planken (HorizontSide), zwarte plint, antracieten hoekstijlen
+    const cabUv = (s, y) => [s * 8.6, (y - DECK.h) / 0.93];
+    loft('cabinet', RING_O, 1.085, DECK.h + 0.05, RING_O, 1.085, RIM_Y - 0.025, cabUv);
+    loft('black', RING_O, 1.07, DECK.h, RING_O, 1.07, DECK.h + 0.05, cabUv);
+    for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const cx = sx * 0.975, cz = sz * 0.975, ry = Math.atan2(sx, sz);                     // stijl midden op de afschuining
+      sm.geo('black', new THREE.BoxGeometry(0.40, RIM_Y - 0.03 - DECK.h, 0.06), place(JX + cx, (RIM_Y - 0.03 + DECK.h) / 2, JZ + cz, ry));
+      if (sx === 1 && sz === 1) { sm.geo('led', new THREE.BoxGeometry(0.1, 0.42, 0.012), place(JX + cx + 0.022, 0.62, JZ + cz + 0.022, ry)); for (const dy of [-0.07, 0.07]) sm.geo('chrome', new THREE.BoxGeometry(0.1, 0.004, 0.013), place(JX + cx + 0.023, 0.62 + dy, JZ + cz + 0.023, ry)); }
     }
-    const floor = new THREE.ShapeGeometry(rsqShape(0.84, RIM_R * 0.84 / TUB_H + 0.05), 8); floor.rotateX(-PI / 2); sm.geo('shell', floor, place(JX, FLOOR_Y, JZ));
-    // zitjes (afgeronde blokken), ligplek, hoofdsteunen
-    const seat = (w, h, d, x, y, z, ry = 0, rx = 0) => sm.geo('shell', rbox(w, h, d, 0.05), place(x, y, z, ry, 1, rx));
-    seat(0.46, 0.34, 1.3, JX - 0.67, FLOOR_Y + 0.17, JZ); seat(0.46, 0.34, 1.3, JX + 0.67, FLOOR_Y + 0.17, JZ);
-    seat(1.0, 0.22, 0.4, JX, FLOOR_Y + 0.11, JZ + 0.7);
-    seat(0.95, 0.12, 1.1, JX, 0.5, JZ - 0.45, 0, -0.585); seat(0.5, 0.14, 0.2, JX, FLOOR_Y + 0.07, JZ + 0.05);
-    const pillow = (x, y, z, ry) => sm.geo('vinylDark', rbox(0.34, 0.14, 0.07, 0.025), place(x, y, z, ry, 1, 0, 0));
-    pillow(JX - 0.92, RIM_Y - 0.1, JZ - 0.3, PI / 2); pillow(JX - 0.92, RIM_Y - 0.1, JZ + 0.3, PI / 2); pillow(JX + 0.92, RIM_Y - 0.1, JZ - 0.3, PI / 2); pillow(JX + 0.92, RIM_Y - 0.1, JZ + 0.3, PI / 2); pillow(JX, RIM_Y - 0.1, JZ - 0.92, 0);
-    // jets (chroom) + bubbel-oorsprongen
+    // schaal: rand (buitenring) -> binnenlip (binnenring) -> wand -> vloer
+    const prof = [[RING_O, 1.09, RIM_Y - 0.045], [RING_O, 1.09, RIM_Y - 0.015], [RING_O, 1.075, RIM_Y], [RING_O, 0.985, RIM_Y], [RING_I, 0.955, RIM_Y - 0.006], [RING_I, 0.935, RIM_Y - 0.035], [RING_I, 0.925, RIM_Y - 0.3], [RING_I, 0.895, FLOOR_Y + 0.22], [RING_I, 0.855, FLOOR_Y + 0.05], [RING_I, 0.80, FLOOR_Y]];
+    const shUv = (s, y) => [s * 7, y];
+    for (let s = 0; s < prof.length - 1; s++) loft('shell', prof[s][0], prof[s][1], prof[s][2], prof[s + 1][0], prof[s + 1][1], prof[s + 1][2], shUv);
+    const floorSh = new THREE.Shape(); RING_I.forEach((p, i) => i ? floorSh.lineTo(p.x * 0.8, p.z * 0.8) : floorSh.moveTo(p.x * 0.8, p.z * 0.8)); floorSh.closePath();
+    const floor = new THREE.ShapeGeometry(floorSh); floor.rotateX(-PI / 2); sm.geo('shell', floor, place(JX, FLOOR_Y, JZ), [1, 1, 1]);
+    // gevormde zitjes op verschillende diepte: hoekzitjes achter (hoog), middenzitje achter (dieper), zijzitjes, ligplek voor
+    // (hoofd links, schuin aflopend naar de voeten rechts, rugleuning tegen de voorwand), filterhoek rechtsvoor
+    const seat = (w, h, d, x, y, z, ry = 0, rx = 0, rz = 0) => sm.geo('shell', rbox(w, h, d, 0.06), place(JX + x, y, JZ + z, ry, 1, rx, rz));
+    seat(0.62, 0.40, 0.58, -0.64, FLOOR_Y + 0.20, -0.66); seat(0.62, 0.40, 0.58, 0.64, FLOOR_Y + 0.20, -0.66);
+    seat(0.72, 0.32, 0.52, 0, FLOOR_Y + 0.16, -0.70);
+    seat(0.52, 0.37, 0.78, -0.72, FLOOR_Y + 0.185, -0.05); seat(0.52, 0.37, 0.78, 0.72, FLOOR_Y + 0.185, -0.05);
+    seat(1.45, 0.14, 0.62, -0.2, FLOOR_Y + 0.28, 0.62, 0, 0, -0.2); seat(1.3, 0.5, 0.14, -0.2, FLOOR_Y + 0.45, 0.84, 0, 0.25);
+    seat(0.42, 0.55, 0.42, 0.70, FLOOR_Y + 0.275, 0.70);
+    // hoofdsteunen (lichtgrijs), filterdeksel, bekerhouders
+    const pillow = (x, y, z, ry) => sm.geo('pillow', rbox(0.32, 0.11, 0.055, 0.025), place(JX + x, y, JZ + z, ry));
+    pillow(-0.62, RIM_Y - 0.085, -0.925, 0); pillow(0.62, RIM_Y - 0.085, -0.925, 0); pillow(-0.925, RIM_Y - 0.085, -0.05, PI / 2); pillow(0.925, RIM_Y - 0.085, -0.05, PI / 2); pillow(-0.62, RIM_Y - 0.085, 0.925, 0);
+    sm.geo('pillow', new THREE.CylinderGeometry(0.1, 0.1, 0.02, 20), place(JX + 0.74, FLOOR_Y + 0.56, JZ + 0.74)); sm.geo('black', new THREE.CylinderGeometry(0.03, 0.03, 0.03, 10), place(JX + 0.74, FLOOR_Y + 0.575, JZ + 0.74));
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1]]) sm.geo('pillow', new THREE.CylinderGeometry(0.045, 0.045, 0.012, 16), place(JX + sx * 0.84, RIM_Y - 0.004, JZ + sz * 0.84));
+    // jets: chroomring met donkere kern; de lage jets en de vloerjets voeden de bubbels
     const jets = [];
-    const jet = (x, y, z, nx, nz, bub = true) => { sm.geo('chrome', new THREE.CylinderGeometry(0.032, 0.032, 0.012, 12), place(x, y, z, 0, 1, 0, 0).multiply(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), V(nx, 0, nz))))); if (bub) jets.push([x + nx * 0.02, y, z + nz * 0.02]); };
-    for (const dz of [-0.38, 0, 0.38]) { jet(JX - 0.94, 0.66, JZ + dz, 1, 0); jet(JX - 0.94, 0.8, JZ + dz, 1, 0, false); jet(JX + 0.94, 0.66, JZ + dz, -1, 0); jet(JX + 0.94, 0.8, JZ + dz, -1, 0, false); }
-    jet(JX - 0.3, 0.56, JZ + 0.93, 0, -1); jet(JX + 0.3, 0.56, JZ + 0.93, 0, -1);
-    for (const [dx, dz] of [[-0.2, -0.75], [0.2, -0.75], [-0.2, -0.45], [0.2, -0.45], [0, -0.15]]) { sm.geo('chrome', new THREE.CylinderGeometry(0.025, 0.025, 0.012, 10), place(JX + dx, 0.5 + (-0.45 - dz) * 0.66 + 0.06, JZ + dz, 0, 1, -0.585)); jets.push([JX + dx, 0.5 + (-0.45 - dz) * 0.66 + 0.06, JZ + dz]); }
-    // waterval, bedieningspaneel, LED-schijf
-    sm.geo('chrome', new THREE.BoxGeometry(0.42, 0.03, 0.09), place(JX, RIM_Y + 0.015, JZ - 1.0)); sm.geo('chrome', new THREE.BoxGeometry(0.38, 0.03, 0.02), place(JX, RIM_Y - 0.03, JZ - 0.955));
-    sm.geo('black', rbox(0.2, 0.025, 0.1, 0.01), place(JX + 0.55, RIM_Y + 0.012, JZ + 1.02)); sm.geo('chrome', new THREE.BoxGeometry(0.12, 0.002, 0.05), place(JX + 0.55, RIM_Y + 0.026, JZ + 1.02));
-    sm.build((k, g) => { const m = new THREE.Mesh(g, mat[k]); m.castShadow = k !== 'chrome'; m.receiveShadow = true; jac.add(m); if (k === 'shell' || k === 'cabinet') { aimTargets.push(m); meshes[k] = m; } });
-    const ledM = new THREE.Mesh(new THREE.CircleGeometry(0.05, 16), mat.led); ledM.position.set(JX, 0.42, JZ + 0.945); ledM.rotation.y = PI; jac.add(ledM);
+    const jet = (x, y, z, nx, ny, nz, bub) => {
+      const q = new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), V(nx, ny, nz).normalize()), m = new THREE.Matrix4().compose(V(JX + x, y, JZ + z), q, V(1, 1, 1));
+      sm.geo('chrome', new THREE.CylinderGeometry(0.034, 0.034, 0.012, 14), m); sm.geo('black', new THREE.CylinderGeometry(0.019, 0.019, 0.014, 10), m);
+      if (bub) jets.push([JX + x + nx * 0.03, y + ny * 0.03, JZ + z + nz * 0.03]);
+    };
+    for (const sx of [-1, 1]) { for (const [dx, y] of [[-0.14, 0.76], [0, 0.76], [0.14, 0.76], [-0.07, 0.66], [0.07, 0.66]]) jet(sx * 0.62 + dx, y, -0.925, 0, 0, 1, y < 0.7); }
+    jet(-0.13, 0.62, -0.925, 0, 0, 1, true); jet(0.13, 0.62, -0.925, 0, 0, 1, true); jet(0, 0.73, -0.925, 0, 0, 1, false);
+    for (const sx of [-1, 1]) { jet(sx * 0.925, 0.66, -0.22, -sx, 0, 0, true); jet(sx * 0.925, 0.66, 0.12, -sx, 0, 0, true); jet(sx * 0.925, 0.76, -0.05, -sx, 0, 0, false); }
+    for (const dx of [-0.85, -0.72, -0.59]) { jet(dx, 0.75, 0.925, 0, 0, -1, false); jet(dx, 0.65, 0.925, 0, 0, -1, true); }
+    for (const [dx, y] of [[0.0, 0.42], [0.18, 0.42], [0.0, 0.52], [0.18, 0.52]]) jet(dx, y, 0.925, 0, 0, -1, true);
+    for (const [dx, dz] of [[0, -0.15], [-0.2, 0.1], [0.2, 0.1]]) jet(dx, FLOOR_Y + 0.004, dz, 0, 1, 0, true);
+    // waterval + fonteintjes op de achterrand, bedieningspaneel rechtsvoor, waterlijn-LED's en de grote LED
+    sm.geo('chrome', new THREE.BoxGeometry(0.42, 0.03, 0.09), place(JX, RIM_Y + 0.015, JZ - 1.0)); sm.geo('chrome', new THREE.BoxGeometry(0.38, 0.03, 0.02), place(JX, RIM_Y - 0.03, JZ - 0.945));
+    for (const dx of [-0.5, 0.5]) sm.geo('chrome', new THREE.CylinderGeometry(0.02, 0.02, 0.016, 10), place(JX + dx, RIM_Y + 0.006, JZ - 1.02));
+    sm.geo('black', rbox(0.2, 0.03, 0.11, 0.012), place(JX + 0.84, RIM_Y + 0.014, JZ + 0.84, -PI / 4, 1, 0.12)); sm.geo('glassDark', new THREE.BoxGeometry(0.12, 0.002, 0.05), place(JX + 0.84, RIM_Y + 0.031, JZ + 0.84, -PI / 4, 1, 0.12));
+    for (let i = 0; i < N; i += 2) { const p = RING_I[i]; sm.geo('led', new THREE.CylinderGeometry(0.011, 0.011, 0.006, 8), new THREE.Matrix4().compose(V(JX + p.x * 0.93, WATER_Y - 0.035, JZ + p.z * 0.93), new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), V(-p.nx, 0, -p.nz)), V(1, 1, 1))); }
+    sm.geo('led', new THREE.CylinderGeometry(0.05, 0.05, 0.008, 16), place(JX, 0.42, JZ + 0.92, 0, 1, PI / 2));
+    sm.build((k, g) => { const m = new THREE.Mesh(g, mat[k]); m.castShadow = k === 'shell' || k === 'cabinet' || k === 'black'; m.receiveShadow = true; jac.add(m); meshes[k] = m; if (k === 'shell' || k === 'cabinet' || k === 'black') m.userData.interact = coverIt; });
     const ledLight = new THREE.PointLight('#1fc8ec', 0, 3.2, 1.6); ledLight.position.set(JX, WATER_Y - 0.35, JZ); jac.add(ledLight);
-    // water
-    const wg = new THREE.ShapeGeometry(rsqShape(0.95, RIM_R * 0.95 / TUB_H + 0.05), 8); wg.rotateX(-PI / 2);
-    const water = new THREE.Mesh(wg, mat.water); water.position.set(JX, WATER_Y, JZ); water.renderOrder = 2; jac.add(water); meshes.water = water; aimTargets.push(water);
+    // water (vlak van de binnenring; uv = lokale xz voor schuim en wandafstand)
+    const wsh = new THREE.Shape(); RING_I.forEach((p, i) => i ? wsh.lineTo(p.x * 0.935, p.z * 0.935) : wsh.moveTo(p.x * 0.935, p.z * 0.935)); wsh.closePath();
+    const wg = new THREE.ShapeGeometry(wsh); wg.rotateX(-PI / 2);
+    const water = new THREE.Mesh(wg, mat.water); water.position.set(JX, WATER_Y, JZ); water.renderOrder = 2; water.userData.interact = bubblesIt; jac.add(water); meshes.water = water;
     // bubbels + stoom (instanced billboards)
     const partVS = `attribute vec3 aSeed; uniform float uTime, uRise, uSpeed; uniform int uKind; varying float vA; varying vec2 vUv;
       void main(){ vUv = uv; vec3 o = instancePos(); float t = fract(uTime * uSpeed * aSeed.y + aSeed.x); vec3 p = o; float sz;
-        if (uKind == 0) { p.y += t * (uRise - o.y); p.x += sin(uTime*4.0 + aSeed.x*40.0)*0.012*t; p.z += cos(uTime*3.1 + aSeed.x*33.0)*0.012*t; vA = 0.85 * (1.0 - smoothstep(0.82, 1.0, t)); sz = 0.012 + 0.018 * aSeed.z; }
-        else { p.y += t * uRise; p.x += (aSeed.z - 0.5) * 0.7 * t + sin(uTime*0.6 + aSeed.x*9.0)*0.09*t; p.z += (aSeed.y - 0.7) * 0.5 * t + cos(uTime*0.5 + aSeed.x*7.0)*0.09*t; vA = smoothstep(0.0, 0.14, t) * (1.0 - t) * (1.0 - t); sz = 0.32 + 1.0 * t; }
+        if (uKind == 0) { p.y += t * (uRise - o.y); p.x += sin(uTime*4.0 + aSeed.x*40.0)*0.012*t; p.z += cos(uTime*3.1 + aSeed.x*33.0)*0.012*t; vA = 0.85 * (1.0 - smoothstep(0.82, 1.0, t)); sz = 0.014 + 0.028 * aSeed.z; }
+        else { p.y += t * uRise; p.x += (aSeed.z - 0.5) * 0.5 * t + sin(uTime*0.6 + aSeed.x*9.0)*0.07*t; p.z += (aSeed.y - 0.7) * 0.4 * t + cos(uTime*0.5 + aSeed.x*7.0)*0.07*t; vA = 0.55 * smoothstep(0.0, 0.14, t) * (1.0 - t) * (1.0 - t); sz = 0.22 + 0.55 * t; }
         vec4 mv = modelViewMatrix * vec4(p, 1.0); mv.xy += position.xy * sz; gl_Position = projectionMatrix * mv; }`;
     const partFS = `uniform sampler2D uMap; uniform vec3 uColor; uniform float uAmount; varying float vA; varying vec2 vUv; void main(){ vec4 t = texture2D(uMap, vUv); gl_FragColor = vec4(uColor, t.a * vA * uAmount); }`;
     function particles(kind, n, R, originFn, map) {
@@ -438,7 +506,7 @@ export function install(H) {
       for (let i = 0; i < n; i++) { const o = originFn(i); org.set(o, i * 3); seed.set([R(), 0.6 + R() * 0.8, R()], i * 3); }
       g.setAttribute('aOrigin', new THREE.InstancedBufferAttribute(org, 3)); g.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seed, 3)); g.instanceCount = n;
       g.boundingSphere = new THREE.Sphere(V(JX, WATER_Y + 0.5, JZ), 2.5);
-      const m = new THREE.ShaderMaterial({ uniforms: { uTime: { value: 0 }, uRise: { value: kind === 0 ? WATER_Y - 0.005 : 1.5 }, uSpeed: { value: kind === 0 ? 0.55 : 0.1 }, uKind: { value: kind }, uMap: { value: tex(map, 1, 1) }, uColor: { value: new THREE.Color(kind === 0 ? '#eaf6fa' : '#e9eef1') }, uAmount: { value: 1 } },
+      const m = new THREE.ShaderMaterial({ uniforms: { uTime: { value: 0 }, uRise: { value: kind === 0 ? WATER_Y - 0.005 : 1.1 }, uSpeed: { value: kind === 0 ? 0.55 : 0.12 }, uKind: { value: kind }, uMap: { value: tex(map, 1, 1) }, uColor: { value: new THREE.Color(kind === 0 ? '#eaf6fa' : '#e9eef1') }, uAmount: { value: 1 } },
         vertexShader: 'attribute vec3 aOrigin; vec3 instancePos(){ return aOrigin; }\n' + partVS, fragmentShader: partFS, transparent: true, depthWrite: false, blending: THREE.NormalBlending });
       const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = true; mesh.renderOrder = kind === 0 ? 1 : 3; return mesh;
     }
@@ -446,30 +514,34 @@ export function install(H) {
     const bubbles = particles(0, Q.bubbles, R, i => jets[i % jets.length], texBubble());
     const steam = particles(1, Q.steam, R, () => [JX + (R() - .5) * 1.5, WATER_Y, JZ + (R() - .5) * 1.5], texSoft(true));
     jac.add(bubbles, steam); meshes.bubbles = bubbles; meshes.steam = steam;
-    // deksel: twee helften, scharnier in het midden, lifter achter de kuip
-    const W = 2.22, D = 1.11, T = 0.085;
+    // deksel: twee taps toelopende helften (dik bij het scharnier), scharnierstrook, dunne rokken, handgrepen en sluitbanden
+    const W = 2.22, D = 1.11, T0 = 0.095, T1 = 0.065;
     function half(mg, flipV) {
       const uv = flipV ? [[0, 1], [1, 1], [1, 0], [0, 0]] : [[0, 0], [1, 0], [1, 1], [0, 1]];
-      mg.quad('coverTop', V(-W / 2, 0, 0), V(W / 2, 0, 0), V(W / 2, 0, D), V(-W / 2, 0, D), V(0, -1, D / 2), [1, 1, 1], uv);
-      const b = { ny: 'vinyl', def: 'vinyl' }; mg.box(b, -W / 2, W / 2, -T, -0.001, 0, D);
-      mg.box('vinyl', -W / 2 - 0.03, W / 2 + 0.03, -T - 0.11, -T + 0.01, -0.0, D + 0.03);        // rok over de rand
-      for (const sx of [-1, 1]) { mg.box('vinylDark', sx * (W / 2 - 0.5) - 0.025, sx * (W / 2 - 0.5) + 0.025, -T - 0.1, -T - 0.02, D + 0.03, D + 0.045); mg.box('vinylDark', sx * (W / 2 + 0.03) - 0.005, sx * (W / 2 + 0.03) + 0.012, -T - 0.09, -T - 0.03, D * 0.5 - 0.03, D * 0.5 + 0.03); }
-      mg.box('vinylDark', -0.12, 0.12, -0.002, 0.012, D - 0.1, D - 0.04);                      // handgreep
+      const a = V(-W / 2, 0, 0), b = V(W / 2, 0, 0), c = V(W / 2, -(T0 - T1), D), d = V(-W / 2, -(T0 - T1), D), e = V(-W / 2, -T0, 0), f = V(W / 2, -T0, 0), g = V(W / 2, -T0, D), h = V(-W / 2, -T0, D), ctr = V(0, -T0 / 2, D / 2);
+      mg.quad('coverTop', a, b, c, d, ctr, [1, 1, 1], uv);
+      mg.quad('vinyl', e, f, g, h, ctr); mg.quad('vinyl', a, b, f, e, ctr); mg.quad('vinyl', d, c, g, h, ctr); mg.quad('vinyl', a, d, h, e, ctr); mg.quad('vinyl', b, c, g, f, ctr);
+      for (const sx of [-1, 1]) mg.box('vinyl', sx * W / 2 + (sx > 0 ? 0 : -0.012), sx * W / 2 + (sx > 0 ? 0.012 : 0), -T0 - 0.10, -T0 + 0.002, 0, D + 0.012);   // rok zijkant
+      mg.box('vinyl', -W / 2 - 0.012, W / 2 + 0.012, -T0 - 0.10, -T0 + 0.002, D, D + 0.012);                                                            // rok buitenrand
+      for (const sx of [-1, 1]) mg.box('vinylDark', sx * (W / 2 - 0.45) - 0.025, sx * (W / 2 - 0.45) + 0.025, -T0 - 0.13, -T0 - 0.02, D + 0.012, D + 0.026);   // sluitbanden
+      mg.box('vinylDark', -0.12, 0.12, -(T0 - T1) * 0.9 - 0.002, -(T0 - T1) * 0.9 + 0.012, D - 0.12, D - 0.05);                                           // handgreep
     }
-    const pivot1 = new THREE.Group(), pivot2 = new THREE.Group(); pivot1.position.set(JX, RIM_Y + T, JZ - D); pivot2.position.set(0, 0, D); pivot1.add(pivot2); jac.add(pivot1);
-    const hm = new Merger(); half(hm, false); hm.build((k, g) => { const m = new THREE.Mesh(g, mat[k]); m.castShadow = m.receiveShadow = true; pivot1.add(m); aimTargets.push(m); });
-    const hm2 = new Merger(); half(hm2, true); hm2.build((k, g) => { const m = new THREE.Mesh(g, mat[k]); m.castShadow = m.receiveShadow = true; pivot2.add(m); aimTargets.push(m); });
-    // lifter: twee armen aan de achterhoeken van de kuip + dwarsstang
-    const lift = new Merger(), pivotOpen = { y: 1.46, z: JZ - D - 0.14 };
-    for (const sx of [-1, 1]) { cylBetween(lift, 'alu', V(JX + sx * 1.12, 0.45, JZ - 0.95), V(JX + sx * 1.12, pivotOpen.y, pivotOpen.z), 0.014); lift.geo('alu', new THREE.BoxGeometry(0.05, 0.22, 0.03), place(JX + sx * 1.1, 0.45, JZ - 0.95)); }
-    cylBetween(lift, 'alu', V(JX - 1.12, pivotOpen.y, pivotOpen.z), V(JX + 1.12, pivotOpen.y, pivotOpen.z), 0.012);
-    lift.build((k, g) => { const m = new THREE.Mesh(g, mat[k]); m.castShadow = true; jac.add(m); });
-    const cover = { t: 0, target: 0, closed: { y: RIM_Y + T, z: JZ - D }, open: pivotOpen };
-    api.cover = cover; api.pivot1 = pivot1; api.pivot2 = pivot2;
-    api.setCover = open => { cover.target = open ? 2 : 0; };
+    const pivot1 = new THREE.Group(), pivot2 = new THREE.Group(); pivot1.position.set(JX, RIM_Y + T0, JZ - D); pivot2.position.set(0, 0, D); pivot1.add(pivot2); jac.add(pivot1);
+    const hm = new Merger(); half(hm, false); hm.box('vinylDark', -W / 2, W / 2, -0.004, 0.01, D - 0.06, D + 0.0); hm.build((k, g) => { const m = new THREE.Mesh(g, mat[k]); m.castShadow = m.receiveShadow = true; m.userData.interact = coverIt; pivot1.add(m); });
+    const hm2 = new Merger(); half(hm2, true); hm2.build((k, g) => { const m = new THREE.Mesh(g, mat[k]); m.castShadow = m.receiveShadow = true; m.userData.interact = coverIt; pivot2.add(m); });
+    // lifter: beugels laag aan de zijkanten, twee armen met dwarsstang; dicht: stang over het scharnier, open: achter de
+    // kuip, waar het dubbelgevouwen deksel er schuin tegenaan rust
+    const lifter = new THREE.Group(); lifter.position.set(JX, 0.35, JZ - 0.5); jac.add(lifter);
+    const LIFT = { len: 0.95, a0: 0.63, a1: -1.3 };
+    { const lg = new Merger(); for (const sx of [-1, 1]) cylBetween(lg, 'alu', V(sx * 1.12, 0, 0), V(sx * 1.12, LIFT.len, 0), 0.014); cylBetween(lg, 'alu', V(-1.12, LIFT.len, 0), V(1.12, LIFT.len, 0), 0.012);
+      lg.build((k, g) => { const m = new THREE.Mesh(g, mat[k]); m.castShadow = true; lifter.add(m); });
+      for (const sx of [-1, 1]) statics.geo('alu', new THREE.BoxGeometry(0.03, 0.2, 0.06), place(JX + sx * 1.105, 0.35, JZ - 0.5)); }
+    const cover = { t: 0, target: 0, closed: { y: RIM_Y + T0, z: JZ - D }, open: { y: RIM_Y + 0.22, z: JZ - D - 0.1 }, lean: 0.17 };
+    api.cover = cover; api.pivot1 = pivot1; api.pivot2 = pivot2; api.lifter = lifter; api.LIFT = LIFT;
+    api.setCover = open => { cover.target = open ? 2 : 0; if (!open) api.setBubbles(false); };
     api.toggleCover = () => api.setCover(cover.target < 1);
     api.led = null; api.setLed = v => { api.led = v; };            // true/false of null = automatisch ('s avonds)
-    api.jets = jets; api.ledLight = ledLight; api.ledDisc = ledM;
+    api.jets = jets; api.ledLight = ledLight;
     addCol(SHED.x0, SHED.x1, SHED.z0, SHED.z1); addCol(STRIP.x0, STRIP.x1, STRIP.z0, STRIP.z1);
   }
   /* =================================================== SCHUURTJE =================================================== */
@@ -795,60 +867,47 @@ export function install(H) {
     lf = lampFactor(h);
     mat.bulb.emissiveIntensity = 3.2 * lf; mat.bollardLight.emissiveIntensity = 2.6 * lf;
     for (const { L, i } of lights) L.intensity = i * lf;
-    meshes.steam.material.uniforms.uAmount.value = lerp(0.42, 1.0, lf);
+    // lichte damp, 's avonds (koel) wat meer; de stoom is onbelicht, dus 's avonds donkerder getint
+    meshes.steam.material.uniforms.uAmount.value = lerp(0.12, 0.45, lf); meshes.steam.material.uniforms.uColor.value.setScalar(lerp(0.92, 0.72, lf));
   }
   function applyLed(open) {
     const want = (api.led == null ? lf > 0.05 : !!api.led) && open;
     if (want === ledOn) return; ledOn = want;
-    mat.led.emissiveIntensity = want ? 4 : 0; mat.water.emissiveIntensity = want ? 0.42 : 0; meshes.jac_led = want; api.ledLight.intensity = want ? 6 : 0;
-    meshes.steam.material.uniforms.uColor.value.set(want ? '#cfeef4' : '#e9eef1');
+    mat.led.emissiveIntensity = want ? 3.2 : 0; mat.water.emissiveIntensity = want ? 0.24 : 0; api.ledLight.intensity = want ? 4.5 : 0;
+    if (!want) uLed.value.setRGB(0, 0, 0);
   }
 
-  /* =================================================== INTERACTIE (deksel) =================================================== */
-  const tag = document.createElement('div'); tag.id = 'gardenTag'; tag.hidden = true; document.body.append(tag);
-  if (!document.getElementById('gardenStyle')) { const s = document.createElement('style'); s.id = 'gardenStyle'; s.textContent = '#gardenTag{position:fixed;left:50%;top:50%;z-index:5;transform:translate(-50%,22px);background:var(--ink,#141414);color:var(--bg,#fff);font:500 12px/1 var(--font-body,system-ui,sans-serif);padding:5px 9px;border-radius:999px;pointer-events:none;white-space:nowrap;opacity:.92}'; document.head.append(s); }
-  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
-  const shown = o => { while (o) { if (!o.visible) return false; o = o.parent; } return true; };
-  const hitAt = (nx, ny, far) => { ndc.set(nx, ny); ray.setFromCamera(ndc, camera); ray.far = far; const h = ray.intersectObjects(aimTargets, false); return h.length && shown(h[0].object) ? h[0] : null; };
-  const hitScreen = (cx, cy, far) => { const r = canvas.getBoundingClientRect(); return hitAt(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1, far); };
-  let aim = false, toasted = false;
-  const typing = () => { const a = document.activeElement; return !!a && /INPUT|SELECT|TEXTAREA/.test(a.tagName) && a.type !== 'range' && a.type !== 'checkbox'; };
+  /* =================================================== INTERACTIE (deksel, bubbels) =================================================== */
+  // De kuip, het deksel en het water dragen userData.interact (zie interactOf in index.html): de host richt, labelt en
+  // voert E / klik / tik uit zoals bij lades en de tv. De knop "Jacuzzi" in de werkbalk doet hetzelfde als het deksel.
+  let toasted = false;
   function activate() {
     api.toggleCover();
-    if (!toasted && api.cover.target === 2) { toasted = true; try { H.ui?.toast?.("Jacuzzi open: 's avonds gaat de LED-verlichting vanzelf aan."); } catch (e) { /* ok */ } }
+    if (!toasted && api.cover.target === 2) { toasted = true; try { H.ui?.toast?.("Jacuzzi open: 's avonds gaat de LED-verlichting vanzelf aan. Richt op het water voor de bubbels."); } catch (e) { /* ok */ } }
   }
-  addEventListener('keydown', e => { if (e.code === 'KeyE' && aim && getMode() === 'walk' && !typing() && !e.repeat) { e.stopImmediatePropagation(); activate(); } }, true);
-  let tap = null, passSynthetic = false;
-  addEventListener('pointerdown', e => {
-    if (e.target !== canvas || (e.button !== undefined && e.button !== 0)) { tap = null; return; }
-    const walk = getMode() === 'walk', locked = document.pointerLockElement === canvas;
-    const h = walk ? (locked ? hitAt(0, 0, 3.8) : hitScreen(e.clientX, e.clientY, 3.8)) : hitScreen(e.clientX, e.clientY, Infinity);
-    tap = h ? { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId } : null;
-  }, true);
-  addEventListener('pointerup', e => {
-    if (passSynthetic || !tap || e.pointerId !== tap.id) return;
-    const tp = tap; tap = null;
-    if (Math.hypot(e.clientX - tp.x, e.clientY - tp.y) > 8 || performance.now() - tp.t > 450) return;
-    e.stopImmediatePropagation(); e.preventDefault();
-    passSynthetic = true;   // de host zijn 'down'-status laten opruimen zonder actie (ver weg = 'bewogen')
-    try { canvas.dispatchEvent(new PointerEvent('pointerup', { pointerId: e.pointerId, clientX: e.clientX + 10000, clientY: e.clientY, bubbles: true })); } catch (er) { /* ok */ }
-    passSynthetic = false;
-    activate();
-  }, true);
+  api.bubbles = false;
+  api.setBubbles = on => {
+    on = !!on; if (on && api.cover.target < 2) { try { H.ui?.toast?.('Open eerst het deksel.'); } catch (e) { /* ok */ } return false; }
+    api.bubbles = on; return true;
+  };
+  coverIt.act = activate; bubblesIt.act = () => api.setBubbles(!api.bubbles);
   try { H.ui?.addTool?.({ id: 'jacuzzi', label: 'Jacuzzi', title: 'Jacuzzi-deksel openen of sluiten', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="9" width="18" height="10" rx="2"/><path d="M3 13h18M8 6c0-1.5 1-1.5 1-3M12 6c0-1.5 1-1.5 1-3M16 6c0-1.5 1-1.5 1-3"/></svg>', onClick: () => activate() }); } catch (e) { /* geen tools-balk */ }
+  try { H.invalidatePicks?.(); } catch (e) { /* ok */ }
 
   /* =================================================== PER FRAME =================================================== */
-  let clock = 0, frame = 0, fpsAvg = 60;
-  const cover = api.cover, pivot1 = api.pivot1, pivot2 = api.pivot2;
+  let clock = 0, frame = 0, fpsAvg = 60, agit = 0;
+  const cover = api.cover, pivot1 = api.pivot1, pivot2 = api.pivot2, lifter = api.lifter, LIFT = api.LIFT;
   function setCover(t) {
     const s1 = ease(clamp(t, 0, 1)), s2 = ease(clamp(t - 1, 0, 1));
     pivot2.rotation.x = -PI * s1;
-    pivot1.rotation.x = -1.5 * PI * s2;
+    pivot1.rotation.x = -(1.5 * PI - cover.lean) * s2;
     pivot1.position.y = lerp(cover.closed.y, cover.open.y, s2) + 0.35 * Math.sin(PI * s2);
     pivot1.position.z = lerp(cover.closed.z, cover.open.z, s2);
-    const vis = t > 0.45; meshes.water.visible = vis; meshes.bubbles.visible = vis; meshes.steam.visible = vis;
+    lifter.rotation.x = lerp(LIFT.a0, LIFT.a1, s2);
+    const vis = t > 0.45; meshes.water.visible = vis; meshes.steam.visible = vis; meshes.bubbles.visible = vis && agit > 0.02;
   }
   setCover(0);
+  const ledCol = new THREE.Color();
   onTick(dt => {
     dt = Math.min(dt || 0.016, 0.1); clock += dt; frame++; fpsAvg = lerp(fpsAvg, 1 / Math.max(dt, 1e-3), 0.05);
     // deksel
@@ -857,24 +916,23 @@ export function install(H) {
       cover.t = cover.target > cover.t ? Math.min(cover.target, cover.t + dt * rate) : Math.max(cover.target, cover.t - dt * rate);
       setCover(ENV.reduced ? cover.target : cover.t); if (ENV.reduced) cover.t = cover.target;
     }
-    // animaties
-    uWater.value = clock; grassU.uTime.value = clock;
+    // bubbels: roering loopt in ~1 s op of af; het water beweegt sneller, schuimt en de bubbels komen op
+    const wantAgit = api.bubbles && cover.t > 1.5 ? 1 : 0;
+    if (agit !== wantAgit) { agit = clamp(agit + (wantAgit ? dt : -dt) * 1.2, 0, 1); uAgit.value = agit; meshes.bubbles.visible = meshes.water.visible && agit > 0.02; }
+    uPhase.value += dt * (1 + 1.6 * agit); grassU.uTime.value = clock;
     meshes.bubbles.material.uniforms.uTime.value = clock; meshes.steam.material.uniforms.uTime.value = clock;
     // avond
     const h = Number(H.state?.time); if (Number.isFinite(h) && lampFactor(h) !== lf) applyEvening(h);
     applyLed(cover.t > 0.45);
-    // richten (om de andere frame)
-    if ((frame & 1) === 0) {
-      const walk = getMode() === 'walk';
-      const a = walk && (document.pointerLockElement === canvas || !ENV.coarse) ? !!hitAt(0, 0, 3.8) : false;
-      if (a !== aim) { aim = a; tag.hidden = !a; }
-      if (a) tag.textContent = (ENV.coarse ? 'Tik' : 'E / klik') + ': deksel ' + (cover.target === 2 ? 'dicht' : 'open');
+    if (ledOn) {   // rustige kleurcyclus (45 s): alleen kleuren en sterktes, nooit het aantal lichten
+      ledCol.setHSL((clock / 45) % 1, 0.8, 0.6);
+      api.ledLight.color.copy(ledCol); mat.led.emissive.copy(ledCol); mat.water.emissive.copy(ledCol); uLed.value.copy(ledCol).multiplyScalar(0.9);
     }
   });
   if (Number.isFinite(Number(H.state?.time))) applyEvening(Number(H.state.time)); else applyEvening(13);
 
   api.meshes = meshes; api.lights = lights;
-  api.stats = () => ({ fps: Math.round(fpsAvg), coverT: +cover.t.toFixed(2), led: ledOn, lf, grass: meshes.grass.count, leaves: meshes.leaves.count, bubbles: Q.bubbles, steam: Q.steam, meshesInRoot: root.children.length, aim });
+  api.stats = () => ({ fps: Math.round(fpsAvg), coverT: +cover.t.toFixed(2), bubbles: api.bubbles, agit: +agit.toFixed(2), led: ledOn, lf, grass: meshes.grass.count, leaves: meshes.leaves.count, nBubbles: Q.bubbles, steam: Q.steam, meshesInRoot: root.children.length });
   H.garden = api;
   return api;
 }
@@ -918,11 +976,13 @@ function hideHostShed(H) {
 
 /* ---- zelf opstarten ---- */
 (function boot(tries = 0) {
-  const H = typeof window !== 'undefined' ? window.HOUSE : null;
+  const H = typeof window !== 'undefined' ? window.HOUSE : null, k = Object.keys(EARLY).find(k => !early[k]);
   if (H && H.scene && H.camera && H.renderer) {
     if (H.garden && H.garden.installed) return;
+    if (k) { made(k); setTimeout(() => boot(tries + 1), 0); return; } // any texture not made yet first, each in its own task
     try { install(H); } catch (e) { console.error('[garden] installatie mislukt', e); }
     return;
   }
+  if (tries && k) made(k); // a texture per poll (not in the module's own first run) while the house is being built
   if (tries < 600) setTimeout(() => boot(tries + 1), 100);
 })();

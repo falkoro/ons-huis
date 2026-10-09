@@ -33,3 +33,6 @@ throw_pillows_01 | Throw Pillows 01 | Serhii Khromov | https://polyhaven.com/a/t
 wicker_basket_02 | Wicker Basket 02 | Kuutti Siitonen | https://polyhaven.com/a/wicker_basket_02 | basket-rattan.glb
 standing_picture_frame_01 | Standing Picture Frame 01 | James Ray Cock | https://polyhaven.com/a/standing_picture_frame_01 | frame-black.glb
 wall_clock | Wall Clock | PierreB3D | https://polyhaven.com/a/wall_clock | clock-wall.glb
+
+Own work (no external source):
+car-tesla-y.glb | Tesla Model Y 2025 ("Juniper"), modelled headless in Blender 5.2 by tools/blender/model_y.py; blank Dutch plates. Tesla and Model Y are trademarks of Tesla, Inc.; the model is our own likeness of the owner's car.

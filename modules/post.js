@@ -103,6 +103,7 @@ uniform float postRectRoom[ 4 ];
 uniform vec4 postFlA[ 4 ];
 uniform vec4 postFlB[ 4 ];
 float postCode;
+vec4 postZone4;
 float postInK;
 float postInKs;
 float postAOv;
@@ -114,7 +115,15 @@ float postLampMask( float r ) {
 	if ( postP0.x < 0.5 || r < -0.5 ) return 1.0;
 	if ( r < 0.5 ) return postIn ? 0.12 : 1.0;
 	if ( ! postIn ) return 0.0;
+	// wall zone: only the lamps of the rooms it borders (one room's lamps stay off the window reveals of a dark room next door)
+	if ( postCode > 252.5 && postCode < 253.5 && r < 252.5 && postZone4.x > -1.5 ) return any( lessThan( abs( postZone4 - r ), vec4( 0.5 ) ) ) ? 1.0 : 0.0;
 	return ( abs( postCode - r ) < 0.5 || postCode > 252.5 || r > 252.5 ) ? 1.0 : 0.0;
+}
+// the room code 0.25 m away on the map (-1 when that is no room)
+float postRoomNear( vec3 q, vec2 d ) {
+	vec4 c = texture2D( postRoomMap, ( q.xz + d - postMapXf.xy ) * postMapXf.zw );
+	float v = floor( ( q.y < postP1.y ? c.r : ( q.y < postP1.z ? c.g : c.b ) ) * 255.0 + 0.5 );
+	return v > 0.5 && v < 252.5 ? v : -1.0;
 }
 float postRectMask( float r ) {
 	if ( r < -0.5 ) return 1.0;
@@ -124,7 +133,7 @@ float postRectMask( float r ) {
 `;
 // runs at the top of lights_fragment_begin, after geometryNormal / geometryViewDir exist
 const GLSL_CLASSIFY = /* glsl */`
-postCode = 0.0; postIn = false; postInK = 1.0; postInKs = 1.0; postAOv = 1.0; postTintV = vec3( 1.0 ); postFill = vec3( 0.0 ); postFillN = vec3( 0.0 );
+postCode = 0.0; postZone4 = vec4( -2.0 ); postIn = false; postInK = 1.0; postInKs = 1.0; postAOv = 1.0; postTintV = vec3( 1.0 ); postFill = vec3( 0.0 ); postFillN = vec3( 0.0 );
 if ( postP0.x > 0.5 ) {
 	mat3 postVR = transpose( mat3( viewMatrix ) );
 	vec3 postN = postVR * geometryNormal;
@@ -139,6 +148,11 @@ if ( postP0.x > 0.5 ) {
 	for ( int i = 0; i < 4; i ++ ) {
 		vec4 a = postFlA[ i ], b = postFlB[ i ];
 		if ( postQ.x > a.x && postQ.x < a.y && postQ.z > a.z && postQ.z < a.w && postQ.y < b.w && postQ.y > b.y + ( postQ.z - b.x ) * b.z - 0.12 ) postCode = 254.0;
+	}
+	// wall zone: the rooms on either side (-2: none found, every lamp lights it)
+	if ( postCode > 252.5 && postCode < 253.5 ) {
+		vec4 z4 = vec4( postRoomNear( postQ, vec2( 0.25, 0.0 ) ), postRoomNear( postQ, vec2( -0.25, 0.0 ) ), postRoomNear( postQ, vec2( 0.0, 0.25 ) ), postRoomNear( postQ, vec2( 0.0, -0.25 ) ) );
+		if ( max( max( z4.x, z4.y ), max( z4.z, z4.w ) ) > 0.5 ) postZone4 = z4;
 	}
 	postIn = postCode > 0.5 && postQ.y < postCell.a * 16.0 - postP1.w;
 	if ( postIn ) {
@@ -299,12 +313,15 @@ class FinishPass extends Pass {
     this.fsQuad = new FullScreenQuad(this.material);
     this._sig = '';
   }
-  render(renderer, writeBuffer, readBuffer) {
+  sync(renderer) { // tone mapping and output transfer as defines; also before the host precompiles the passes
     const tm = renderer.toneMapping, srgb = THREE.ColorManagement.getTransfer(renderer.outputColorSpace) === THREE.SRGBTransfer, sig = tm + '|' + srgb;
     if (sig !== this._sig) {
       this._sig = sig; const d = {}; if (TM_DEFINE[tm]) d[TM_DEFINE[tm]] = ''; if (srgb) d.SRGB_TRANSFER = '';
       this.material.defines = d; this.material.needsUpdate = true;
     }
+  }
+  render(renderer, writeBuffer, readBuffer) {
+    this.sync(renderer);
     this.uniforms.tDiffuse.value = readBuffer.texture;
     if (this.renderToScreen) renderer.setRenderTarget(null);
     else { renderer.setRenderTarget(writeBuffer); if (this.clear) renderer.clear(); }
@@ -319,6 +336,7 @@ class AOPrePass extends GTAOPass {
   constructor(scene, camera, hidden) {
     super(scene, camera, 16, 16);
     this.output = GTAOPass.OUTPUT.Off; this.needsSwap = false; this.resScale = 1; this._hiddenList = hidden; this._hid = [];
+    this.normalMaterial.side = THREE.DoubleSide; // one-sided sheets seen from behind (parasol canopy) were culled from the depth pass and got the AO of whatever stood behind them
   }
   setSize(w, h) { super.setSize(Math.max(1, Math.round(w * this.resScale)), Math.max(1, Math.round(h * this.resScale))); }
   overrideVisibility() { this._hid.length = 0; for (const o of this._hiddenList()) if (o.visible) { o.visible = false; this._hid.push(o); } }
@@ -340,12 +358,13 @@ const store = {
   get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
   set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* private mode */ } },
 };
-function gpuName(R) {
+function gpuName(R, H) {
+  if (typeof H?.gpu === 'string') return H.gpu; // asked by the host while the GPU was idle: later it waits for all queued GPU work
   try { const gl = R.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info'); return String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); } catch (e) { return ''; }
 }
 // device guess: phones, tablets and headsets Snel (same test as the host's LOWQ), integrated GPUs Normaal, a real desktop GPU Hoog
-function autoLevel(R) {
-  const ua = navigator.userAgent || '', g = gpuName(R);
+function autoLevel(R, H) {
+  const ua = navigator.userAgent || '', g = gpuName(R, H);
   if (/OculusBrowser|Quest|Pico|Wolvic/i.test(ua)) return 'snel';
   if (/SwiftShader|llvmpipe|Software|Basic Render/i.test(g)) return 'snel';
   // the host's own LOWQ test (touch screen or a narrow window) plus mobile user agents: these get the cheap path
@@ -389,7 +408,9 @@ export function install(H) {
       const j0 = clamp(Math.round((q[2] - z0) / C), 0, NZ), j1 = clamp(Math.round((q[3] - z0) / C), 0, NZ);
       for (let j = j0; j < j1; j++) for (let i = i0; i < i1; i++) { const k = j * NX + i; if (over || !g[k]) g[k] = code; }
     };
-    ROOMS.forEach((r, k) => { if (L[r.lvl]) for (const q of r.rects) fill(L[r.lvl], q, Math.min(250, k + 1), false); });
+    // r.roof: the room runs up to the roof with no slab (zolderL under the wing), so its code holds on the level above too;
+    // without it everything above that level's top shaded as outdoors (sky-blue roof underside, unlit wall tops)
+    ROOMS.forEach((r, k) => { const c = Math.min(250, k + 1); for (const q of r.rects) { if (L[r.lvl]) fill(L[r.lvl], q, c, false); if (r.roof && L[r.lvl + 1]) fill(L[r.lvl + 1], q, c, false); } });
     // stairs: the whole footprint on the level above (the stairwell), on their own level only where no room is; there the
     // shader (and code() below) marks just what sits on the slope, see FLS
     for (const f of D.FLIGHTS || []) { const q = [f.x0, f.x1, f.zMin, f.zMax]; if (L[f.l]) fill(L[f.l], q, 254, false); if (L[f.l + 1]) fill(L[f.l + 1], q, 254, true); }
@@ -433,8 +454,9 @@ export function install(H) {
     };
   })();
 
-  // roof heights: one top-down orthographic render of the 'ceil' groups (ceilings, slabs, roofs), read back once
-  function bakeRoofs() {
+  // roof heights: one top-down orthographic render of the 'ceil' groups (ceilings, slabs, roofs), read back once. Its
+  // programs link in parallel first and the pixels come back without a stall: done in one go this held the page 0.15-0.4 s
+  async function bakeRoofs() {
     const ceils = [];
     for (const n of ['L0', 'L1', 'L2']) {
       const g = scene.children.find(c => c.name === n); if (!g) continue;
@@ -454,19 +476,28 @@ export function install(H) {
         p = modelMatrix * p; vY = p.y; gl_Position = projectionMatrix * viewMatrix * p; }`,
       fragmentShader: `varying float vY; void main() { float h = clamp( vY / 16.0, 0.0, 1.0 ) * 255.0; gl_FragColor = vec4( floor( h ) / 255.0, fract( h ), 0.0, 1.0 ); }`,
     });
-    const vis = scene.children.map(c => c.visible), cv = ceils.map(c => c.visible), bg = scene.background, ov = scene.overrideMaterial, au = R.shadowMap.autoUpdate;
-    const prevRT = R.getRenderTarget(), cc = R.getClearColor(new THREE.Color()), ca = R.getClearAlpha(), xr = R.xr.enabled;
     const buf = new Uint8Array(NX * NZ * 4);
     try {
-      scene.children.forEach(c => { c.visible = ceils.includes(c); });
-      scene.background = null; scene.overrideMaterial = mat; R.shadowMap.autoUpdate = false; R.xr.enabled = false;
-      R.setRenderTarget(rt); R.setClearColor(0x000000, 0); R.clear(); plain(scene, cam);
-      R.readRenderTargetPixels(rt, 0, 0, NX, NZ, buf);
-    } finally {
-      scene.children.forEach((c, i) => { c.visible = vis[i]; }); ceils.forEach((c, i) => { c.visible = cv[i]; });
-      scene.background = bg; scene.overrideMaterial = ov; R.shadowMap.autoUpdate = au; R.xr.enabled = xr;
-      R.setRenderTarget(prevRT); R.setClearColor(cc, ca); rt.dispose(); mat.dispose();
-    }
+      let prevRT = R.getRenderTarget(), linked;
+      try { // (the render target sets the programs' output: no tone mapping, linear)
+        R.setRenderTarget(rt);
+        linked = R.compileAsync({ traverse: f => ceils.forEach(c => c.traverse(o => { if (o.isMesh) f(Object.create(o, { material: { value: mat } })); })), traverseVisible() { } }, cam,
+          Object.create(scene, { traverseVisible: { value: f => ceils.forEach(c => { f(c); c.children.forEach(k => k.traverseVisible(f)); }) } })); // the lights the bake sees, and the scene's fog (part of the program key)
+      } finally { R.setRenderTarget(prevRT); }
+      await linked;
+      const vis = scene.children.map(c => c.visible), cv = ceils.map(c => c.visible), bg = scene.background, ov = scene.overrideMaterial, au = R.shadowMap.autoUpdate;
+      const cc = R.getClearColor(new THREE.Color()), ca = R.getClearAlpha(), xr = R.xr.enabled; prevRT = R.getRenderTarget();
+      try {
+        scene.children.forEach(c => { c.visible = ceils.includes(c); });
+        scene.background = null; scene.overrideMaterial = mat; R.shadowMap.autoUpdate = false; R.xr.enabled = false;
+        R.setRenderTarget(rt); R.setClearColor(0x000000, 0); R.clear(); plain(scene, cam);
+      } finally {
+        scene.children.forEach((c, i) => { c.visible = vis[i]; }); ceils.forEach((c, i) => { c.visible = cv[i]; });
+        scene.background = bg; scene.overrideMaterial = ov; R.shadowMap.autoUpdate = au; R.xr.enabled = xr;
+        R.setRenderTarget(prevRT); R.setClearColor(cc, ca);
+      }
+      await R.readRenderTargetPixelsAsync(rt, 0, 0, NX, NZ, buf);
+    } finally { rt.dispose(); mat.dispose(); }
     let n = 0;
     for (let r = 0; r < NZ; r++) {
       const j = NZ - 1 - r; // GL row 0 is the bottom of the image = largest z
@@ -481,7 +512,7 @@ export function install(H) {
     return n > 0;
   }
   let roofOK = false;
-  try { roofOK = bakeRoofs(); } catch (e) { console.warn('[post] roof bake failed', e); }
+  bakeRoofs().then(ok => { roofOK = ok; }, e => console.warn('[post] roof bake failed', e));
 
   /* ---- shared uniforms ---- */
   const WHITE = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); WHITE.needsUpdate = true;
@@ -777,7 +808,7 @@ export function install(H) {
     gain: 1, gainInit: false, last: 0, ema: 16.7, slowFor: 0, fastFor: 0, holdUntil: 0, paused: false,
     calls: 0, tris: 0, frames: 0, err: 0, inside: false, room: 0, lvl: 0, xr: false, envI: -1,
   };
-  const deviceLevel = autoLevel(R);
+  const deviceLevel = autoLevel(R, H);
   const hostTM = R.toneMapping; // given back while an XR session runs (plain host rendering)
   R.toneMapping = TM_BY_NAME[CFG.tm] ?? hostTM;
 
@@ -828,7 +859,7 @@ export function install(H) {
   /* ---- per-frame ---- */
   const _cam = new THREE.Vector3();
   function lampLevel() { let m = 0; scene.traverseVisible(o => { if (o.isPointLight && !o.userData.post) m = Math.max(m, o.intensity); }); return m; }
-  let lampK = 0, lampColor = new THREE.Color(1, 0.76, 0.48), refLamp = null;
+  let lampK = 0, lampAll = 0, lampColor = new THREE.Color(1, 0.76, 0.48), refLamp = null;
   function frame(now) {
     const dt = st.last ? Math.min(0.25, (now - st.last) / 1000) : 0.016; st.last = now;
     const lv = LEVELS[st.level], mode = H.mode || 'walk';
@@ -842,11 +873,13 @@ export function install(H) {
     // between 17:30 and sunset the lamps come on while the sky, and so envI, stays the same); a still capture always measures
     if ((st.frames & 15) === 0 || Math.abs(envI - st.envI) > 1e-3 || st.paused || (refLamp && refLamp.intensity !== st.refI)) {
       st.envI = envI;
-      lampK = clamp(lampLevel() / 11, 0, 1);
+      lampAll = clamp(lampLevel() / 11, 0, 1);
       refLamp = null;
       scene.traverse(o => { if (o.isPointLight && !o.userData.post) { refLamp ||= o; if (o.intensity > 0) lampColor.copy(o.color); } });
       st.refI = refLamp ? refLamp.intensity : 0;
     }
+    // in a room: its own light switch (HOUSE.lights) sets the lamp share; on a stair, in the dollhouse or outside: the brightest lamp
+    { const rid = mode === 'walk' && code > 0 && code <= ROOMS.length ? ROOMS[code - 1].id : null; lampK = (rid && H.lights?.level?.(rid)) ?? lampAll; }
     // indoor light share, AO
     const doll = mode !== 'walk';
     const kIn = doll ? CFG.kDoll : lv.composer ? CFG.kIn : CFG.kInSnel;
@@ -982,6 +1015,14 @@ export function install(H) {
       try { return fn(); } finally { p.x = x; p.w = w; }
     },
     lightsMoved() { if (st.enabled) updateLightMasks(); }, // the host moved point lights to other rooms: re-mask them now, not in 10 frames
+    scan() { scanScene(true); }, // adopt the materials added since install now (before the host precompiles), not 64 frames later
+    // the passes' own materials, for the host's parallel precompile (else they compile one by one in the first frame)
+    materials() {
+      const out = new Set(); fin?.sync(R);
+      for (const p of composer?.passes || []) if (p.enabled) for (const k in p) for (const v of [].concat(p[k])) { const m = v?.isMaterial ? v : v?.material; if (m?.isMaterial && !m.isMeshNormalMaterial) out.add(m); }
+      return [...out];
+    },
+    overrides() { return ao?.enabled && composer?.passes.includes(ao) ? [ao.normalMaterial] : []; }, // drawn over every mesh (the AO normal buffer)
     setEnabled(on) {
       st.enabled = !!on;
       if (!on) { restoreShadow(); for (const L of rectPool) L.intensity = 0; }
@@ -990,7 +1031,7 @@ export function install(H) {
     info() {
       const lv = LEVELS[st.level];
       return {
-        version: VERSION, quality: st.level, choice: st.choice, device: deviceLevel, gpu: gpuName(R), auto: st.auto, scale: st.scale, dpr: R.getPixelRatio(),
+        version: VERSION, quality: st.level, choice: st.choice, device: deviceLevel, gpu: gpuName(R, H), auto: st.auto, scale: st.scale, dpr: R.getPixelRatio(),
         toneMapping: TM_NAME[R.toneMapping], gain: +st.gain.toFixed(3), wb: st.wb ? st.wb.toArray().map(v => +v.toFixed(4)) : [1, 1, 1], exposure: +(R.toneMappingExposure * st.gain).toFixed(3), inside: st.inside, room: st.room,
         ao: lv.ao ? (lv.ao === 1 ? 'vol' : 'half') : 'uit', windowLights: rectOn.length, msaa: curSamples, aa: lv.aa, calls: st.calls, triangles: st.tris,
         emaMs: +st.ema.toFixed(1), roofBaked: roofOK, windows: WINDOWS.length, size: sizeSig, shadow: sun ? { map: sun.shadow.mapSize.x, w: +(sun.shadow.camera.right - sun.shadow.camera.left).toFixed(2), normalBias: +sun.shadow.normalBias.toFixed(4), bias: sun.shadow.bias } : null,

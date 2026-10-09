@@ -26,7 +26,7 @@ const coarse = (() => { try { return matchMedia('(pointer: coarse)').matches; } 
 const Q = coarse ? { leaf: 0.45, tex: 256 } : { leaf: 1.0, tex: 512 };
 
 /* ===================================================== CANVAS-TEXTUREN ===================================================== */
-function mkCanvas(w, h = w) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+function mkCanvas(w, h = w) { const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d', { willReadFrequently: true }); return c; } // CPU canvas: pixels are read back (noise, normal maps), which on a GPU canvas waits for the GPU
 function tex(c, su = 1, sv = su, srgb = true) { const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / su, 1 / sv); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; }
 const hsl = (h, s, l, a = 1) => `hsla(${h},${s}%,${l}%,${a})`;
 function noise(ctx, w, h, n, amp, R) { for (let i = 0; i < n; i++) { ctx.fillStyle = `rgba(${R() < .5 ? 0 : 255},${R() < .5 ? 0 : 255},${R() < .5 ? 0 : 255},${(R() * amp).toFixed(3)})`; ctx.fillRect(R() * w, R() * h, 1 + R() * 2, 1 + R() * 2); } }
@@ -34,7 +34,7 @@ function normalFromHeight(hc, strength = 2) {
   const w = hc.width, h = hc.height, src = hc.getContext('2d').getImageData(0, 0, w, h).data, out = mkCanvas(w, h), ctx = out.getContext('2d'), img = ctx.createImageData(w, h), d = img.data;
   const H = (x, y) => src[(((y + h) % h) * w + ((x + w) % w)) * 4] / 255;
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const dx = (H(x + 1, y) - H(x - 1, y)) * strength, dy = (H(x, y + 1) - H(x, y - 1)) * strength, l = Math.hypot(dx, dy, 1), i = (y * w + x) * 4;
+    const dx = (H(x + 1, y) - H(x - 1, y)) * strength, dy = (H(x, y + 1) - H(x, y - 1)) * strength, l = Math.sqrt(dx * dx + dy * dy + 1), i = (y * w + x) * 4;
     d[i] = 128 + (-dx / l) * 127; d[i + 1] = 128 + (dy / l) * 127; d[i + 2] = 128 + (1 / l) * 127; d[i + 3] = 255;
   }
   ctx.putImageData(img, 0, 0); return out;
@@ -201,6 +201,10 @@ const HEDGE2 = { z0: 27.0, z1: 27.6, h: 1.4 };                            // get
 const ROW = { zF: 30.2, zB: 39.2 };                                       // woningen aan de overkant
 
 /* ===================================================== INSTALL ===================================================== */
+// The heavy procedural textures don't need the house, so they are made while the module waits for HOUSE, one per poll (each
+// its own short task), instead of all inside install(), which froze the page for ~0.5 s; install() makes any not made yet
+const EARLY = { gravel: texGravel, clinker: texClinker, tiles30: texTiles30, clad: texClad }, early = {};
+const made = k => early[k] ??= EARLY[k]();
 export function install(H) {
   const scene = H.scene, root = new THREE.Group(); root.name = 'voortuin-module';
   if (typeof H.addToRoom === 'function') H.addToRoom('voortuin', root); else scene.add(root);
@@ -209,7 +213,7 @@ export function install(H) {
   const MSM = THREE.MeshStandardMaterial, R = rng(2026);
 
   /* ---- materialen ---- */
-  const grav = texGravel(), clk = texClinker(), tl30 = texTiles30(), clad = texClad();
+  const grav = made('gravel'), clk = made('clinker'), tl30 = made('tiles30'), clad = made('clad');
   const nmat = (map, su, sv, o = {}) => new MSM({ map: tex(map.map, su, sv), normalMap: tex(map.nor, su, sv, false), normalScale: new THREE.Vector2(o.ns ?? 1, o.ns ?? 1), roughness: o.rough ?? 0.95, color: o.color || '#ffffff' });
   const mat = {
     gravel: nmat(grav, 1, 1, { ns: 1.2 }), clinker: nmat(clk, 1.05, 1.05, { ns: 0.9, rough: 0.9 }), tiles: nmat(tl30, 0.9, 0.9, { ns: 0.7 }),
@@ -225,7 +229,7 @@ export function install(H) {
     tyre: new MSM({ color: '#141414', roughness: 0.9 }), rim: new MSM({ color: '#9ea2a6', metalness: 0.7, roughness: 0.35 }), lamp: new MSM({ color: '#f3e4c8', emissive: '#ffd59a', emissiveIntensity: 0, roughness: 0.4 }),
     pole: new MSM({ color: '#4f5450', roughness: 0.6, metalness: 0.3 }), black: new MSM({ color: '#111213', roughness: 0.6 }), bark: new MSM({ color: '#4a3d31', roughness: 0.95 }),
     stake: new MSM({ color: '#8a6d4a', roughness: 0.9 }), colored: new MSM({ vertexColors: true, roughness: 0.95 }), mat: new MSM({ color: '#1c1c1c', roughness: 1 }),
-    mailbox: new MSM({ color: '#17483a', roughness: 0.45, metalness: 0.2 }), charger: new MSM({ color: '#3a3d41', roughness: 0.35 }), spot: new MSM({ color: '#1b1b1b', emissive: '#ffd9a0', emissiveIntensity: 0, roughness: 0.5 }),
+    mailbox: new MSM({ color: '#17483a', roughness: 0.45, metalness: 0.2 }), charger: new MSM({ color: '#3a3d41', roughness: 0.35 }), wcface: new MSM({ color: '#c6cacf', roughness: 0.12, metalness: 0.1, envMapIntensity: 0.8 }), led: new MSM({ color: '#1fd36a', emissive: '#1fd36a', emissiveIntensity: 1.4, roughness: 0.4 }), spot: new MSM({ color: '#1b1b1b', emissive: '#ffd9a0', emissiveIntensity: 0, roughness: 0.5 }),
   };
   // baksteen en dakpannen: dezelfde CC0 foto-sets als de woning zelf (assets/, zie manifest.json), getint
   const loader = new THREE.TextureLoader();
@@ -337,7 +341,11 @@ export function install(H) {
   // voordeur: mat op het grind, brievenbus en laadpaal aan de gevel (foto's exterior_1)
   statics.box('mat', 7.25, 7.95, 0, 0.015, ZF, ZF + 0.5);
   statics.box('mailbox', 8.68, 8.98, 1.25, 1.62, ZF, ZF + 0.13); statics.box('black', 8.72, 8.94, 1.5, 1.52, ZF + 0.13, ZF + 0.145);
-  statics.geo('charger', rbox(0.2, 0.38, 0.11, 0.04), place(9.1, 1.25, ZF + 0.06)); statics.box('black', 9.06, 9.14, 0.85, 1.06, ZF, ZF + 0.03);
+  // Tesla Wall Connector (gen 3): donkere behuizing, lichtgrijs glazen front, groene ledstrook bovenin, kabel in een lus naar de houder rechts
+  statics.geo('charger', rbox(0.155, 0.345, 0.12, 0.03), place(9.1, 1.25, ZF + 0.065)); statics.geo('wcface', rbox(0.135, 0.31, 0.012, 0.012), place(9.1, 1.25, ZF + 0.13));
+  statics.geo('led', rbox(0.09, 0.012, 0.012, 0.004), place(9.1, 1.395, ZF + 0.133));
+  statics.geo('black', new THREE.TubeGeometry(new THREE.CatmullRomCurve3([V(9.10, 1.08, ZF + 0.08), V(9.11, 0.78, ZF + 0.15), V(9.20, 0.52, ZF + 0.17), V(9.32, 0.58, ZF + 0.15), V(9.36, 0.98, ZF + 0.11), V(9.33, 1.22, ZF + 0.10)]), 28, 0.009, 6), new THREE.Matrix4());
+  statics.geo('charger', new THREE.CylinderGeometry(0.02, 0.024, 0.16, 8), place(9.33, 1.30, ZF + 0.10, 0, 1, 0.25)); statics.box('black', 9.30, 9.36, 1.36, 1.39, ZF, ZF + 0.08);   // stekker in de houder
 
   /* =================================================== AUTO'S (geen kenteken) =================================================== */
   // compacte cross-over (4,45 x 1,82 x 1,58 m), neus naar −Z. Zijprofiel (z, y) met wielkasten, over de breedte geëxtrudeerd
@@ -387,7 +395,19 @@ export function install(H) {
     at('colored', rbox(0.52, 0.11, 0.012, 0.01), 0, 0.48, -2.245, [0.9, 0.9, 0.88]); at('colored', rbox(0.52, 0.11, 0.012, 0.01), 0, 0.70, 2.225, [0.92, 0.72, 0.08]);   // blanco kentekens (wit voor, geel achter)
     at('black', rbox(0.58, 0.16, 0.02, 0.01), 0, 0.70, 2.21, dark);                                                           // kentekenplaathouder
   }
-  car(1.2, 16.2, 0, [0.025, 0.027, 0.032]); addCol(0.3, 2.1, 14.0, 18.4);          // onze auto, zwart, neus naar het huis (exterior_1)
+  // onze auto: zwarte Tesla Model Y (2025, models/glb/car-tesla-y.glb uit tools/blender/model_y.py), neus naar het huis (exterior_1).
+  // Tot het model er is (of als het niet laadt) staat de procedurele cross-over er in een eigen mesh-groep.
+  const CAR = { x: 1.2, z: 16.0 }; addCol(0.22, 2.18, 13.55, 18.45);
+  { const carM = new Merger(), fallback = new THREE.Group(); fallback.name = 'auto-oprit:fallback';
+    statics = carM; car(CAR.x, CAR.z, 0, [0.025, 0.027, 0.032]); statics = near;
+    carM.build((k, g) => { const m = new THREE.Mesh(g, mat[k]); m.castShadow = m.receiveShadow = true; fallback.add(m); }); root.add(fallback);
+    const swap = () => {
+      const M = H.models; if (!M) return void setTimeout(swap, 250);
+      M.ready.then(() => { const g = M.place('car', { x: CAR.x, z: CAR.z, ry: PI, dress: false }); if (!g) return;   // model: neus +Z, dus een halve slag
+        g.name = 'auto-oprit:tesla'; root.add(g); root.remove(fallback); fallback.traverse(o => o.geometry?.dispose());
+        g.traverse(o => { const m = o.material; if (m?.name === 'paint') m.envMapIntensity = 0.5; else if (m?.name === 'glass') m.envMapIntensity = 0.55; });   // zwarte lak en getint glas: minder luchtglans
+      });
+    }; swap(); }
   car(-5.8, 25.4, PI / 2, [0.80, 0.82, 0.83]); addCol(-8.0, -3.6, 24.5, 26.3);    // overkant, wit, langs de stoep (voortuin_1 rechts)
 
   /* =================================================== BORDER (foto voortuin_1, rechts in beeld = −X) =================================================== */
@@ -553,5 +573,6 @@ export function install(H) {
     try { install(H); } catch (e) { console.error('[voortuin] installatie mislukt', e); }
     return;
   }
+  const k = tries && Object.keys(EARLY).find(k => !early[k]); if (k) made(k); // a texture per poll (not in the module's own first run) while the house is being built
   if (tries < 600) setTimeout(() => boot(tries + 1), 100);
 })();

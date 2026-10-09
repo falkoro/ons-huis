@@ -2,11 +2,14 @@
  *
  *  Werkelijkheid (photos/rooms/kantoor_1.jpg, zitkamer_1/2, achterhal_1): de zitkamer is één lange kamer; het "kantoor" staat
  *  langs de linkerwand (x = 0) aan het voorste (hal-)einde, de hoekbank bij het raam. Van voor naar achter: zwarte gamestoel,
- *  zwart bureau met 27"-monitor (vliegtuig-achtergrond, naar de stoel gedraaid), glazen gaming-pc met RGB-fans, 32"-monitor op
- *  een arm, tweede zwarte toren met oranje logo + speaker, dan de flightsim-rig (zwart buisframe, kuipstoel, yoke, gasquadrant
- *  met groen verlichte knoppen), een zwarte draadstoel en het ronde donkergroene hondenbed. Posters hoog boven het bureau (host).
- *  Rechterwand: hoge zwarte kast met glazen deuren in de sprong van de wand, zwart ladeblok met witte laserprinter, blauwe
- *  Helmer-ladekast, tablet. Lichte eiken laminaatvloer, witte wanden (host).
+ *  zwart bureau (controller, rode muismat, muis, mok) met 27"-monitor (watervliegtuig-achtergrond, naar de stoel gedraaid),
+ *  glazen gaming-pc met drie RGB-fans, pomp-lcd, regenboogstrip en webcam, 32"-monitor op een arm erboven, tweede zwarte toren
+ *  (oranje logo-vlak, speaker) op een kastje, dan de flightsim-rig: piloot kijkt naar de muur; kolom met yoke en MOZA-achtig
+ *  gasquadrant, keyboard-tray met headset, zijplaat met het groen verlichte MOZA-paneel, trimwiel en schakelkastje, lage kuipstoel
+ *  met sporttas. Daarvoor een zwarte draadstoel en het ronde petrolgroene hondenbed. Posters hoog boven het bureau (host).
+ *  Rechterwand: hoge zwarte kast met lichte randen en glazen deuren in de sprong van de wand, zwart ladenblok met witte
+ *  laserprinter, laptop, bidon, deo en luchtreiniger, blauwe Helmer-ladekast met papieren en tablet op een standaard. Rode
+ *  pantoffel in het looppad. Lichte eiken laminaatvloer, witte wanden (host).
  *
  *  - "Huidig": bovenstaande opstelling. Andere stijlen: opgeruimde designerversie (eiken bureau, mesh-stoel, één monitor,
  *    rig netjes achterin met wandscherm). Wisselt mee met HOUSE.state.style ('change'-event).
@@ -606,7 +609,7 @@ function monitor(b, w, h, x, y, z, ry, top, arm) {
   else { b.box('metal', '#1d1d20', 0.05, -dy - h * 0.4, 0.03, 0, (dy - h * 0.4) / 2, -0.075); b.box('metal', '#1d1d20', 0.24, 0.012, 0.18, 0, dy + 0.006, -0.07); }
   b.pop();
 }
-// gamestoel (foto): zwart PU-leer, grijze panelen, ronde chroomknop op de rug, 4D-armleggers, zwarte nylon stervoet
+// gamestoel (foto): zwart PU-leer, grijze panelen, ronde chroomknop op de rug, 4D-armleggers, zwarte nylon stervoet, hoofdkussen
 function gamingChair(b, x, z, ry) {
   const L = '#121214', L2 = '#2b2c31';
   b.push(x, 0, z, 0, ry, 0);
@@ -629,113 +632,179 @@ function gamingChair(b, x, z, ry) {
     b.cyl('metal', '#d6d8dc', 0.045, 0.045, 0.006, 16, sx * 0.292, 0.3, 0.0, 0, 0, HP);
   }
   b.box('leather', L2, 0.26, 0.12, 0.06, 0, 0.66, -0.07); b.box('leather', L2, 0.30, 0.14, 0.05, 0, 0.22, -0.065);
+  b.box('leather', L, 0.3, 0.1, 0.07, 0, 0.8, -0.06);                                                         // hoofdkussen
   b.pop(); b.pop();
 }
-// flightsim-rig (foto): zwart buisframe, kuipstoel, pedalen, yoke op een kolom, gasquadrant links met groen verlichte knoppen
-// en een klein schakelpaneeltje. Lokaal: piloot op (0, 0, 0), kijkt naar -z.
-function rig(b, x, z, ry) {
-  const S = '#121214', S2 = '#1e1e22';
+// flightsim-rig (foto): zwart buisframe met alu zitrail, kuipstoel met tas, kolom met yoke en MOZA-gasquadrant, keyboard-tray
+// aan de muurkant en een zijplaat met het groen verlichte MOZA-paneel, trimwiel en een grijs schakelkastje.
+// Lokaal: piloot op (0, 0, 0), kijkt naar -z; de piloot zijn linkerhand (en de zijplaat) zit op -x.
+function rig(T, b, x, z, ry) {
+  const S = '#141417', S2 = '#1f2024', G = '#3dff7a';
   b.push(x, 0, z, 0, ry, 0);
-  for (const sx of [-0.27, 0.27]) b.box('metal', FRM, 0.05, 0.05, 1.15, sx, 0.025, -0.25);
-  for (const zz of [-0.78, -0.3, 0.3]) b.box('metal', FRM, 0.59, 0.05, 0.05, 0, 0.025, zz);
-  b.box('metal', FRM, 0.44, 0.08, 0.5, 0, 0.1, 0.02);
-  b.push(0, 0.24, 0);
-  b.box('fabric', S, 0.48, 0.09, 0.48, 0, 0, 0, 0.12, 0, 0);
-  for (const sx of [-1, 1]) b.box('fabric', S2, 0.07, 0.11, 0.46, sx * 0.24, 0.05, 0);
-  b.push(0, 0.12, 0.22, 0.22, 0, 0);
-  b.box('fabric', S, 0.5, 0.82, 0.09, 0, 0.41, 0);
-  for (const sx of [-1, 1]) b.box('fabric', S2, 0.08, 0.56, 0.14, sx * 0.25, 0.33, -0.03);
-  b.box('fabric', '#2a2a2e', 0.2, 0.14, 0.03, 0, 0.45, -0.06);
+  // frame
+  for (const sx of [-0.3, 0.3]) b.box('metal', FRM, 0.05, 0.05, 1.45, sx, 0.025, -0.375);
+  for (const zz of [-1.05, -0.3, 0.3]) b.box('metal', FRM, 0.65, 0.05, 0.05, 0, 0.025, zz);
+  for (const sx of [-0.33, 0.33]) b.cyl('metal', ALU, 0.014, 0.014, 0.5, 8, sx, 0.12, 0.1, HP, 0, 0);
+  for (const sx of [-0.33, 0.33]) for (const zz of [-0.1, 0.3]) b.box('metal', ALU, 0.03, 0.12, 0.03, sx, 0.08, zz);
+  b.box('metal', FRM, 0.46, 0.08, 0.5, 0, 0.15, 0.02);
+  // kuipstoel (laag, racing) met grijze middenbaan en hoofdsteun
+  b.push(0, 0.3, 0);
+  b.box('fabric', S, 0.5, 0.1, 0.5, 0, 0, 0, 0.1, 0, 0); b.box('fabric', '#3a3c40', 0.22, 0.102, 0.42, 0, 0.002, -0.02, 0.1, 0, 0);
+  for (const sx of [-1, 1]) b.box('fabric', S2, 0.08, 0.13, 0.46, sx * 0.25, 0.05, 0);
+  b.push(0, 0.1, 0.24, 0.26, 0, 0);
+  b.box('fabric', S, 0.54, 0.9, 0.1, 0, 0.45, 0); b.box('fabric', '#3a3c40', 0.24, 0.72, 0.102, 0, 0.42, 0);
+  for (const sx of [-1, 1]) b.box('fabric', S2, 0.09, 0.6, 0.16, sx * 0.26, 0.36, -0.03);
+  b.box('fabric', S2, 0.3, 0.13, 0.08, 0, 0.84, -0.03); b.box('fabric', '#4a4d52', 0.3, 0.025, 0.082, 0, 0.9, -0.03);
   b.pop(); b.pop();
-  b.box('solid', BLK, 0.42, 0.025, 0.26, 0, 0.1, -0.68, 0.45, 0, 0);
-  for (const sx of [-0.12, 0.12]) b.box('solid', BLK2, 0.09, 0.2, 0.02, sx, 0.2, -0.7, -0.4, 0, 0);
-  for (const sx of [-0.26, 0.26]) b.box('metal', FRM, 0.05, 0.66, 0.05, sx, 0.36, -0.46);
-  b.box('metal', FRM, 0.62, 0.025, 0.28, 0, 0.69, -0.46);
-  b.box('solid', '#1d1d21', 0.26, 0.1, 0.2, 0, 0.755, -0.5);
-  b.cyl('metal', ALU, 0.016, 0.016, 0.2, 10, 0, 0.8, -0.31, HP, 0, 0);
-  b.box('solid', BLK, 0.09, 0.07, 0.05, 0, 0.8, -0.22);
-  for (const sx of [-1, 1]) { b.box('solid', BLK, 0.13, 0.03, 0.035, sx * 0.1, 0.81, -0.22, 0, 0, sx * 0.45); b.box('leather', '#101012', 0.04, 0.13, 0.045, sx * 0.17, 0.87, -0.22, 0, 0, -sx * 0.2); }
-  b.box('glow', '#ff2a2a', 0.01, 0.006, 0.01, 0.16, 0.935, -0.22);
-  b.box('metal', FRM, 0.05, 0.72, 0.05, -0.42, 0.36, -0.35); b.box('metal', FRM, 0.2, 0.025, 0.3, -0.42, 0.73, -0.35);
-  b.box('solid', '#1d1d21', 0.3, 0.1, 0.26, -0.42, 0.79, -0.37);
-  ['#2a2a2e', '#2a2a2e', '#d0202a', '#2f6bff', '#2a2a2e', '#f0f0f0'].forEach((kc, i) => { const xx = -0.53 + i * 0.044; b.box('metal', ALU, 0.01, 0.1, 0.01, xx, 0.88, -0.4, -0.25, 0, 0); b.box('solid', kc, 0.026, 0.026, 0.03, xx, 0.93, -0.41); });
-  for (let i = 0; i < 7; i++) b.box('glow', '#3dff7a', 0.016, 0.006, 0.016, -0.54 + i * 0.04, 0.842, -0.26);
-  b.box('glow', '#2bd36a', 0.26, 0.004, 0.012, -0.42, 0.842, -0.3);
-  b.box('solid', '#1d1d21', 0.16, 0.035, 0.12, -0.42, 0.75, -0.14);
-  for (let i = 0; i < 6; i++) b.box('glow', '#3dff7a', 0.01, 0.006, 0.01, -0.47 + (i % 3) * 0.05, 0.77, -0.17 + (i / 3 | 0) * 0.05);
+  // sporttas op de zitting (zwart met petrol vak)
+  b.box('fabric', '#15161a', 0.42, 0.24, 0.3, 0.02, 0.5, -0.03, 0, 0.2, 0); b.box('fabric', '#2b6e78', 0.3, 0.18, 0.08, 0.0, 0.52, -0.15, 0, 0.2, 0);
+  b.box('solid', '#101012', 0.012, 0.03, 0.36, 0.02, 0.63, -0.03, 0, 0.2, 0);
+  // kolom + plaat (yoke, gasquadrant, keyboard-tray aan de muurkant)
+  b.box('metal', FRM, 0.06, 0.9, 0.06, 0, 0.45, -0.8); b.box('metal', FRM, 0.3, 0.04, 0.04, 0, 0.9, -0.95);
+  b.box('solid', BLK, 0.56, 0.025, 0.5, -0.05, 0.925, -0.85);
+  // yoke: zwarte basis, as naar de piloot, naaf, twee horens omhoog met grepen en hoedje
+  b.box('solid', '#141416', 0.2, 0.11, 0.26, 0, 0.99, -0.78); b.box('solid', '#1d1d21', 0.14, 0.03, 0.2, 0, 1.06, -0.78);
+  b.cyl('metal', ALU, 0.016, 0.016, 0.24, 10, 0, 1.03, -0.56, HP, 0, 0);
+  b.box('solid', BLK, 0.1, 0.07, 0.05, 0, 1.04, -0.45);
+  for (const sx of [-1, 1]) { b.box('solid', BLK, 0.14, 0.03, 0.035, sx * 0.1, 1.06, -0.45, 0, 0, sx * 0.5); b.box('leather', '#101012', 0.04, 0.14, 0.05, sx * 0.19, 1.14, -0.45, 0, 0, -sx * 0.15); }
+  b.box('glow', '#ff2a2a', 0.01, 0.006, 0.01, 0.17, 1.215, -0.45); b.box('solid', '#2a2a2e', 0.02, 0.012, 0.02, -0.17, 1.215, -0.45);
+  // MOZA-achtig gasquadrant links van de yoke: compacte zwarte basis met schuine kop, twee dikke hendels, knoppen en draaiknoppen
+  b.box('solid', '#1a1a1e', 0.17, 0.1, 0.2, -0.26, 0.985, -0.72); b.box('solid', '#202024', 0.17, 0.03, 0.12, -0.26, 1.045, -0.68, -0.3, 0, 0);
+  for (const dx of [-0.3, -0.22]) { b.cyl('metal', ALU, 0.007, 0.007, 0.1, 8, dx, 1.09, -0.76, -0.15, 0, 0); b.box('solid', '#111114', 0.035, 0.09, 0.045, dx, 1.16, -0.77, -0.15, 0, 0); }
+  b.box('solid', '#c0392b', 0.012, 0.03, 0.03, -0.26, 1.14, -0.77);
+  for (let i = 0; i < 6; i++) b.box('glow', G, 0.014, 0.004, 0.014, -0.32 + (i % 3) * 0.045, 1.062 + (i < 3 ? 0.012 : -0.003), -0.705 + (i < 3 ? -0.03 : 0.02), -0.3, 0, 0);
+  for (let i = 0; i < 3; i++) b.cyl('solid', '#2a2a2e', 0.009, 0.009, 0.014, 8, -0.32 + i * 0.045, 1.03, -0.63);
+  // zijplaat (piloot-links) aan een arm van de kolom: MOZA-paneel met groene toetsen, trimwiel, grijs schakelkastje
+  b.box('metal', FRM, 0.38, 0.04, 0.04, -0.2, 0.76, -0.78); b.box('metal', FRM, 0.04, 0.04, 0.5, -0.4, 0.76, -0.55);
+  b.box('solid', BLK, 0.32, 0.025, 0.52, -0.53, 0.78, -0.55);
+  b.push(-0.53, 0.79, -0.4, 0, 0, -0.1);                                                                      // paneel iets naar de piloot gekanteld
+  b.box('solid', '#1c1c20', 0.3, 0.05, 0.19, 0, 0.025, 0); b.box('solid', '#2a2b30', 0.3, 0.012, 0.03, 0, 0.03, 0.1);
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 8; c++) if (!(r > 1 && c > 5)) b.box('glow', r & 1 ? '#2fd460' : G, 0.014, 0.006, 0.011, -0.125 + c * 0.034, 0.052, -0.07 + r * 0.038);
+  for (let i = 0; i < 3; i++) b.cyl('solid', '#2a2a2e', 0.012, 0.012, 0.016, 8, 0.08 + i * 0.035, 0.058, 0.03);
+  b.box('glow', '#2bd36a', 0.26, 0.003, 0.004, 0, 0.052, -0.088);
+  b.pop();
+  b.cyl('solid', '#111114', 0.07, 0.07, 0.03, 20, -0.46, 0.86, -0.62, 0, 0, HP); b.cyl('solid', '#2a2a2e', 0.02, 0.02, 0.034, 10, -0.46, 0.86, -0.62, 0, 0, HP);
+  b.box('solid', '#1a1a1d', 0.05, 0.07, 0.03, -0.46, 0.815, -0.62);
+  b.box('solid', '#6a6c70', 0.08, 0.05, 0.07, -0.62, 0.82, -0.72); b.box('solid', '#c0392b', 0.016, 0.012, 0.016, -0.645, 0.85, -0.7);
+  for (let i = 0; i < 3; i++) b.box('glow', G, 0.01, 0.004, 0.01, -0.6 + i * 0.015, 0.858, -0.74);
+  // keyboard-tray op de plaat (muurkant): toetsenbord, headset, gadget met rood lampje, schuin mini-schermpje
+  b.box('solid', '#1a1a1d', 0.44, 0.022, 0.14, -0.05, 0.95, -1.0); for (let r = 0; r < 4; r++) b.box('glow', '#4f6a52', 0.4, 0.002, 0.012, -0.05, 0.962, -1.045 + r * 0.03);
+  for (const sx of [-1, 1]) b.cyl('solid', '#141416', 0.04, 0.04, 0.03, 12, 0.17 + sx * 0.055, 0.985, -0.96, 0, 0, HP);
+  b.geo('solid', '#141416', new T.TorusGeometry(0.06, 0.008, 6, 16, PI), 0.17, 0.99, -0.96, 0, 0, 0);
+  b.box('solid', '#1a1a1d', 0.06, 0.04, 0.08, -0.33, 0.955, -1.03); b.box('glow', '#ff2020', 0.012, 0.006, 0.012, -0.33, 0.978, -1.0);
+  b.box('solid', '#111114', 0.1, 0.07, 0.012, -0.3, 1.0, -0.93, -0.5, 0, 0); b.box('glow', '#2a3550', 0.085, 0.055, 0.002, -0.3, 1.0, -0.923, -0.5, 0, 0);
   b.pop();
 }
-// glazen gaming-pc (foto): zwarte kast met glas aan de voor- en zijkant, drie RGB-fans (groen/cyaan/wit), pompblok met lcd
+// glazen gaming-pc (foto): zwarte kast, glas voor (+x) en opzij (+z); drie RGB-fans (groen/cyaan/roze) achter het voorglas, pompblok met
+// rond lcd en een verticale regenboogstrip achter het zijglas, videokaart onderin, webcam op het deksel, geel waarschuwingsstickertje
 function glassPc(T, b, x, y, z) {
-  // kast = achterwand, bodem, deksel en dichte zijkant (naar de muur); voorkant (+x) en zijkant (+z) van glas met een smal frame
   b.box('solid', '#101013', 0.02, 0.48, 0.25, x - 0.22, y + 0.24, z); b.box('solid', '#101013', 0.46, 0.48, 0.02, x, y + 0.24, z - 0.115);
   for (const dy of [0.01, 0.47]) b.box('solid', '#101013', 0.46, 0.02, 0.25, x, y + dy, z);
   b.box('solid', '#101013', 0.02, 0.48, 0.02, x + 0.22, y + 0.24, z + 0.115);
   b.box('solid', '#0c0c0f', 0.3, 0.44, 0.21, x - 0.07, y + 0.24, z - 0.005);                                     // moederbord/voeding
-  b.box('solid', '#15151a', 0.26, 0.03, 0.19, x - 0.06, y + 0.3, z - 0.005); b.box('rgb', '#ffffff', 0.26, 0.004, 0.006, x - 0.06, y + 0.316, z + 0.092);
+  b.box('solid', '#15151a', 0.26, 0.04, 0.19, x - 0.06, y + 0.12, z - 0.005); b.box('metal', '#3a3b40', 0.26, 0.006, 0.19, x - 0.06, y + 0.143, z - 0.005); // videokaart
+  b.box('solid', '#15151a', 0.26, 0.03, 0.19, x - 0.06, y + 0.3, z - 0.005); b.box('glow', '#e6eef8', 0.26, 0.004, 0.006, x - 0.06, y + 0.316, z + 0.092);
   b.box('glass', '#9fb8c8', 0.004, 0.44, 0.21, x + 0.226, y + 0.24, z - 0.01); b.box('glass', '#9fb8c8', 0.42, 0.44, 0.004, x - 0.01, y + 0.24, z + 0.121);
-  [['glow', '#e0ecff', 0.37], ['rgb', '#ffffff', 0.24], ['rgb', '#b8ffd8', 0.11]].forEach(([k, c, dy]) => { b.box('solid', '#15151a', 0.012, 0.12, 0.12, x + 0.15, y + dy + 0.03, z - 0.005); b.geo(k, c, new T.TorusGeometry(0.052, 0.007, 6, 20), x + 0.19, y + dy + 0.03, z - 0.005, 0, HP, 0); b.cyl('solid', '#1a1a1f', 0.022, 0.022, 0.03, 8, x + 0.18, y + dy + 0.03, z - 0.005, 0, 0, HP); });
-  b.box('rgb', '#ffffff', 0.006, 0.4, 0.006, x - 0.2, y + 0.24, z + 0.105);
-  b.box('solid', '#1a1a1f', 0.07, 0.07, 0.02, x - 0.08, y + 0.3, z + 0.105); b.box('glow', '#2e4068', 0.05, 0.05, 0.002, x - 0.08, y + 0.3, z + 0.116); b.box('glow', '#d8e6ff', 0.02, 0.012, 0.002, x - 0.08, y + 0.3, z + 0.117);
+  [['#45ff6a', 0.37], ['#30e8ff', 0.24], ['#ff58d8', 0.11]].forEach(([c, dy]) => {
+    b.box('solid', '#15151a', 0.012, 0.12, 0.12, x + 0.15, y + dy + 0.03, z - 0.005);
+    b.geo('glow', c, new T.TorusGeometry(0.052, 0.007, 6, 20), x + 0.19, y + dy + 0.03, z - 0.005, 0, HP, 0);
+    b.geo('glow', c, new T.TorusGeometry(0.03, 0.004, 6, 16), x + 0.19, y + dy + 0.03, z - 0.005, 0, HP, 0);
+    b.cyl('solid', '#1a1a1f', 0.022, 0.022, 0.03, 8, x + 0.18, y + dy + 0.03, z - 0.005, 0, 0, HP);
+  });
+  ['#ff3030', '#ff9a20', '#f0e030', '#30e060', '#2a7cff', '#a040ff'].forEach((c, i) => b.box('glow', c, 0.012, 0.06, 0.006, x - 0.03, y + 0.07 + i * 0.06, z + 0.1));
+  b.cyl('solid', '#1a1a1f', 0.045, 0.045, 0.02, 20, x - 0.11, y + 0.3, z + 0.105, HP, 0, 0);
+  b.geo('glow', '#f0f4ff', new T.TorusGeometry(0.036, 0.004, 6, 24), x - 0.11, y + 0.3, z + 0.116, 0, 0, 0);
+  b.box('glow', '#0a1020', 0.06, 0.06, 0.002, x - 0.11, y + 0.3, z + 0.1165); b.box('glow', '#d8e6ff', 0.02, 0.01, 0.002, x - 0.11, y + 0.3, z + 0.1175);
+  b.box('solid', '#e8c020', 0.025, 0.025, 0.002, x - 0.14, y + 0.4, z + 0.124);
+  b.box('glow', '#ffffff', 0.004, 0.012, 0.012, x + 0.228, y + 0.04, z + 0.07);                                 // aan/uit-ring
+  b.box('solid', '#141416', 0.03, 0.03, 0.08, x + 0.05, y + 0.495, z); b.box('solid', '#141416', 0.07, 0.035, 0.03, x + 0.05, y + 0.52, z + 0.02); b.cyl('solid', '#0a0a0c', 0.009, 0.009, 0.006, 10, x + 0.05, y + 0.52, z + 0.037, HP, 0, 0);
 }
-// zwarte draadstoel (foto): staalspijlen rond, zitting van zwart hout
+// tweede zwarte toren (foto): ligt met de lange zijde langs de muur op een zwart kastje; glazen zijpaneel naar de hal met een oranje
+// verlicht logo-vlak en geel stickertje, zwarte ventilatievoorkant naar de kamer; boekenplankspeaker en een plat zwart apparaat op het deksel
+function tower2(b, x, y, z) {
+  b.box('solid', '#121214', 0.5, y, 0.3, x, y / 2, z); b.box('solid', '#1b1b1e', 0.5, 0.02, 0.3, x, y - 0.01, z);  // kastje
+  b.box('solid', '#111114', 0.47, 0.46, 0.22, x, y + 0.23, z); b.box('glass', '#9fb8c8', 0.42, 0.4, 0.004, x - 0.01, y + 0.24, z + 0.112);
+  b.box('solid', '#0c0c0f', 0.4, 0.38, 0.02, x - 0.01, y + 0.24, z + 0.09);
+  b.box('glow', '#ff7a1a', 0.07, 0.07, 0.003, x - 0.05, y + 0.3, z + 0.1, 0, 0, 0.6); b.box('glow', '#ff3a1a', 0.04, 0.04, 0.003, x - 0.05, y + 0.3, z + 0.1015, 0, 0, 0.6);
+  b.box('solid', '#e8c020', 0.03, 0.03, 0.002, x + 0.14, y + 0.4, z + 0.115);
+  for (let i = 0; i < 5; i++) b.box('solid', '#2a2b2f', 0.004, 0.36, 0.02, x + 0.237, y + 0.23, z - 0.08 + i * 0.04);
+  b.box('solid', '#111114', 0.14, 0.2, 0.12, x - 0.12, y + 0.56, z); b.box('fabric', '#2a2a2e', 0.1, 0.16, 0.004, x - 0.12, y + 0.56, z + 0.062);
+  b.box('glow', '#33ff66', 0.006, 0.006, 0.003, x - 0.07, y + 0.49, z + 0.063);
+  b.box('solid', '#141416', 0.3, 0.03, 0.2, x + 0.08, y + 0.475, z);
+}
+// zwarte draadstoel/bijzettafel (foto): zandloper van kruisende staaldraden, ronde zwarte top
 function wireStool(T, b, x, z) {
-  for (let i = 0; i < 16; i++) { const a = i * PI / 8; b.box('metal', '#111113', 0.006, 0.44, 0.006, x + Math.sin(a) * 0.19, 0.23, z + Math.cos(a) * 0.19, 0.12, a, 0); }
-  for (const y of [0.02, 0.44]) b.geo('metal', '#111113', new T.TorusGeometry(0.19, 0.005, 4, 28), x, y, z, HP, 0, 0);
-  b.cyl('solid', '#151517', 0.2, 0.2, 0.014, 24, x, 0.452, z);
+  for (let i = 0; i < 16; i++) { const a = i * PI / 8; b.box('metal', '#111113', 0.006, 0.46, 0.006, x + Math.sin(a) * 0.18, 0.23, z + Math.cos(a) * 0.18, 0.42, a, 0); }
+  for (let i = 0; i < 16; i++) { const a = i * PI / 8; b.box('metal', '#111113', 0.006, 0.46, 0.006, x + Math.sin(a) * 0.18, 0.23, z + Math.cos(a) * 0.18, -0.42, a, 0); }
+  for (const y of [0.02, 0.44]) b.geo('metal', '#111113', new T.TorusGeometry(0.2, 0.005, 4, 28), x, y, z, HP, 0, 0);
+  b.cyl('solid', '#151517', 0.21, 0.21, 0.014, 24, x, 0.452, z);
 }
+// rond donkergroen (petrol) hondenbed, zitzak-achtig
 function roundBed(b, x, z) {
   b.cyl('fabric', '#2c4a3e', 0.46, 0.5, 0.2, 28, x, 0.1, z); b.cyl('fabric', '#36584b', 0.35, 0.35, 0.15, 24, x, 0.085, z);
 }
 
 /* ---------- "Huidig" (kantoor_1.jpg): alles langs de linkerwand (x = 0), kasten rechts ---------- */
 function buildHuidig(T, b) {
-  // bureau: zwart laminaat op zwart stalen frame, x 0.03–0.68, z 4.375–6.325
-  b.box('solid', '#141416', 1.95, 0.03, 0.65, 0.355, 0.735, 5.35);
-  for (const z of [4.42, 6.28]) { for (const x of [0.12, 0.6]) b.box('metal', '#151518', 0.05, 0.70, 0.05, x, 0.36, z); b.box('metal', '#151518', 0.56, 0.03, 0.05, 0.36, 0.015, z); b.box('metal', '#151518', 0.56, 0.03, 0.05, 0.36, 0.705, z); }
-  b.box('metal', '#151518', 0.04, 0.04, 1.75, 0.1, 0.62, 5.35);
-  // op het bureau: muismat (rood/zwart), muis, controller, mok, toetsenbord
-  b.box('fabric', '#3a1416', 0.42, 0.004, 0.36, 0.5, 0.752, 5.95);
+  // bureau: zwart blad met grijze voorrand op donkergrijs stalen frame, x 0.03–0.68, z 4.6–6.33
+  b.box('solid', '#141416', 1.73, 0.03, 0.65, 0.355, 0.735, 5.465); b.box('metal', '#5a5c60', 1.73, 0.012, 0.012, 0.355, 0.728, 5.795);
+  for (const z of [4.66, 6.27]) { for (const x of [0.12, 0.6]) b.box('metal', '#2a2b2f', 0.05, 0.70, 0.05, x, 0.36, z); b.box('metal', '#2a2b2f', 0.56, 0.03, 0.05, 0.36, 0.015, z); b.box('metal', '#2a2b2f', 0.56, 0.03, 0.05, 0.36, 0.705, z); }
+  b.box('metal', '#2a2b2f', 0.04, 0.04, 1.55, 0.1, 0.62, 5.465);
+  // op het bureau: witte controller, donkerrode muismat, muis met blauw lampje, mok, zwart kastje onder het 27"-scherm
+  b.box('solid', '#e8e8ea', 0.16, 0.05, 0.1, 0.5, 0.775, 6.22, 0, 0.3, 0);
+  b.box('fabric', '#4d1a1e', 0.45, 0.004, 0.38, 0.46, 0.752, 5.95); for (let i = 0; i < 12; i++) b.box('fabric', '#7a3a2a', 0.02, 0.001, 0.02, 0.28 + hash(i, 1, 31) * 0.36, 0.7545, 5.78 + hash(i, 2, 31) * 0.34);
   b.box('solid', '#1a1a1d', 0.06, 0.03, 0.1, 0.56, 0.768, 5.98); b.box('glow', '#3a7bff', 0.004, 0.004, 0.05, 0.56, 0.785, 5.97);
-  b.box('solid', '#e8e8ea', 0.1, 0.05, 0.14, 0.58, 0.775, 6.2); b.cyl('solid', '#efefef', 0.04, 0.036, 0.095, 12, 0.3, 0.8, 6.1);
-  b.box('solid', '#1a1a1d', 0.14, 0.022, 0.44, 0.5, 0.765, 4.92); for (let r = 0; r < 5; r++) b.box('rgb', '#6a6a6a', 0.018, 0.003, 0.4, 0.44 + r * 0.03, 0.777, 4.92);
-  // monitor 1 (27", naar de stoel gedraaid), glazen pc, monitor 2 (32") op een arm, tweede toren met speaker
+  b.cyl('solid', '#efefef', 0.04, 0.036, 0.095, 12, 0.3, 0.8, 6.1);
+  b.box('solid', '#141416', 0.26, 0.05, 0.09, 0.26, 0.775, 5.62);
+  // monitor 1 (27", naar de stoel gedraaid), glazen pc met webcam, monitor 2 (32") op een arm boven de pc, tweede toren op kastje
   monitor(b, 0.597, 0.336, 0.42, 1.06, 5.85, HP - 0.4, 0.75, false);
   glassPc(T, b, 0.35, 0.75, 5.3);
-  monitor(b, 0.705, 0.397, 0.3, 1.45, 4.9, HP - 0.1, 0.75, true);
-  b.box('solid', '#111114', 0.44, 0.44, 0.21, 0.36, 0.97, 4.52); b.box('solid', '#1b1b1f', 0.004, 0.4, 0.17, 0.582, 0.97, 4.52);
-  b.box('glow', '#ff7a1a', 0.004, 0.05, 0.05, 0.583, 1.08, 4.52); b.box('glow', '#ff3a1a', 0.004, 0.02, 0.02, 0.584, 1.08, 4.52);
-  b.box('solid', '#141416', 0.12, 0.18, 0.12, 0.36, 1.28, 4.52); b.box('fabric', '#2a2a2e', 0.004, 0.14, 0.09, 0.422, 1.28, 4.52);
-  b.box('glow', '#33ff66', 0.003, 0.006, 0.006, 0.423, 1.21, 4.55);
-  // rig, draadstoel, hondenbed, gamestoel
-  rig(b, 1.45, 4.05, HP);
-  wireStool(T, b, 1.58, 4.68);
-  roundBed(b, 1.3, 5.4);
-  gamingChair(b, 0.82, 6.3, -2.45);
-  // kabels (zwarte slierten onder het bureau)
-  for (let i = 0; i < 4; i++) b.box('solid', '#0c0c0e', 0.012, 0.012, 1.2 + hash(i, 1, 21) * 0.6, 0.14 + hash(i, 2, 21) * 0.4, 0.012, 5.3, 0, hash(i, 3, 21) * 0.3 - 0.15, 0);
-  // rechterwand: hoge zwarte kast met glazen deuren in de sprong van de wand (x 3.05–3.6, z 2.95–3.8), ladeblok + printer, Helmer
+  monitor(b, 0.705, 0.397, 0.3, 1.45, 4.68, HP - 0.1, 0.75, true);
+  tower2(b, 0.33, 0.75, 4.3);
+  // rig (piloot kijkt naar de muur), draadstoel, hondenbed, gamestoel
+  rig(T, b, 1.65, 4.6, HP);
+  wireStool(T, b, 1.15, 5.1);
+  roundBed(b, 0.9, 5.8);
+  gamingChair(b, 0.9, 6.65, -2.45);
+  // kabels (zwarte slierten onder het bureau), rode pantoffel in het looppad, beige knuffel bij de bank
+  for (let i = 0; i < 4; i++) b.box('solid', '#0c0c0e', 0.012, 0.012, 1.2 + hash(i, 1, 21) * 0.4, 0.14 + hash(i, 2, 21) * 0.4, 0.012, 5.4, 0, hash(i, 3, 21) * 0.3 - 0.15, 0);
+  b.box('fabric', '#8a1a24', 0.27, 0.05, 0.11, 2.15, 0.025, 6.8, 0, 0.5, 0); b.box('fabric', '#8a1a24', 0.13, 0.07, 0.1, 2.2, 0.08, 6.77, 0, 0.5, 0);
+  b.cyl('fabric', '#d8c7a8', 0.06, 0.06, 0.2, 10, 2.0, 0.06, 3.2, 0, 0, HP); b.cyl('fabric', '#d8c7a8', 0.05, 0.05, 0.08, 10, 2.14, 0.08, 3.2, 0, 0, HP);
+  // rechterwand: hoge zwarte kast met lichtgrijze randen en glazen deuren in de sprong van de wand (x 3.05–3.6, z 2.95–3.8)
   b.box('solid', '#121214', 0.55, 0.76, 0.85, 3.325, 0.38, 3.365);
   b.box('solid', '#121214', 0.04, 1.2, 0.85, 3.58, 1.36, 3.365); b.box('solid', '#121214', 0.55, 0.04, 0.85, 3.325, 1.94, 3.365);
-  for (const z of [2.955, 3.775]) b.box('solid', '#121214', 0.55, 1.2, 0.03, 3.325, 1.36, z);
+  for (const z of [2.955, 3.775]) { b.box('solid', '#121214', 0.55, 1.2, 0.03, 3.325, 1.36, z); b.box('solid', '#c9cacc', 0.01, 1.2, 0.03, 3.052, 1.36, z); }
+  b.box('solid', '#c9cacc', 0.01, 0.04, 0.85, 3.052, 1.94, 3.365); b.box('solid', '#c9cacc', 0.01, 0.76, 0.02, 3.052, 0.38, 2.96); b.box('solid', '#c9cacc', 0.01, 0.76, 0.02, 3.052, 0.38, 3.77);
   for (const y of [1.14, 1.52]) b.box('solid', '#1b1b1e', 0.5, 0.02, 0.78, 3.33, y, 3.365);
-  [['#c23b2e', 3.2, 1.21], ['#2f6bff', 3.5, 1.21], ['#e8e8e8', 3.3, 0.88], ['#f0b429', 3.55, 1.6], ['#2bd17e', 3.25, 1.6]].forEach(([c, z, y]) => b.box('solid', c, 0.12, 0.12, 0.08, 3.4, y + 0.06, z));
+  b.box('glow', '#1e4a8a', 0.2, 0.26, 0.004, 3.3, 1.35, 3.1); b.box('glow', '#7fb8e8', 0.08, 0.04, 0.004, 3.26, 1.42, 3.102);              // verlicht blauw plaatje
+  [['#2f6bff', 3.5, 1.21], ['#e8e8e8', 3.3, 0.88], ['#f0b429', 3.55, 1.6], ['#2bd17e', 3.25, 1.6]].forEach(([c, z, y]) => b.box('solid', c, 0.12, 0.12, 0.08, 3.4, y + 0.06, z));
+  b.cyl('solid', '#1a3a8a', 0.035, 0.035, 0.26, 10, 3.45, 1.3, 3.6);
   b.box('glass', '#a8c0d0', 0.004, 1.16, 0.8, 3.056, 1.36, 3.365); b.box('solid', '#1a1a1d', 0.01, 1.16, 0.02, 3.054, 1.36, 3.365);
   b.box('solid', '#1a1a1d', 0.56, 0.02, 0.86, 3.325, 0.77, 3.365);
-  b.box('solid', '#b08a5c', 0.42, 0.3, 0.5, 3.33, 2.11, 3.25); b.box('solid', '#1d1d20', 0.4, 0.25, 0.3, 3.32, 2.08, 3.65);
-  b.box('solid', '#141416', 0.43, 0.74, 1.1, 2.785, 0.37, 4.4);
-  for (let r = 0; r < 3; r++) for (const z of [4.14, 4.66]) { b.box('solid', '#1b1b1e', 0.01, 0.2, 0.48, 2.565, 0.14 + r * 0.23, z); b.box('metal', '#c8cacf', 0.008, 0.012, 0.16, 2.558, 0.14 + r * 0.23, z); }
-  b.box('solid', '#eeeeee', 0.4, 0.3, 0.42, 2.79, 0.89, 4.3); b.box('solid', '#3a3b40', 0.36, 0.05, 0.3, 2.79, 1.06, 4.3); b.box('solid', '#dcdcdc', 0.3, 0.02, 0.2, 2.78, 0.9, 4.03); b.box('glow', '#4aa3ff', 0.004, 0.004, 0.004, 2.59, 0.98, 4.2);
-  b.cyl('solid', '#f2f2f0', 0.1, 0.1, 0.32, 16, 2.82, 0.9, 3.93); b.cyl('solid', '#ff7a2a', 0.035, 0.035, 0.24, 10, 2.66, 0.86, 4.7); b.cyl('solid', '#2a2a2e', 0.03, 0.03, 0.03, 10, 2.66, 0.995, 4.7);
-  b.box('solid', '#1a1a1d', 0.14, 0.022, 0.42, 2.72, 0.755, 4.68, 0, 0.1, 0);
-  b.box('gloss', '#1a44a6', 0.43, 0.69, 0.28, 2.785, 0.345, 5.92);
-  for (let r = 0; r < 6; r++) { b.box('gloss', '#1f4db4', 0.01, 0.1, 0.25, 2.565, 0.08 + r * 0.112, 5.92); b.box('metal', '#d0d2d6', 0.014, 0.01, 0.09, 2.556, 0.08 + r * 0.112, 5.92); }
-  b.box('solid', '#1a1a1d', 0.1, 0.02, 0.1, 2.72, 0.7, 6.2); b.box('solid', '#111114', 0.012, 0.2, 0.15, 2.71, 0.81, 6.2, 0, 0, 0.35); b.box('glow', '#9fc7ff', 0.004, 0.17, 0.12, 2.675, 0.812, 6.2, 0, 0, 0.35);
+  b.box('solid', '#ececea', 0.42, 0.3, 0.46, 3.33, 2.11, 3.25); b.box('solid', '#c0392b', 0.42, 0.08, 0.462, 3.33, 2.2, 3.25); b.box('solid', '#1d1d20', 0.4, 0.06, 0.3, 3.32, 1.99, 3.65);
+  // zwart ladenblok (2 kolommen × 3 laden naar de kamer) met printer, laptop, bidon, deo, luchtreiniger, toetsenbord en etui erop
+  b.box('solid', '#141416', 0.52, 0.72, 1.05, 2.74, 0.36, 5.475); b.box('solid', '#1b1b1e', 0.53, 0.02, 1.06, 2.74, 0.725, 5.475);
+  for (let r = 0; r < 3; r++) for (const z of [5.21, 5.74]) { b.box('solid', '#1b1b1e', 0.01, 0.2, 0.5, 2.477, 0.14 + r * 0.23, z); b.box('metal', '#c8cacf', 0.008, 0.012, 0.16, 2.47, 0.14 + r * 0.23, z); }
+  b.box('solid', '#eeeeee', 0.4, 0.28, 0.4, 2.78, 0.875, 5.15); b.box('solid', '#3a3b40', 0.38, 0.06, 0.32, 2.78, 1.045, 5.15); b.box('solid', '#dcdcdc', 0.28, 0.02, 0.18, 2.72, 0.89, 4.93); b.box('solid', '#c0392b', 0.03, 0.03, 0.002, 2.6, 0.9, 5.351); b.box('glow', '#4aa3ff', 0.004, 0.004, 0.004, 2.58, 0.98, 5.1);
+  b.cyl('solid', '#ff7a2a', 0.035, 0.035, 0.24, 10, 2.6, 0.855, 4.98); b.cyl('solid', '#2a2a2e', 0.03, 0.03, 0.03, 10, 2.6, 0.99, 4.98);
+  b.box('solid', '#1a1a1d', 0.22, 0.012, 0.3, 2.62, 0.74, 5.42); b.box('solid', '#1a1a1d', 0.012, 0.2, 0.3, 2.53, 0.84, 5.42, 0, 0, 0.4);
+  for (const z of [5.56, 5.63]) b.cyl('solid', '#111114', 0.025, 0.025, 0.15, 10, 2.92, 0.81, z);
+  b.cyl('solid', '#f2f2f0', 0.1, 0.1, 0.32, 16, 2.88, 0.9, 5.88); b.box('solid', '#c9b89a', 0.08, 0.1, 0.002, 2.88, 0.9, 5.779);
+  b.box('solid', '#1a1a1d', 0.14, 0.022, 0.42, 2.6, 0.745, 5.8, 0, 0.1, 0); b.cyl('solid', '#111114', 0.09, 0.09, 0.05, 14, 2.82, 0.76, 5.78);
+  // blauwe Helmer-ladekast (6 laden met witte labelhouders naar de kamer), papieren erop, tablet op een zwarte klemstandaard
+  b.box('gloss', '#1a3f9e', 0.43, 0.69, 0.28, 2.695, 0.345, 6.24);
+  for (let r = 0; r < 6; r++) { b.box('gloss', '#1f4db4', 0.01, 0.1, 0.26, 2.475, 0.08 + r * 0.112, 6.24); b.box('gloss', '#e8e8ea', 0.006, 0.02, 0.07, 2.47, 0.1 + r * 0.112, 6.24); }
+  b.box('solid', '#f4f4f0', 0.3, 0.004, 0.21, 2.66, 0.692, 6.22, 0, 0.15, 0); b.box('solid', '#2e9c6a', 0.1, 0.005, 0.07, 2.62, 0.694, 6.2, 0, 0.3, 0);
+  b.box('solid', '#1a1a1d', 0.1, 0.02, 0.1, 2.84, 0.7, 6.3); b.box('solid', '#1a1a1d', 0.02, 0.1, 0.02, 2.84, 0.76, 6.3);
+  b.push(2.82, 0.82, 6.3, 0, -2.4, 0.35);                                                                   // scherm naar de kamer en de hal, iets achterover
+  b.box('solid', '#111114', 0.012, 0.18, 0.25, 0, 0, 0); b.box('glow', '#16203a', 0.003, 0.165, 0.235, 0.007, 0, 0);
+  for (let i = 0; i < 8; i++) b.box('glow', i % 3 ? '#4f8fe6' : '#e6eef8', 0.002, 0.012 + hash(i, 1, 41) * 0.03, 0.025, 0.009, -0.03 + hash(i, 2, 41) * 0.05, -0.095 + i * 0.028);
+  b.pop();
   return {
-    stream: [0.432, 1.06, 5.85, HP - 0.4], sim: [0.312, 1.45, 4.9, HP - 0.1], pc: [[0.35, 0.99, 5.3, 0.46, 0.48, 0.25], [0.36, 0.97, 4.52, 0.44, 0.44, 0.21]],
-    spill: [[0.7, 0.42, 0.48, 0.754, 5.85, -HP, 0, 'warm'], [1.3, 1.0, 0.012, 1.05, 5.1, 0, HP, 'rgb']],
-    cols: [[0, 0.72, 4.35, 6.35], [0.55, 1.75, 3.75, 4.6], [1.35, 1.8, 4.45, 4.9], [0.5, 1.15, 6.0, 6.65], [3.02, 3.62, 2.94, 3.8], [2.55, 3.0, 3.83, 4.97], [2.55, 3.0, 5.76, 6.08]],
-    dogBed: { x: 1.3, z: 5.4, r: 0.5, top: 0.16 }, chair: { x: 0.82, z: 6.3, y: 0.52 },
+    stream: [0.432, 1.06, 5.85, HP - 0.4], sim: [0.312, 1.45, 4.68, HP - 0.1], pc: [[0.35, 0.99, 5.3, 0.46, 0.48, 0.25], [0.33, 0.98, 4.3, 0.47, 0.46, 0.22]],
+    spill: [[0.7, 0.42, 0.48, 0.754, 5.85, -HP, 0, 'warm'], [1.3, 1.0, 0.012, 1.05, 5.0, 0, HP, 'rgb']],
+    cols: [[0, 0.72, 4.55, 6.36], [0, 0.62, 4.1, 4.5], [0.52, 2.02, 4.26, 4.95], [0.95, 1.35, 4.9, 5.3], [0.6, 1.25, 6.3, 6.98], [3.02, 3.62, 2.94, 3.8], [2.48, 3.0, 4.9, 6.42]],
+    dogBed: { x: 0.9, z: 5.8, r: 0.5, top: 0.16 }, chair: { x: 0.9, z: 6.65, y: 0.52 },
   };
 }
 
@@ -759,12 +828,12 @@ function buildTidy(T, b) {
   b.box('fabric', '#2c2f36', 0.46, 0.6, 0.03, 0, 0.36, 0); b.box('solid', '#111113', 0.48, 0.62, 0.012, 0, 0.36, -0.012); b.box('solid', '#111113', 0.04, 0.3, 0.04, 0, 0.1, -0.02);
   b.pop(); b.pop();
   // rig netjes achterin, scherm aan de muur
-  rig(b, 1.3, 4.1, HP);
-  monitor(b, 0.705, 0.397, 0.05, 1.3, 4.1, HP, null, false);
+  rig(T, b, 1.45, 4.1, HP);
+  monitor(b, 0.705, 0.397, 0.05, 1.45, 4.1, HP, null, false);
   return {
-    stream: [0.342, 1.1, 5.8, HP], sim: [0.062, 1.3, 4.1, HP], pc: [[0.3, 0.19, 5.15, 0.35, 0.38, 0.16]],
+    stream: [0.342, 1.1, 5.8, HP], sim: [0.062, 1.45, 4.1, HP], pc: [[0.3, 0.19, 5.15, 0.35, 0.38, 0.16]],
     spill: [[0.7, 0.42, 0.4, 0.764, 5.8, -HP, 0, 'warm'], [0.5, 0.5, 0.26, 0.764, 5.2, -HP, 0, 'lamp']],
-    cols: [[0, 0.82, 4.95, 6.65], [0.5, 1.6, 3.8, 4.45]], dogBed: null, chair: { x: 0.98, z: 5.8, y: 0.5 },
+    cols: [[0, 0.82, 4.95, 6.65], [0.3, 1.8, 3.76, 4.7]], dogBed: null, chair: { x: 0.98, z: 5.8, y: 0.5 },
   };
 }
 

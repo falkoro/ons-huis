@@ -126,6 +126,10 @@ input[type=color]{width:38px;height:28px;border:1px solid var(--line);border-rad
 #roomTag{position:absolute;left:16px;bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:3;pointer-events:none; /* stacked above #hint */
   background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);color:var(--ink);
   font:600 13px/1 var(--font-body);letter-spacing:.01em;padding:7px 14px;border-radius:999px;white-space:nowrap;box-shadow:var(--shadow)}
+#timeChip{position:absolute;right:372px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:4;display:inline-flex;align-items:center;gap:6px;
+  background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);color:var(--ink);
+  font:600 13px/1 var(--font-mono);font-variant-numeric:tabular-nums;padding:7px 12px;border-radius:999px;box-shadow:var(--shadow);cursor:pointer}
+#timeChip[hidden]{display:none}
 #joy{position:absolute;left:24px;bottom:calc(96px + env(safe-area-inset-bottom,0px));width:120px;height:120px;border-radius:50%;z-index:5;
   background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);touch-action:none}
 #joyKnob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(255,255,255,.85);box-shadow:0 2px 10px rgba(0,0,0,.25)}
@@ -168,6 +172,7 @@ display:grid;gap:12px;justify-items:center;max-width:min(420px,calc(100vw - 32px
   #roomTag{left:50%;transform:translateX(-50%);bottom:calc(68px + env(safe-area-inset-bottom,0px))}
   #walkStart{padding-bottom:28vh}
   #joy{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+  #timeChip{right:16px;bottom:calc(68px + env(safe-area-inset-bottom,0px))}
   #toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
   #tools button{padding:5px 10px;font-size:12.5px}
 
@@ -300,6 +305,7 @@ html.vault-ok #vault{display:none}
   <div id="cross" hidden></div>
   <div id="tag" hidden></div>
   <div id="roomTag" hidden aria-live="polite"></div>
+  <button id="timeChip" type="button" hidden title="Tijd verzetten: ochtend, middag, avond, nacht (toets T)" aria-label="Tijd van de dag verzetten"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>13:00</span></button>
   <div id="joy" hidden><div id="joyKnob"></div></div>
   <div id="walkStart" hidden><button id="btnLook">Klik om rond te kijken</button></div>
   <div id="walkTip" hidden role="status">Joystick linksonder: lopen · Sleep ergens anders: rondkijken · Tik op een deurklink: deur open of dicht</div>
@@ -321,6 +327,11 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 const $ = s => document.querySelector(s);
+// The boot runs in slices: at each `await breathe()` the module gives the browser a turn once ~40 ms have passed, so the
+// loading screen and the password gate stay responsive instead of freezing for seconds (no single task over ~200 ms)
+let sliceAt = performance.now();
+const breathe = () => performance.now() - sliceAt < 40 ? null : new Promise(r => { const c = new MessageChannel(); c.port1.onmessage = () => { sliceAt = performance.now(); r(); }; c.port2.postMessage(0); });
+let domReady = false; addEventListener('DOMContentLoaded', () => { domReady = true; }, { once: true });
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const COARSE = matchMedia('(pointer: coarse)').matches;
 const isPhone = () => innerWidth <= 760;
@@ -339,6 +350,8 @@ const mainOut = z => MR_Y - Math.abs(z - MR_Z) * MR_K;
 const mainIn = z => mainOut(z) - 0.3;
 const COLLAR = 8.02;
 const atticTop = z => Math.min(COLLAR, mainIn(z));
+// wall tops under the roof end 5 cm inside the roof slab (3 cm inside the collar): a top flush with the plaster underside showed as a lit strip along the joint
+const atticWallTop = z => Math.min(COLLAR + 0.03, mainOut(z) - 0.2), ATTIC_WBRK = [MR_Z - (MR_Y - 0.23 - COLLAR) / MR_K, MR_Z, MR_Z + (MR_Y - 0.23 - COLLAR) / MR_K];
 const ATTIC_BRK = [MR_Z - (MR_Y - 0.3 - COLLAR) / MR_K, MR_Z, MR_Z + (MR_Y - 0.3 - COLLAR) / MR_K];
 // left wing pitched roof
 const WR_Z = 3.92, WR_Y = 6.2, WR_K = 0.82;
@@ -358,7 +371,7 @@ const ROOMS = [
   { id: 'overloop', name: 'Overloop', lvl: 1, rects: [[7.03, 8.16, 8.23, 10.34]], spawn: [7.6, 9.4, 1.57] },
   { id: 'sk2', name: 'Slaapkamer 2', lvl: 1, rects: [[3.25, 6.97, 9.28, 12.25]], spawn: [6.4, 9.8, 2.3] },
   { id: 'wasruimte', name: 'Wasruimte', lvl: 1, rects: [[7.03, 9.0, 10.39, 12.25]], wet: true, spawn: [7.5, 10.8, 2.6] },
-  { id: 'zolderL', name: 'Zolder linkervleugel', lvl: 1, rects: [[0, 3.6, 0, 3.99], [0, 3.03, 3.99, 5.77], [0.88, 3.03, 5.77, 7.85]], spawn: [1.5, 5.3, 0.2] },
+  { id: 'zolderL', name: 'Zolder linkervleugel', lvl: 1, roof: true, rects: [[0, 3.6, 0, 3.99], [0, 3.03, 3.99, 5.77], [0.88, 3.03, 5.77, 7.85]], spawn: [1.5, 5.3, 0.2] },
   { id: 'sk3', name: 'Slaapkamer 3', lvl: 2, rects: [[3.25, 6.7, 5.12, 7.7], [3.25, 6.96, 7.7, 11.35], [4.05, 5.92, 4.4, 5.12]], spawn: [6.3, 9.8, 1.0] },
   { id: 'zolderR', name: 'Zolder (overloop)', lvl: 2, rects: [[6.8, 9.0, 5.12, 7.7], [7.06, 8.09, 7.7, 11.35], [8.09, 9.0, 7.7, 8.26], [8.09, 9.0, 10.25, 11.35]], spawn: [7.6, 9.6, 0] },
 ];
@@ -383,8 +396,8 @@ const roomArea = r => r.rects.reduce((a, q) => a + (q[1] - q[0]) * (q[3] - q[2])
 
 /* Walls: [lvl, axis, a0, a1, c0, c1, openings, opts]
    axis 'x' = runs along X (a = x range, c = z thickness); axis 'z' = runs along Z (a = z range, c = x thickness).
-   opening: [a, b, type, sill, head, swing]  type d=interior door, D=exterior door, g=glazed garden door, w=window, o=open
-   swing: +1 leaf opens toward +c side, -1 toward -c. opts: top (number|fn(a)), bot, brk (extra split points) */
+   opening: [a, b, type, sill, head, swing, shut]  type d=interior door, D=exterior door, g=glazed garden door, w=window, o=open
+   swing: +1 leaf opens toward +c side, -1 toward -c. shut: true = the door starts closed. opts: top (number|fn(a)), bot, brk (extra split points) */
 const WALLS = [
   // ---- ground floor, exterior
   // the back facade is split at x 3.72 / 9.0 (room edges, so the batching cuts there anyway): the middle part belongs to KWALLS
@@ -398,14 +411,14 @@ const WALLS = [
   [0, 'x', 3.0, 9.22, 12.25, 12.47, [[3.53, 6.45, 'w', 0.5, 2.3], [7.27, 7.97, 'D', 0, 2.15, -1], [8.05, 8.6, 'w', 0, 2.15, 'ribbed']]], // beside the front door: a full-height reeded side light up to the meter cupboard (photos)
   [0, 'z', -0.22, 12.47, 9.0, 9.22],
   // ---- ground floor, interior
-  [0, 'z', 0, 4.0, 3.62, 3.72, [[2.47, 3.21, 'd', 0, 2.05, -1]]],
+  [0, 'z', 0, 4.0, 3.62, 3.72, [[2.2, 2.94, 'd', 0, 2.05, -1]]], // door just before the wall jog: the office's tall cabinet fills the jog (z 2.95-3.8), the open leaf stands beside the media shelving
   [0, 'x', 3.0, 3.72, 3.8, 4.0],
-  [0, 'x', 0, 3.0, 7.73, 7.8, [[2.0, 2.65, 'd', 0, 2.05, -1]]],
+  [0, 'x', 0, 3.0, 7.73, 7.8, [[1.3, 2.0, 'w', 0, 2.05, 'glass'], [2.0, 2.65, 'g', 0, 2.05, -1, true]]], // achterhal_1.jpg: glazed door with a fixed glass panel beside it, opens into the zitkamer
   [0, 'z', 7.8, 9.06, 0.91, 0.97, [[8.0, 8.7, 'd', 0, 2.05, 1]]],
   // (the keuken/woonkamer wall x 6.57..6.63 is in KWALLS: it goes with the "Nieuwe keuken" toggle)
   [0, 'x', 6.63, 9.0, 3.95, 4.05],
   [0, 'z', 7.72, 12.25, 7.0, 7.07],
-  [0, 'x', 6.57, 9.0, 7.58, 7.72, [[7.33, 8.02, 'd', 0, 2.05, -1]]],
+  [0, 'x', 6.57, 9.0, 7.58, 7.72, [[7.33, 8.02, 'd', 0, 2.05, -1, true]]],
 
   [0, 'z', 7.72, 8.9, 8.17, 8.24, [[7.85, 8.55, 'd', 0, 2.05, -1]], { top: z => z <= 8.3 ? LV[0].top : lineY(FL.A, z) - 0.09, brk: [8.3, 8.31] }], // wc2 door wall: full height under the landing, then up into stair A's soffit (its tiled top used to poke up beside the treads)
   [0, 'x', 8.24, 9.0, 8.82, 8.9, null, { top: () => lineY(FL.A, 8.82) - 0.09 }], // wc2 / cupboard wall ends inside stair A's soffit (it used to poke up through the treads)
@@ -430,18 +443,18 @@ const WALLS = [
   // ---- attic
   [2, 'z', 3.99, 12.47, 3.03, 3.25, null, { top: mainOut, brk: [MR_Z] }],
   [2, 'z', 3.99, 12.47, 9.0, 9.22, null, { top: mainOut, brk: [MR_Z] }],
-  [2, 'x', 3.25, 9.0, 5.07, 5.12, [[4.05, 5.92, 'o', 0, 9]], { top: 6.2 }],
-  [2, 'x', 3.25, 9.0, 11.35, 11.4, null, { top: 6.2 }],
-  [2, 'z', 5.12, 7.75, 6.7, 6.8, null, { top: atticTop, brk: ATTIC_BRK }],
+  [2, 'x', 3.25, 9.0, 5.07, 5.12, [[4.05, 5.92, 'o', 0, 9]], { top: 6.3 }],
+  [2, 'x', 3.25, 9.0, 11.35, 11.4, null, { top: 6.3 }],
+  [2, 'z', 5.12, 7.75, 6.7, 6.8, null, { top: atticWallTop, brk: ATTIC_WBRK }],
   [2, 'x', 6.7, 9.0, 7.65, 7.75, [[7.2, 8.0, 'o', 0, 2.05]], { top: COLLAR }], // closes the back nook: stair B ends at this wall (photo), the nook is reached through the opening off the corridor
-  [2, 'z', 7.75, 11.35, 6.96, 7.06, [[8.0, 8.74, 'd', 0, 2.0, -1]], { top: atticTop, brk: ATTIC_BRK }],
+  [2, 'z', 7.75, 11.35, 6.96, 7.06, [[8.0, 8.74, 'd', 0, 2.0, -1]], { top: atticWallTop, brk: ATTIC_WBRK }],
 
   // dormer (dakkapel)
   [2, 'x', 3.9, 6.07, 4.4, 4.55, [[4.21, 5.76, 'w', 0.55, 2.0]], { top: 7.65 }],
   [2, 'z', 4.4, 5.12, 3.9, 4.05, null, { top: 7.65 }],
   [2, 'z', 4.4, 5.12, 5.92, 6.07, null, { top: 7.65 }],
-  [2, 'z', 5.12, 6.62, 3.9, 4.05, null, { top: 7.65, bot: z => Math.max(5.39, mainIn(z)) }],
-  [2, 'z', 5.12, 6.62, 5.92, 6.07, null, { top: 7.65, bot: z => Math.max(5.39, mainIn(z)) }],
+  [2, 'z', 5.12, 6.62, 3.9, 4.05, null, { top: 7.65, bot: z => Math.max(5.39, mainOut(z) - 0.25) }],
+  [2, 'z', 5.12, 6.62, 5.92, 6.07, null, { top: 7.65, bot: z => Math.max(5.39, mainOut(z) - 0.25) }],
 ];
 // "Nieuwe keuken" (toggle, off by default): the walls that differ between the house as it is and the open-plan plan.
 // old: back facade with the dining window, kitchen door + window, and the keuken/woonkamer wall with its door.
@@ -671,7 +684,7 @@ function cutRect(r, holes) {
 
 /* ================= PROCEDURAL TEXTURES ================= */
 function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-function mkCanvas(w, h = w) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+function mkCanvas(w, h = w) { const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d', { willReadFrequently: true }); return c; } // CPU canvas: pixels are read back (noise), which on a GPU canvas waits for the GPU (~0.1-0.25 s)
 const hsl = (h, s, l, a = 1) => `hsla(${h},${s}%,${l}%,${a})`;
 function hexToHsl(hex) { const c = new THREE.Color(hex), o = {}; c.getHSL(o); return [o.h * 360, o.s * 100, o.l * 100]; }
 function noise(ctx, S, amt, seed = 1, H = S) {
@@ -878,6 +891,13 @@ function texStrips() {
   }
   return c;
 }
+// fine brown / beige speckle: stair B's carpet (photos zolderR_*; the shared 'tapijt' weave was far too coarse)
+function texStairCarpet() {
+  const S = 256, c = mkCanvas(S), ctx = c.getContext('2d'), R = rng(58);
+  ctx.fillStyle = '#9a8266'; ctx.fillRect(0, 0, S, S);
+  for (let i = 0; i < 14000; i++) { const x = R() * S, y = R() * S, r = 0.7 + R() * 1.1, k = R(); ctx.fillStyle = k < 0.4 ? 'rgba(60,40,28,.5)' : k < 0.75 ? 'rgba(225,205,175,.55)' : 'rgba(150,110,80,.5)'; ctx.fillRect(x, y, r, r); }
+  return c;
+}
 // pink-beige speckled linoleum (keuken)
 function texSpeckle() {
   const S = 512, c = mkCanvas(S), ctx = c.getContext('2d'), R = rng(93);
@@ -887,18 +907,20 @@ function texSpeckle() {
 }
 
 const floorCanvas = {}, floorTex = {};
-for (const k in FLOORS) { floorCanvas[k] = FLOOR_CANVAS[k](); floorTex[k] = canvasTex(floorCanvas[k], FLOORS[k].size, FLOORS[k].size, true, FLOORS[k].rot || 0); }
-const T = {
-  brick: canvasTex(texBrick(0), 0.88, 0.875), brick2: canvasTex(texBrick(1), 0.88, 0.875), roof: canvasTex(texRoof(), 1.5),
-  grass: canvasTex(texGrass(), 2.5), paving: canvasTex(texTiles(4, () => [40, 5, 58], '#6f6c66', 4, 81), 1.2),
-  fence: canvasTex(texBoards(25, 25, 24, 4), 0.6, 1.8), shed: canvasTex(texBoards(28, 20, 34, 5), 0.8, 2.4),
-  rug: canvasTex(texRug(), 0.7), reeds: canvasTex(texReeds(), 0.18), wicker: canvasTex(texWicker(), 0.16), paisley: canvasTex(texPaisley(), 0.5), walnut: canvasTex(texWalnut(), 1.2, 0.5),
-  asphalt: canvasTex((() => { const c = mkCanvas(256), x = c.getContext('2d'); x.fillStyle = '#44464a'; x.fillRect(0, 0, 256, 256); noise(x, 256, 30, 3); return c; })(), 1.5),
-};
+for (const k in FLOORS) { floorCanvas[k] = FLOOR_CANVAS[k](); floorTex[k] = canvasTex(floorCanvas[k], FLOORS[k].size, FLOORS[k].size, true, FLOORS[k].rot || 0); await breathe(); }
+const T = {};
+for (const [k, make] of Object.entries({
+  brick: () => canvasTex(texBrick(0), 0.88, 0.875), brick2: () => canvasTex(texBrick(1), 0.88, 0.875), roof: () => canvasTex(texRoof(), 1.5),
+  grass: () => canvasTex(texGrass(), 2.5), paving: () => canvasTex(texTiles(4, () => [40, 5, 58], '#6f6c66', 4, 81), 1.2),
+  fence: () => canvasTex(texBoards(25, 25, 24, 4), 0.6, 1.8), shed: () => canvasTex(texBoards(28, 20, 34, 5), 0.8, 2.4),
+  rug: () => canvasTex(texRug(), 0.7), reeds: () => canvasTex(texReeds(), 0.18), wicker: () => canvasTex(texWicker(), 0.16), paisley: () => canvasTex(texPaisley(), 0.5), walnut: () => canvasTex(texWalnut(), 1.2, 0.5),
+  asphalt: () => canvasTex((() => { const c = mkCanvas(256), x = c.getContext('2d'); x.fillStyle = '#44464a'; x.fillRect(0, 0, 256, 256); noise(x, 256, 30, 3); return c; })(), 1.5),
+})) { T[k] = make(); await breathe(); }
 // procedural canvases are the fallback diffuse of each photo set until (unless) the jpg arrives
 for (const k in floorTex) if (TEX_SETS[k]) TEX_SETS[k].diffTex = floorTex[k];
 TEX_SETS.wandtegels.diffTex = canvasTex(texTiles(6, () => [40, 6, 93], '#c4c0b8', 3, 15), 0.9);
 TEX_SETS.brick.diffTex = T.brick; TEX_SETS.roof.diffTex = T.roof; TEX_SETS.grass.diffTex = T.grass; TEX_SETS.paving.diffTex = T.paving;
+await breathe();
 // bind a material to a texture set; o: { ns: normalScale, rmul: roughness factor with roughnessMap, rough: roughness without }
 function applySet(mat) {
   const S = TEX_SETS[mat.userData.set], o = mat.userData.setOpts;
@@ -925,7 +947,7 @@ const STATIC_MAT = {
   frame: () => new MSM({ color: '#f2f1ec', roughness: 0.45 }), plate: () => new MSM({ color: '#fbfbfa', roughness: 0.28 }), // switch/socket plastic
   dorpelStone: () => new MSM({ color: '#d3d0c9', roughness: 0.3 }), dorpelWood: () => new MSM({ color: '#a47d55', roughness: 0.55 }), shoeBrown: () => new MSM({ color: '#6b4a2e', roughness: 0.55 }), sole: () => new MSM({ color: '#e9e6df', roughness: 0.7 }), opal: () => new MSM({ color: '#f6f4ef', emissive: '#ffd9a6', emissiveIntensity: 0, roughness: 0.35 }), ledRed: () => new MSM({ color: '#ff3020', emissive: '#ff2010', emissiveIntensity: 2.5 }),
   fruitRed: () => new MSM({ color: '#9e1f1a', roughness: 0.35 }), fruitOrange: () => new MSM({ color: '#e07a1c', roughness: 0.55 }), fruitYellow: () => new MSM({ color: '#e8c53a', roughness: 0.5 }), fruitGreen: () => new MSM({ color: '#6e9a2c', roughness: 0.3 }),
-  glass: () => new MSM({ color: '#c9dde6', transparent: true, opacity: 0.16, roughness: 0.04, metalness: 0.1, envMapIntensity: 2, depthWrite: false }),
+  glass: () => new MSM({ color: '#0b1114', transparent: true, opacity: 0.42, roughness: 0.04, metalness: 0, envMapIntensity: 2, depthWrite: false }), // window glass as a light grey filter: a camera that exposes for the room (post.js gainIn) used to burn the view outside to a white haze; a dark tint also makes the interior read as 'behind glass' from outside
   ribbed: () => new MSM({ color: '#8a9497', map: T.reeds, emissive: '#e1e7e9', emissiveMap: T.reeds, transparent: true, opacity: 0.8, roughness: 0.25, metalness: 0.05, envMapIntensity: 1.5, depthWrite: false }), // reeded door glass: light through, no view; dark at night (photos), glows by day (applyTime)
   glassDark: () => new MSM({ color: '#27313a', roughness: 0.08, metalness: 0.4 }),
   doorleaf: () => new MSM({ color: '#f3f2ee', roughness: 0.4 }), extdoor: () => new MSM({ color: '#24423a', roughness: 0.35 }),
@@ -933,7 +955,7 @@ const STATIC_MAT = {
   roofTile: () => bindSet(new MSM({ roughness: 0.72 }), 'roof', { ns: 0.9 }), bitumen: () => new MSM({ color: '#4b4c4e', roughness: 0.95 }),
   stair: () => new MSM({ color: '#b98f62', roughness: 0.55 }),
   // stairs (photos): A has stained walnut treads with a satin sheen, B is carpeted like the attic floor, C is dark wood; everything painted is cream
-  treadA: () => new MSM({ map: T.walnut, roughness: 0.4 }), treadB: () => bindSet(new MSM({ color: '#d4bfad', roughness: 1 }), 'tapijt', { rough: 1 }),
+  treadA: () => new MSM({ map: T.walnut, roughness: 0.4 }), treadB: () => new MSM({ map: canvasTex(texStairCarpet(), 0.35), roughness: 1 }),
   treadC: () => new MSM({ map: T.walnut, color: '#e8d6c8', roughness: 0.45 }), handrail: () => new MSM({ map: T.walnut, roughness: 0.4 }),
   trapwit: () => new MSM({ color: '#ece6d6', roughness: 0.4 }),
  steel: () => new MSM({ color: '#c9cbcc', metalness: 0.9, roughness: 0.3 }),
@@ -979,6 +1001,8 @@ const STATIC_MAT = {
   radiator: () => new MSM({ color: '#f2f1ec', roughness: 0.35 }), radCream: () => new MSM({ color: '#e9e0c9', roughness: 0.35 }), splash: () => new MSM({ color: '#2b2b2c', roughness: 0.3 }),
 };
 
+// lamp parts that glow when their room's light is on (peak emissive); kit(…, room) gives each room its own '<kind>:<room>' copy
+const LAMP_GLOW = { shade: 1.6, bulb: 5, opal: 1.4, globeAmber: 0.9, globeSmoke: 0.9 };
 const STYLE_MAT = { fab: 0.95, fab2: 0.95, wood: 0.55, woodDark: 0.5, metal: 0.35, front: 0.4, kfront: 0.4, worktop: 0.45, shade: 0.8, bedding: 0.95, leather: 0.6, pot: 0.7 };
 // palette colour for a style material: a house-wide finish choice wins, kitchen fronts default to the style's fronts
 function sc(k) { const C = STYLES[state.style].c; return state.over?.[k] || C[k] || (k === 'kfront' ? C.front : '#ff00ff'); }
@@ -988,6 +1012,7 @@ function M(key) {
   let m = MAT.get(key); if (m) return m;
   const [kind, id] = key.split(':');
   if (STATIC_MAT[key]) m = STATIC_MAT[key]();
+  else if (kind in LAMP_GLOW && id) { m = M(kind).clone(); m.emissiveIntensity = LAMP_GLOW[kind] * litOf(id); } // a room's own lamp glow (light switches)
   else if (kind === 'wall' && ROOM[id]?.wet) m = bindSet(new MSM({ color: state.rooms[id]?.wall || '#eeece6', roughness: 0.22 }), 'wandtegels', { rough: 0.22 });
   else if (kind === 'wall') m = bindSet(new MSM({ color: state.rooms[id]?.wall || '#eeece6', roughness: 0.9 }), 'plaster', { ns: 0.45 });
   else if (kind === 'floor') { const rs = state.rooms[id]; m = bindSet(new MSM({ color: rs.tint, roughness: FLOORS[rs.floor].rough }), rs.floor, { rough: FLOORS[rs.floor].rough }); }
@@ -1092,17 +1117,18 @@ function washMat(col, glow = false) {
   return new THREE.MeshBasicMaterial(glow ? { ...o, blending: THREE.AdditiveBlending }
     : { ...o, toneMapped: false, premultipliedAlpha: true, blending: THREE.CustomBlending, blendSrc: THREE.DstColorFactor, blendDst: THREE.OneMinusSrcAlphaFactor });
 }
-// the canvas has the aspect of the frame (a piece hangs in a different frame in "Nu" and "Heringericht": then it is redrawn)
+// the canvas has the aspect of the frame (a piece hangs in a different frame in "Nu" and "Heringericht": then it is redrawn).
+// It is (re)painted when its piece is built in another style than it shows, so a switch paints only the art that hangs, room by room
 function artTex(i, ar = artTexs[i] ? 512 / artTexs[i].image.height : 0.8) {
   const h = Math.round(512 / ar);
   if (artTexs[i] && artTexs[i].image.height !== h) { artTexs[i].dispose(); artTexs[i] = null; }
-  if (!artTexs[i]) { artTexs[i] = new THREE.CanvasTexture(mkCanvas(512, h)); artTexs[i].colorSpace = THREE.SRGBColorSpace; paintArt(i); const m = MAT.get('art:' + i); if (m) m.map = artTexs[i]; }
-  return artTexs[i];
+  if (!artTexs[i]) { artTexs[i] = new THREE.CanvasTexture(mkCanvas(512, h)); artTexs[i].colorSpace = THREE.SRGBColorSpace; const m = MAT.get('art:' + i); if (m) m.map = artTexs[i]; }
+  const t = artTexs[i]; if (t.userData.style !== state.style) { t.userData.style = state.style; paintArt(i); t.needsUpdate = true; }
+  return t;
 }
-function refreshStyleMaterials() {
+function refreshStyleMaterials() { // (the art follows when the rooms are rebuilt: artTex)
   for (const k in STYLE_MAT) if (MAT.has(k)) MAT.get(k).color.set(sc(k));
-  for (const [k, m] of MAT) if (k.startsWith('fab2:')) m.color.set(accOf(k.slice(5)));
-  artTexs.forEach((t, i) => { if (t) { paintArt(i); t.needsUpdate = true; } });
+  for (const [k, m] of MAT) if (k.startsWith('fab2:')) m.color.set(accOf(k.slice(5))); else if (k.startsWith('shade:')) m.color.set(sc('shade'));
 }
 function refreshRoomMaterials(id) {
   const rs = state.rooms[id];
@@ -1144,12 +1170,17 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 stage.appendChild(renderer.domElement);
 renderer.domElement.tabIndex = 0;
+renderer.capabilities.getMaxAnisotropy(); // cached now, while the GPU is idle: asked later, it waits for all queued GPU work
+const GPU_NAME = (() => { try { const gl = renderer.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); return String(gl.getParameter(e ? e.UNMASKED_RENDERER_WEBGL : gl.RENDERER)); } catch (e) { return ''; } })(); // the same (post.js picks its quality from it)
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 400);
 const pmrem = new THREE.PMREMGenerator(renderer);
+await breathe();
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; // fallback until the HDR sky arrives
+await breathe();
 scene.fog = new THREE.Fog('#cfdce4', 60, 170);
 let skyTex = null; // overcast Dutch sky (Poly Haven, CC0): image-based light + dollhouse backdrop
+let compiling = null; // a precompile() in flight: GPU work that has to wait for its whole batch (the sky's PMREM pass) goes after it
 function loadSky(url = 'assets/sky_1k.hdr') {
   new RGBELoader().setDataType(THREE.FloatType).load(url, t => {
     t.mapping = THREE.EquirectangularReflectionMapping;
@@ -1167,8 +1198,8 @@ function loadSky(url = 'assets/sky_1k.hdr') {
       for (let x = 0; x < w; x++) { const i = (y * w + x) * n; for (let ch = 0; ch < 3; ch++) d[i + ch] += (bounce[ch] - d[i + ch]) * k; }
     }
     const probe = new THREE.DataTexture(d, w, h, t.format, t.type); probe.mapping = t.mapping; probe.colorSpace = t.colorSpace; probe.flipY = t.flipY; probe.needsUpdate = true;
-    scene.environment = pmrem.fromEquirectangular(probe).texture; probe.dispose();
-    skyTex = t; applyTime(state.time);
+    const apply = () => { scene.environment = pmrem.fromEquirectangular(probe).texture; probe.dispose(); skyTex = t; applyTime(state.time); };
+    if (compiling) compiling.then(apply, apply); else apply();
   }, undefined, () => {
     // claude.ai artifacts don't serve .hdr files, so they get a base64 copy; otherwise keep RoomEnvironment
     if (url.startsWith('blob:')) return;
@@ -1192,7 +1223,7 @@ function kmap(l, cat, o) { const r = {}; for (const f in o) r[f] = K(l, cat, o[f
 const abox = (key, axis, s0, s1, y0, y1, c0, c1) => axis === 'x' ? AB.box(key, s0, s1, y0, y1, c0, c1) : AB.box(key, c0, c1, y0, y1, s0, s1);
 
 /* ---------- walls ---------- */
-function sideKey(l, x, z) { const r = roomAt(l, x, z); if (r) return 'wall:' + r.id; return inRects(INSIDE[l] || [], x, z) ? 'plaster' : 'brick'; }
+function sideKey(l, x, z) { let r = roomAt(l, x, z); if (!r && l > 0) { const u = roomAt(l - 1, x, z); if (u?.roof) r = u; } if (r) return 'wall:' + r.id; return inRects(INSIDE[l] || [], x, z) ? 'plaster' : 'brick'; } // a roof room's walls keep its colour above its level's top (zolderL's gable side was brick + white)
 function emitPiece(l, axis, s0, s1, bot, top, c0, c1, brk) {
   const pt = (s, c) => axis === 'x' ? [s, c] : [c, s];
   const keyAt = s => sideKey(l, ...pt(s, c0 - 0.12)) + '/' + sideKey(l, ...pt(s, c1 + 0.12));
@@ -1258,7 +1289,7 @@ const LEVER_NECK = cyl(0.009, 0.05, 10), LEVER_ARM = new THREE.BoxGeometry(0.135
 const HIT_MAT = new THREE.MeshBasicMaterial({ visible: false }), klinkHits = []; // invisible (never drawn) but raycastable
 
 function buildDoor(l, axis, op, c0, c1) {
-  const [a, b, type, , head = 2.05, swing = 1] = op, fl = LV[l].floor, cm = (c0 + c1) / 2;
+  const [a, b, type, , head = 2.05, swing = 1, shut = false] = op, fl = LV[l].floor, cm = (c0 + c1) / 2;
   // fixed frame (kozijn)
   const fk = K(l, 'main', 'frame'), e0 = Math.min(c0, c1) - 0.012, e1 = Math.max(c0, c1) + 0.012;
   abox(fk, axis, a, a + 0.05, fl, fl + head, e0, e1); abox(fk, axis, b - 0.05, b, fl, fl + head, e0, e1); abox(fk, axis, a, b, fl + head - 0.05, fl + head + 0.01, e0, e1);
@@ -1308,7 +1339,7 @@ function buildDoor(l, axis, op, c0, c1) {
   hb.build((k, g) => mk(g, hw));
   (VAR ? VAR.group : G[l].main).add(grp);
   const isExt = type !== 'd', ca = slide ? mid : a;
-  const door = { levers, press: 1, grp, pivot, base, dir: (axis === 'x' ? -1 : 1) * swing, open: !isExt, angle: isExt ? 0 : DOOR_OPEN, l, slide: slide ? Ws - 0.1 : 0,
+  const door = { levers, press: 1, grp, pivot, base, dir: (axis === 'x' ? -1 : 1) * swing, open: !isExt && !shut, angle: isExt || shut ? 0 : DOOR_OPEN, l, slide: slide ? Ws - 0.1 : 0,
     col: axis === 'x' ? [ca, b, Math.min(c0, c1) - 0.03, Math.max(c0, c1) + 0.03] : [Math.min(c0, c1) - 0.03, Math.max(c0, c1) + 0.03, ca, b] };
   poseDoor(door);
   for (const m of meshes) { m.userData.door = door; doorMeshes.push(m); }
@@ -1345,7 +1376,7 @@ function buildFloorsAndSlabs() {
 
     fb.build((k, g) => { const m = new THREE.Mesh(g, M('floor:' + r.id)); m.receiveShadow = true; m.userData.room = r.id; G[l].main.add(m); floorMeshes.push(m); });
     // slab + ceiling above this room
-    if (l === 2 || r.id === 'zolderL') continue;
+    if (l === 2 || r.roof) continue; // roof: true = open to the roof, no slab (post.js reads it too)
     const y0 = LV[l].ceil, y1 = LV[l].top - 0.022;
     for (const q of r.rects) for (const p of cutRect(q, [...HOLES[l], SKYLIGHT])) AB.box(kmap(l, 'ceil', { ny: 'ceiling', def: 'slab' }), p[0], p[1], y0, y1, p[2], p[3]);
   }
@@ -1377,7 +1408,7 @@ function buildRoofs() {
   const R0 = 4.42, R1 = 5.35, RZ0 = 9.16, RZ1 = 10.27;
   slope(2, X0, R0, MR_Z, 12.87, mainOut); slope(2, R1, X1, MR_Z, 12.87, mainOut);
   slope(2, R0, R1, MR_Z, RZ0, mainOut); slope(2, R0, R1, RZ1, 12.87, mainOut);
-  slope(2, R0, R1, RZ0, RZ1, z => mainOut(z) - 0.12, 0.02, { def: 'glass' });
+  slope(2, R0, R1, RZ0, RZ1, z => mainOut(z) - 0.04, 0.02, { def: 'glass' }); // near flush: 12 cm down put the reveal above post.js's roof margin, it shaded as sky
   slope(2, R0 - 0.05, R0, RZ0, RZ1, z => mainOut(z) + 0.05, 0.3, { def: 'dark' }); slope(2, R1, R1 + 0.05, RZ0, RZ1, z => mainOut(z) + 0.05, 0.3, { def: 'dark' });
   AB.box(K(2, 'ceil', 'dark'), X0, X1, MR_Y - 0.05, MR_Y + 0.08, MR_Z - 0.12, MR_Z + 0.12);
   // dormer roof + fascia
@@ -1389,6 +1420,10 @@ function buildRoofs() {
   // left wing
   slope(1, -0.42, 3.95, -0.45, WR_Z, wingOut); slope(1, -0.42, 3.03, WR_Z, 8.07, wingOut); slope(1, 3.03, 3.95, WR_Z, 4.0, wingOut);
   AB.box(K(1, 'ceil', 'dark'), -0.42, 3.95, WR_Y - 0.05, WR_Y + 0.07, WR_Z - 0.1, WR_Z + 0.1);
+  // brick skin on the main block's west wall above the wing roof (z 4.75-7.85): that wall is a party wall with the wing's bedroom, so it is
+  // painted on both faces, but the triangle above the roof slope is outside and showed as a tan plaster wedge from the street and the garden
+  { const zA = 4.75, zB = 7.85, bA = wingOut(zA) - 0.15, bB = wingOut(zB) - 0.15, t = LV[1].top, k = K(1, 'ceil', 'brick');
+    AB.prism(k, [V(3.025, bA, zA), V(3.06, bA, zA), V(3.06, bB, zB), V(3.025, bB, zB), V(3.025, t, zA), V(3.06, t, zA), V(3.06, t, zB), V(3.025, t, zB)]); }
 }
 
 /* ---------- stairs (walkable, see FLIGHTS) ---------- */
@@ -1463,6 +1498,7 @@ function buildStairs() {
   AB.box(K(1, 'main', 'floor:overloop'), 8.16, 8.24, f1 - 0.04, f1, 8.23, 8.8);
   AB.box(K(1, 'main', 'floor:overloop'), 8.16, 8.2, f1 - 0.04, f1, 9.8, 10.34); AB.box(K(1, 'main', 'floor:overloop'), 8.2, 9.0, f1 - 0.04, f1, 10.3, 10.34);
   AB.box(K(2, 'main', 'floor:zolderR'), 8.09, 8.2, f2 - 0.04, f2, 8.3, 10.3); AB.box(K(2, 'main', 'floor:zolderR'), 8.09, 9.0, f2 - 0.04, f2, 8.26, 8.3);
+  AB.box(kmap(1, 'main', { py: 'floor:zolderL', ny: 'ceiling', def: 'slab' }), 0, 0.88, LV[0].ceil, f1 + 0.004, 7.73, 7.85); // rim behind stair C's hole: the wall top below showed as a lit strip
   // railings along the open side of the stairwell: 1e landing (A's top newel to B's bottom newel), up B, round the attic hole, wing
   bal(1, X, 8.82, X, 9.42, () => f1, { p0: null, p1: [f1, nB(9.42) + 0.93] });
   bal(1, X, 9.42, X, 8.62, nB, { h: 0.85, p0: null, p1: null });
@@ -1512,10 +1548,12 @@ function buildExterior() {
 /* ---------- skirting boards (plinten): every wall face of a dry room, from the floor up, stopping at openings that go
    down to the floor and over stair holes. Pieces break exactly where a room, opening or hole starts or ends ---------- */
 const SKIRT_H = 0.075, SKIRT_T = 0.014;
-// white wall plate on a wall face at (u, y): w = 0 a light switch (square, with a rocker), else a socket plate w wide
-function wallPlate(l, axis, u, y, face, dir, w) {
+// white wall plate on a wall face at (u, y): w = 0 a light switch (square; its rocker is built by flushSwitches) in room `from` for the
+// light of room `room`, else a socket plate w wide
+const SWP = [], SWITCHES = [];
+function wallPlate(l, axis, u, y, face, dir, w, room, from = room) {
   const c = (d0, d1) => dir < 0 ? [face - d1, face - d0] : [face + d0, face + d1], fk = K(l, 'main', 'plate'), bk = K(l, 'main', 'black');
-  if (!w) { abox(fk, axis, u - 0.04, u + 0.04, y - 0.04, y + 0.04, ...c(0, 0.009)); abox(fk, axis, u - 0.026, u + 0.026, y - 0.026, y + 0.026, ...c(0.009, 0.014)); return; }
+  if (!w) { abox(fk, axis, u - 0.04, u + 0.04, y - 0.04, y + 0.04, ...c(0, 0.009)); SWP.push({ axis, u, y, face, dir, room, from, grp: VAR ? VAR.group : G[l].main }); return; }
   abox(fk, axis, u - w / 2, u + w / 2, y - 0.04, y + 0.04, ...c(0, 0.009));
   for (const s of [-1, 1]) for (const p of [-0.009, 0.009]) abox(bk, axis, u + s * w / 4 + p - 0.0025, u + s * w / 4 + p + 0.0025, y - 0.0025, y + 0.0025, ...c(0.0085, 0.0095));
 }
@@ -1553,11 +1591,17 @@ function buildSkirting(walls = WALLS) {
         const room = u => roomAt(l, ...pt(u, face + dir * 0.12));
         const free = u => u > a0 + 0.06 && u < a1 - 0.06 && !(ops || []).some(q => u > q[0] - 0.06 && u < q[1] + 0.06) && (r => r && !r.wet && r === room(u + 0.07))(room(u - 0.07));
         const u = [op[1] + 0.1, op[0] - 0.1].find(free);
-        if (u !== undefined) wallPlate(l, axis, u, fl + 1.05, face, dir, 0);
+        if (u === undefined) continue;
+        wallPlate(l, axis, u, fl + 1.05, face, dir, 0, room(u).id);
+        // a wet room behind the door is switched from out here: a second switch beside this one, away from the door
+        const wet = roomAt(l, ...pt((op[0] + op[1]) / 2, (dir < 0 ? Math.max(c0, c1) : Math.min(c0, c1)) - dir * 0.12)), u2 = u + (u > op[1] ? 0.082 : -0.082);
+        if (wet?.wet && free(u2)) wallPlate(l, axis, u2, fl + 1.05, face, dir, 0, wet.id, room(u).id);
       }
     }
   }
   if (walls !== WALLS) return;
+  // sk1's door ends its narrow hall, so no wall beside it: its switch sits round the corner on the hall's side wall, at the handle
+  wallPlate(1, 'x', 6.87, LV[1].floor + 1.05, 9.18, -1, 0, 'sk1');
   // round the chimney breast in the living room
   AB.box(K(0, 'main', 'trim'), 3.6, 3.6 + SKIRT_T, 0, SKIRT_H, 7.9 - SKIRT_T, 8.9 + SKIRT_T);
   for (const z of [7.9 - SKIRT_T, 8.9]) AB.box(K(0, 'main', 'trim'), 3.25, 3.6, 0, SKIRT_H, z, z + SKIRT_T);
@@ -1578,11 +1622,32 @@ function flushAB() {
 
   AB.build((key, g) => {
     const [l, cat, ...rest] = key.split('|'), mk = rest.join('|');
-    const mesh = new THREE.Mesh(g, M(mk));
+    const mesh = new THREE.Mesh(g, M(mk)); tagLamp(mesh, mk);
     const glassy = mk === 'glass' || mk === 'frosted' || mk === 'ribbed';
     mesh.castShadow = !glassy; mesh.receiveShadow = !glassy;
     (l === 'x' ? EXT : VAR ? VAR.group : G[+l][cat === 'glass' ? 'main' : cat]).add(mesh);
   });
+  flushSwitches();
+}
+// the rockers of the light switches: one merged mesh per group, each rocker a vertex range that tips when it is pressed
+// (posePart 'wip'), with a hit box that switches its room's light (INTERACTIONS)
+function flushSwitches() {
+  const by = new Map(); for (const s of SWP.splice(0)) { if (!by.has(s.grp)) by.set(s.grp, []); by.get(s.grp).push(s); }
+  const one = new Buckets(); kitM(one, new THREE.Matrix4()).box('plate', 0, 0, 0.003, 0.052, 0.052, 0.006);
+  const B = one.m.get('plate'), n = B.p.length / 3;
+  for (const [grp, list] of by) {
+    const rep = a => Float32Array.from({ length: a.length * list.length }, (_, i) => a[i % a.length]), geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(rep(B.p), 3)); geo.setAttribute('normal', new THREE.BufferAttribute(rep(B.n), 3)); geo.setAttribute('uv', new THREE.BufferAttribute(rep(B.u), 2));
+    const m = new THREE.Mesh(geo, M('plate')); m.receiveShadow = true; m.userData.p0 = rep(B.p); m.userData.n0 = rep(B.n); grp.add(m);
+    list.forEach((s, i) => {
+      const at = new THREE.Matrix4().compose(s.axis === 'x' ? V(s.u, s.y, s.face + s.dir * 0.009) : V(s.face + s.dir * 0.009, s.y, s.u),
+        new THREE.Quaternion().setFromAxisAngle(UP, s.axis === 'x' ? (s.dir > 0 ? 0 : Math.PI) : s.dir * HP), V(1, 1, 1)); // local +z = into the room
+      const on = litOf(s.room) >= 0.5 ? 1 : 0, p = { kind: 'wip', arg: 0.11, dur: 0.09, at, room: s.room, t: on, goal: on, ranges: [[m, i * n, n]],
+        hitLocal: new THREE.Matrix4().compose(V(0, 0, 0.012), _q.identity(), V(0.1, 0.1, 0.03)) };
+      p.hit = hitBox(grp, at, lightIt(s.room, s.from)); posePart(p); SWITCHES.push(p);
+    });
+    geo.computeBoundingSphere(); geo.boundingSphere.radius += 0.01;
+  }
 }
 
 /* ================= FURNITURE KIT (low-poly, merged per room+material) ================= */
@@ -1691,12 +1756,12 @@ const gCurtain = (W, H, lam = 0.1, amp = 0.035, seed = 1) => GEO[`cu${W},${H},${
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); g.setIndex(idx); g.computeVertexNormals(); return g;
 })();
-// room: the accent textile 'fab2' (cushions, throw, pouf) becomes that room's own 'fab2:<room>' material
+// room: the accent textile 'fab2' (cushions, throw, pouf) and the lamp parts (LAMP_GLOW) become that room's own '<kind>:<room>' material
 function kit(b, x, y, z, ry = 0, room) { return kitM(b, new THREE.Matrix4().compose(V(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), V(1, 1, 1)), room); }
 function kitM(b, base, room) {
   const m = new THREE.Matrix4();
   const place = (cx, cy, cz, rx, ryy, rz, sx, sy, sz) => m.compose(_p.set(cx, cy, cz), _q.setFromEuler(_eu.set(rx, ryy, rz)), _s.set(sx, sy, sz)).premultiply(base);
-  const K = k => k === 'fab2' && room ? 'fab2:' + room : k;
+  const K = k => room && (k === 'fab2' || k in LAMP_GLOW) ? k + ':' + room : k;
   return {
     b, base, // the bucket and frame, for moving parts (part(), tvScreen())
     box(k, cx, cy, cz, sx, sy, sz, rot = 0) { b.boxM(K(k), place(cx, cy, cz, 0, rot, 0, sx, sy, sz)); },
@@ -1983,7 +2048,7 @@ const P = {
   // black shelving + low cabinet + tv against the x = 3.62 wall
   mediaWall(f) {
     f.box('black', 3.41, 0.25, 1.3, 0.42, 0.42, 1.9); f.box('dark', 3.405, 0.47, 1.3, 0.4, 0.004, 1.86);
-    for (const zc of [0.5, 2.1]) {
+    for (const zc of [0.6, 1.9]) { // the right-hand tower ends at z 2.09: clear of the zitkamer door leaf (hinge z 2.25) when it stands open
       for (const s of [-1, 1]) f.box('black', 3.46, 1.2, zc + s * 0.19, 0.32, 1.5, 0.02);
       for (let i = 1; i <= 4; i++) f.box('black', 3.46, 0.46 + i * 0.37, zc, 0.32, 0.02, 0.4);
       f.box('book1', 3.48, 1.0, zc - 0.08, 0.22, 0.24, 0.05); f.box('book3', 3.48, 1.0, zc - 0.02, 0.22, 0.26, 0.04); f.box('book2', 3.48, 1.37, zc + 0.05, 0.22, 0.2, 0.06);
@@ -2381,8 +2446,17 @@ function placeModel(g, spec, x, fl, z, ry) {
   if (!spec || !lib?.has(spec.kind)) return false;
   const o = lib.place(spec.kind, { ...spec, x, y: fl + (spec.ceil ?? spec.y ?? 0), z, ry });
   if (!o) return false;
-  g.add(o); return true;
+  g.add(o);
+  // its glowing parts (models.js marks them with lampMax) get the room's own copy, so the room's switch reaches them
+  const id = g.name?.startsWith('furn:') && g.name.slice(5);
+  if (id) o.traverse(c => {
+    const m = c.isMesh && c.material; if (!m?.userData?.lampMax) return;
+    let L = MODEL_LAMPS.get(m.uuid + id); if (!L) MODEL_LAMPS.set(m.uuid + id, L = [m.clone(), id]);
+    L[0].emissiveIntensity = m.userData.lampMax * litOf(id); c.material = L[0]; c.userData.interact = lightIt(id);
+  });
+  return true;
 }
+const MODEL_LAMPS = new Map(); // model lamp material uuid + room -> [that room's copy, room]
 // per-style positions [x, z, ry] that replace an item's (or its EXTRA pieces') default spot. "Huidig" follows the photos:
 // sk1 has the bed against the bathroom wall, the white chest of drawers with the tv (and the airco above it) on the
 // window end of the left wall and the small chair in the window corner
@@ -2415,7 +2489,7 @@ const HER_ITEMS = {
   zitkamer: [
     ['bank', 'Bank', 0.5, 2.0, HP, f => P.sofa(f, 2.2, 0.92)], ['salontafel', 'Salontafel', 1.65, 2.0, 0, f => P.coffee(f, 0.9, 0.5)],
     ['kleed', 'Vloerkleed', 1.75, 2.0, 0, (f, r) => P.rug(f, r.id, 2.0, 2.6)], ['fauteuil', 'Fauteuil', 0.7, 4.2, 0.7, P.armchair],
-    ['tv', 'Tv-meubel + tv', 3.61, 1.5, -HP, f => P.tvUnit(f, 1.5)], ['bijzettafel', 'Bijzettafel', 0.45, 0.6, 0, f => P.stool(f, 0.2, 0.5)],
+    ['tv', 'Tv-meubel + tv', 3.61, 1.35, -HP, f => P.tvUnit(f, 1.5)], ['bijzettafel', 'Bijzettafel', 0.45, 0.6, 0, f => P.stool(f, 0.2, 0.5)],
     ['vloerlamp', 'Vloerlamp', 0.4, 3.5, 0, P.floorlamp], ['planten', 'Plant', 0.45, 5.35, 0, f => P.plant(f, 0.9)],
     ['kunst', 'Wandkunst', 0.01, 2.0, HP, f => P.art(f, 1, 1.2, 0.8, 1.55)], ['gordijnen', 'Gordijnen', 0, 0, 0, P.curtains], ['spots', 'Inbouwspots', 0, 0, 0, P.downlights],
     ['hanglampen', 'Hanglamp', 1.65, 2.0, 0, f => P.pendant(f, 0.9)],
@@ -2545,7 +2619,7 @@ function buildRoomFurniture(id) {
     const movable = !(home[0] === 0 && home[1] === 0) && m.box.min.y < fl + 0.06 && !m.foot.isEmpty() && m.box.max.y > fl + 0.12;
     list.push({ key, room: id, iid, i: +i, label, l: r.lvl, x, z, ry, home, moved, movable, ...m });
   }
-  b.build((k, geo) => { const m = furnMesh(k, geo); meshes[k] = m; g.add(m); });
+  b.build((k, geo) => { const m = furnMesh(k, geo); tagLamp(m, k); meshes[k] = m; g.add(m); });
   for (const p of list) { p.parts = p.parts.map(([k, start, count]) => ({ mesh: meshes[k], start, count })); PIECES.set(p.key, p); }
   finishMovers(g);
   invalidatePicks();
@@ -2573,7 +2647,20 @@ function setMoves(next) {
   saveState(); return old;
 }
 
-function buildAllFurniture() { for (const id of new Set([...Object.keys(ITEMS), ...Object.keys(HER_ITEMS)])) buildRoomFurniture(id); }
+const furnRooms = () => new Set([...Object.keys(ITEMS), ...Object.keys(HER_ITEMS)]);
+// every room: the one you walk in (or have selected) at once, then its floor, then the rest, a few rooms per task (breathe), so a
+// look or style switch doesn't hold the page for ~0.3 s. A newer call takes over the rooms still to do. The promise (also
+// HOUSE.furnished) resolves when all are built; 'change' then goes out again, for whoever reads the pieces (the dogs, pickup)
+let furnGen = 0, furnJob = Promise.resolve();
+function buildAllFurniture() {
+  const gen = ++furnGen, walk = mode === 'walk', here = walk && !walker.f ? roomAtSoft(walker.l, walker.x, walker.z)?.id : state.sel;
+  const l = walk ? walker.l : ROOM[here]?.lvl, rank = id => id === here ? 0 : ROOM[id]?.lvl === l ? 1 : 2;
+  const todo = [...furnRooms()].sort((a, b) => rank(a) - rank(b));
+  return furnJob = (async () => {
+    for (const id of todo) { if (gen !== furnGen) return; buildRoomFurniture(id); await breathe(); }
+    emit('change', state);
+  })();
+}
 
 /* ================= INTERACTIONS (walk mode, E / click / tap): drawers, cabinet doors, tvs, toilets ================= */
 // Anything carrying userData.interact = { label: () => '...', act: () => {}, room?, on?: () => bool } (on the mesh or an
@@ -2617,7 +2704,7 @@ function carcass(f, c, w, d, y0, y1, zc = 0, t = 0.018, top = true) {
 }
 function posePart(p) {
   const e = p.t * p.t * (3 - 2 * p.t);
-  _mm.copy(p.at).multiply(p.kind === 'lade' ? _mh.makeTranslation(0, 0, p.arg * e) : _mh.makeRotationY(p.arg * e));
+  _mm.copy(p.at).multiply(p.kind === 'lade' ? _mh.makeTranslation(0, 0, p.arg * e) : p.kind === 'wip' ? _mh.makeRotationX(p.arg * (2 * e - 1)) : _mh.makeRotationY(p.arg * e));
   _mn.getNormalMatrix(_mm);
   for (const [m, s, c] of p.ranges) {
     const P = m.geometry.attributes.position, N = m.geometry.attributes.normal, p0 = m.userData.p0, n0 = m.userData.n0;
@@ -2725,7 +2812,7 @@ function flushSound() {
   } catch (e) { /* no audio: the bowl still swirls */ }
 }
 function interactTick(dt) {
-  for (const p of MOVING) { p.t = p.goal > p.t ? Math.min(p.goal, p.t + dt / 0.45) : Math.max(p.goal, p.t - dt / 0.45); posePart(p); if (p.t === p.goal) MOVING.delete(p); }
+  for (const p of MOVING) { const d = dt / (p.dur || 0.45); p.t = p.goal > p.t ? Math.min(p.goal, p.t + d) : Math.max(p.goal, p.t - d); posePart(p); if (p.t === p.goal) MOVING.delete(p); }
   for (const T of FLUSH) if (T.t >= 0) { T.t += dt; T.spin += dt * 9 * (1 - Math.min(1, T.t / 3.2)); if (T.t > 3.2) T.t = -1; poseWater(T); }
   if (TVM && TV_ON.size) { TVM.halo.opacity = 0.3 * (0.2 + 0.8 * lampFactor); tvT += dt; if ((tvAcc += dt) > 1 / 15) { tvAcc = 0; drawTv(tvT); } }
 }
@@ -2774,11 +2861,12 @@ let mirrorStale = 0; // applyTime: the light changed, so every mirror is re-capt
 function mirrorTick() {
   if (renderPaused || renderer.xr.isPresenting || frames < 8 || !MIRRORS.length) return;
   const now = performance.now(), every = LOWQ ? 4000 : 2000, near = M => camera.position.distanceTo(M.m.position) < 4.5;
-  if (mirrorStale && now - mirrorStale > 250) { mirrorStale = 0; for (const M of MIRRORS) M.at = -1; }
+  // walking, only the mirrors within reach: the others are re-captured anyway when you walk up to them (below)
+  if (mirrorStale && now - mirrorStale > 250) { mirrorStale = 0; for (const M of MIRRORS) if (mode !== 'walk' || near(M)) M.at = -1; }
   // a mirror you just walked (or jumped) up to is refreshed straight away, with this room's lamp already on
   const M = MIRRORS.find(M => M.at < 0) || MIRRORS.find(M => near(M) && !M.near) || MIRRORS.find(M => now - M.at > every && near(M));
   for (const m of MIRRORS) if (!near(m)) m.near = false;
-  if (M) { if (lampFactor > 0) updateLamps(); captureMirror(M); M.near = near(M); }
+  if (M) { if (anyLamp()) updateLamps(); captureMirror(M); M.near = near(M); }
 }
 const kk = (l, m) => K(l, 'main', m), kbx = (l, m, ...a) => AB.box(kk(l, m), ...a);
 function rad(l, x0, x1, y0, y1, z0, z1, ribs = true, mat = 'radiator') {
@@ -2924,7 +3012,7 @@ function buildFixtures() {
   }
   // flush opal ceiling lights in the rooms without a pendant (they carry the LAMP_SPOTS lights at night)
   for (const [l, x, z] of [[0, 0.45, 8.43], [0, 2.0, 8.43], [0, 8.62, 8.27], [1, 7.6, 9.6], [1, 8.0, 11.3], [2, 7.55, 9.8]]) {
-    const f = kit(AB, x, ceilAt(l, x, z), z, 0); f.cyl(K(l, 'ceil', 'plate'), 0, -0.012, 0, 0.13, 0.024, 32, 0.14); f.sph(K(l, 'ceil', 'opal'), 0, -0.024, 0, 0.125, 0.07, 0.125, 0, 0, 0, 24);
+    const f = kit(AB, x, ceilAt(l, x, z), z, 0); f.cyl(K(l, 'ceil', 'plate'), 0, -0.012, 0, 0.13, 0.024, 32, 0.14); f.sph(K(l, 'ceil', 'opal:' + roomAt(l, x, z).id), 0, -0.024, 0, 0.125, 0.07, 0.125, 0, 0, 0, 24);
   }
   basin(0, 0.0, 8.15, HP, 0.36); basin(0, 9.0, 8.5, -HP, 0.36); basin(1, 6.68, 5.4, HP, 0.6, 'ped'); basin(1, 7.03, 11.25, HP, 0.6, true);
   // entree (photos): tall black-framed mirror on the meter-cupboard door, anthracite doormat, shoes kicked off by the door
@@ -2999,19 +3087,59 @@ function applyTime(h) {
   if (skyTex) { scene.background = skyTex; scene.backgroundIntensity = lerp(lerp(1.0, 0.55, gold), 0.03, nf); scene.backgroundBlurriness = 0.02; }
   else scene.background = bg;
   const lf = h >= 17.5 ? clamp((h - 17.5) / 1.5, 0, 1) : clamp((7.5 - h) / 1.0, 0, 1);
-  lampFactor = lf; updateLamps(); mirrorStale = performance.now();
-  M('shade').emissiveIntensity = 1.6 * lf; M('bulb').emissiveIntensity = 5 * lf; M('opal').emissiveIntensity = 1.4 * lf; M('globeAmber').emissiveIntensity = M('globeSmoke').emissiveIntensity = 0.9 * lf;
+  lampFactor = lf; applyLights();
   for (const k of ['rgbRed', 'rgbPurple', 'rgbGreen', 'rgbOrange']) for (const [kk, op] of [[k, 0.4], [k + 'G', 0.08]]) { const m = M(kk); m.opacity = op * lf; m.visible = lf > 0.01; }
   M('frosted').emissiveIntensity = 0.75 * (1 - nf) * lerp(1, 0.75, gold); M('ribbed').emissiveIntensity = 0.45 * (1 - nf) * lerp(1, 0.75, gold);
   M('curtainDay').visible = lf < 0.5; M('curtainEve').visible = lf >= 0.5;
   renderer.toneMappingExposure = lerp(lerp(1.0, 0.9, gold), 1.25, nf);
-  $('#todOut').value = `${String(Math.floor(h) % 24).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
+  $('#todOut').value = $('#timeChip span').textContent = hhmm(h);
 }
 let lampFactor = 0;
+/* ---------- light switches: per room 'on' / 'off', or absent = auto (on after dusk, lampFactor). A switch or a lamp flips what
+   you see, so by day it switches a lamp on; a switched room keeps its state when the time changes ---------- */
+const LIGHT = {};
+// ponytail: a lamp switched on by day burns at this share of its evening power (it also pulls post.js's exposure down); tune on 13 h shots
+const LAMP_DAY = 0.3;
+const litOf = id => LIGHT[id] === 'on' ? 1 : LIGHT[id] === 'off' ? 0 : lampFactor; // the glow of its shades and bulbs
+const lightOf = id => LIGHT[id] === 'on' ? lerp(LAMP_DAY, 1, lampFactor) : litOf(id); // its point lights (and its exposure in post.js)
+const anyLamp = () => lampFactor > 0 || Object.values(LIGHT).includes('on');
+const LIGHT_IT = {};
+// what aiming at a switch or lamp does; from = the room you stand in (a toilet or bathroom is switched from outside its door)
+const lightIt = (id, from = id) => LIGHT_IT[id + '@' + from] ||= { room: from, on: () => litOf(id) >= 0.5, act: () => toggleLight(id),
+  label: () => `licht ${from === id ? '' : ROOM[id].name.toLowerCase() + ' '}${litOf(id) >= 0.5 ? 'uit' : 'aan'}` };
+// a lamp part (merged mesh of '<kind>:<room>', LAMP_GLOW) answers like its room's switch
+function tagLamp(o, k) { const [kind, id] = k.split(':'); if (id && kind in LAMP_GLOW && ROOM[id]) o.userData.interact = lightIt(id); }
+function setLight(id, s) { if (s === 'auto') delete LIGHT[id]; else LIGHT[id] = s; }
+function toggleLight(id) {
+  const want = litOf(id) < 0.5 ? 'on' : 'off';
+  setLight(id, (lampFactor >= 0.5) === (want === 'on') ? 'auto' : want); applyLights(); clickSound();
+}
+// intensities only: the number of lights and every visible flag stay as they are (either would recompile every material)
+function applyLights() {
+  for (const k in LAMP_GLOW) M(k).emissiveIntensity = LAMP_GLOW[k] * lampFactor;
+  for (const [k, m] of MAT) { const i = k.indexOf(':'), kind = k.slice(0, i); if (i > 0 && kind in LAMP_GLOW) m.emissiveIntensity = LAMP_GLOW[kind] * litOf(k.slice(i + 1)); }
+  for (const [m, id] of MODEL_LAMPS.values()) m.emissiveIntensity = m.userData.lampMax * litOf(id);
+  for (const p of SWITCHES) { const g = litOf(p.room) >= 0.5 ? 1 : 0; if (p.goal !== g) { p.goal = g; MOVING.add(p); } }
+  updateLamps(); mirrorStale = performance.now();
+}
+// the rocker's tick plays through an <audio> element: the first new AudioContext() blocks the page ~0.4 s (Edge on Windows)
+let CLICK = null;
+function clickSound() {
+  try {
+    if (!CLICK) { // 30 ms of decaying noise as an 8-bit mono wav
+      const sr = 22050, n = sr * 0.03 | 0, b = new Uint8Array(44 + n), v = new DataView(b.buffer), st = (o, t) => [...t].forEach((c, i) => b[o + i] = c.charCodeAt(0));
+      st(0, 'RIFF'); v.setUint32(4, 36 + n, true); st(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+      v.setUint32(24, sr, true); v.setUint32(28, sr, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); st(36, 'data'); v.setUint32(40, n, true);
+      for (let i = 0; i < n; i++) b[44 + i] = 128 + 127 * (Math.random() * 2 - 1) * Math.exp(-i / (sr * 0.0035));
+      CLICK = URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+    }
+    const a = new Audio(CLICK); a.volume = 0.45; a.play().catch(() => { });
+  } catch (e) { /* no audio: the rocker still tips */ }
+}
 function placeLamps(cur, ref, lit) {
-  const on = LAMP_SPOTS.filter(lit).map(s => [s, s.pos.distanceToSquared(ref) + (s.l === cur ? 0 : 30)]).sort((a, b) => a[1] - b[1]);
+  const on = LAMP_SPOTS.filter(s => lightOf(s.id) > 0 && lit(s)).map(s => [s, s.pos.distanceToSquared(ref) + (s.l === cur ? 0 : 30)]).sort((a, b) => a[1] - b[1]);
   let moved = false;
-  LAMPS.forEach((L, i) => { const s = on[i] && on[i][0]; L.p.intensity = s ? 11 * s.k * lampFactor : 0; if (s && !L.p.position.equals(s.pos)) { L.p.position.copy(s.pos); moved = true; } });
+  LAMPS.forEach((L, i) => { const s = on[i] && on[i][0]; L.p.intensity = s ? 11 * s.k * lightOf(s.id) : 0; if (s && !L.p.position.equals(s.pos)) { L.p.position.copy(s.pos); moved = true; } });
   if (moved) window.HOUSE?.post?.lightsMoved?.();
 }
 function updateLamps() {
@@ -3024,7 +3152,7 @@ function prepareCapture(l, pos) {
   for (const M of MIRRORS) if (M.l === l && M.m.position.distanceTo(pos) < 4.5) { captureMirror(M); M.near = false; }
 }
 let lampAt = 0;
-function lampTick() { const now = performance.now(); if (lampFactor > 0 && now - lampAt > 300) { lampAt = now; updateLamps(); } }
+function lampTick() { const now = performance.now(); if (anyLamp() && now - lampAt > 300) { lampAt = now; updateLamps(); } }
 
 
 /* ================= VIEWS ================= */
@@ -3087,7 +3215,7 @@ function resolve(st, cols) {
     if (d2 > 1e-10) { const d = Math.sqrt(d2); x += ex / d * (R - d); z += ez / d * (R - d); }
     else { const o = [x - c[0] + R, c[1] - x + R, z - c[2] + R, c[3] - z + R], m = Math.min(...o), i = o.indexOf(m); if (i === 0) x -= m; else if (i === 1) x += m; else if (i === 2) z -= m; else z += m; }
   }
-  st.x = clamp(x, -14, 24); st.z = clamp(z, -16, 26);
+  st.x = clamp(x, -14, 24); st.z = clamp(z, -16, 28.2); // world edge: the pavement across the road (z 26.5-28.4) is walkable up to the hedge; 26 used to stop you on the far kerb
 }
 // one movement step for a walker-like state {x, z, l, y, f}: stairs first, then sliding collisions on the level
 function stepState(st, dx, dz) {
@@ -3165,7 +3293,7 @@ function setMode(m, o = {}) {
   if (m !== 'walk' && m !== 'doll') return;
   mode = m;
   $('#btnDoll').setAttribute('aria-pressed', String(m === 'doll')); $('#btnWalk').setAttribute('aria-pressed', String(m === 'walk'));
-  $('#cross').hidden = m !== 'walk'; $('#joy').hidden = !(m === 'walk' && COARSE);
+  $('#cross').hidden = m !== 'walk'; $('#joy').hidden = $('#timeChip').hidden = !(m === 'walk' && COARSE);
   $('#walkStart').hidden = !(m === 'walk' && !COARSE) || document.pointerLockElement === renderer.domElement;
   tagEl.hidden = true; roomTagEl.hidden = m !== 'walk';
   if (m === 'walk') {
@@ -3240,14 +3368,15 @@ function invalidatePicks() { pickCache = null; }
 function pickLists() {
   if (pickCache) return pickCache;
   const doll = [], walk = [];
-  for (const g of G) g.main.traverse(c => {
+  for (const g of [...G.map(g => g.main), EXT]) g.traverse(c => {   // EXT: garden/front modules (interact targets only)
     if (!c.isMesh || c.userData.helper) return;
     const k = classOf(c); c.userData.pk = k;
-    if (k === 'other') return;
+    if (k === 'other' || (g === EXT && k !== 'interact')) return;
     if (k === 'interact') { walk.push(c); return; } // walk mode only: in the dollhouse a click goes through to the room
     doll.push(c); if (k === 'door' || k === 'dog') walk.push(c);
   });
   for (const h of klinkHits) { h.userData.pk = 'klink'; doll.push(h); walk.push(h); }
+  for (const g of G) g.ceil.traverse(c => { if (c.isMesh && c.userData.interact) { c.userData.pk = 'interact'; walk.push(c); } }); // the opal ceiling lights
   return (pickCache = { doll, walk });
 }
 // doll: floors, furniture, doors, dogs (walls never block a room pick); walk: doors, klinken, dogs within reach
@@ -3319,6 +3448,8 @@ const typing = () => /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagNam
 addEventListener('keydown', e => {
   if (mode !== 'walk' || typing()) return;
   if (e.code === 'KeyE' && (aim || window.HOUSE?.pickup?.carrying)) { if (!e.repeat) act(aim); return; }
+  if (e.code === 'KeyT') { if (!e.repeat) stepTime(); return; }
+  if (e.code === 'BracketLeft' || e.code === 'BracketRight') { glideTime((glide ? glide.to : state.time) + (e.code === 'BracketLeft' ? -1 : 1) * (e.shiftKey ? 2 : 0.5)); return; }
 
   keys[e.code] = true; if (e.code.startsWith('Arrow')) e.preventDefault();
 });
@@ -3335,9 +3466,36 @@ joyEl.addEventListener('pointerup', joyEnd); joyEl.addEventListener('pointercanc
 function setHint() {
   const h = $('#hint');
   if (mode === 'doll') h.innerHTML = 'Slepen: draaien · Rechts slepen: schuiven · Scrollen: zoomen · Klik een vloer om de kamer te kiezen, klik een deur om hem te openen of te sluiten';
-  else h.innerHTML = COARSE ? 'Joystick: lopen · Slepen: rondkijken · Tik op een deur, lade, tv, wc, meubel of hond' :
- '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> of pijltjes: lopen · Muis: kijken · <kbd>Shift</kbd>: sneller · <kbd>E</kbd>: deur, lade, tv, wc, meubel oppakken · <kbd>Esc</kbd>: muis vrij';
+  else h.innerHTML = COARSE ? 'Joystick: lopen · Slepen: rondkijken · Tik op een deur, lade, tv, wc, lamp, lichtknop, meubel of hond · Klok: tijd verzetten' :
+ '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> of pijltjes: lopen · Muis: kijken · <kbd>Shift</kbd>: sneller · <kbd>E</kbd>: deur, lade, tv, wc, licht, meubel oppakken · <kbd>T</kbd> <kbd>[</kbd><kbd>]</kbd>: tijd · <kbd>Esc</kbd>: muis vrij';
 }
+/* ---------- time of day while walking: T steps through the panel's parts of the day, [ / ] move half an hour (Shift: two),
+   the clock chip (phone) does what T does. The time glides there in a second (applyTime only moves intensities and the
+   sun), the slider follows and the choice is saved like the slider's */
+const DAYPARTS = [...document.querySelectorAll('#todTicks button')].map(b => +b.dataset.h);
+const partOf = h => h < 12 ? 'ochtend' : h < 17.5 ? 'middag' : h < 22 ? 'avond' : 'nacht';
+const hhmm = h => { const m = Math.round(h * 60); return `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
+let glide = null;
+function glideTime(h) {
+  h = clamp(Math.round(h * 4) / 4, 6, 24);
+  glide = { from: state.time, to: h, t: REDUCED ? 1 : 0 }; glideTick(0);
+  toast(`${hhmm(h)} · ${partOf(h)}`, { ms: 1800 });
+}
+const stepTime = () => glideTime(DAYPARTS.find(h => h > (glide ? glide.to : state.time) + 0.01) ?? DAYPARTS[0]);
+function glideTick(dt) {
+  if (!glide) return;
+  glide.t = Math.min(1, glide.t + dt / 1.0);
+  state.time = lerp(glide.from, glide.to, sstep(glide.t, 0, 1)); $('#tod').value = state.time; applyTime(state.time);
+  if (glide.t === 1) { glide = null; saveState(); }
+}
+$('#timeChip').onclick = stepTime;
+// every room at once (tool button 'Alle lampen'): auto -> off -> on -> auto
+function allLights(s) { for (const r of ROOMS) setLight(r.id, s); applyLights(); }
+const LAMPS_NEXT = { auto: ['off', 'Alle lampen uit'], off: ['on', 'Alle lampen aan'], on: ['auto', 'Lampen volgen weer de tijd van de dag'] };
+let lampsAll = 'auto';
+addTool({ id: 'lampen', label: 'Alle lampen', title: 'Alle lampen uit, aan of weer automatisch (met de tijd van de dag)',
+  icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.4 1.1 2.2h5c0-.8.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg>',
+  onClick: () => { const [s, msg] = LAMPS_NEXT[lampsAll]; lampsAll = s; allLights(s); clickSound(); toast(msg); } });
 
 /* ================= UI PANEL ================= */
 let flash = null;
@@ -3411,8 +3569,8 @@ function buildPanel() {
   }));
   $('#wallPick').oninput = e => applyToTargets(s => { s.wall = e.target.value; });
   $('#tintPick').oninput = e => applyToTargets(s => { s.tint = e.target.value; });
-  const tod = $('#tod'); tod.value = state.time; tod.oninput = () => { state.time = +tod.value; applyTime(state.time); saveState(); };
-  document.querySelectorAll('#todTicks button').forEach(b => b.onclick = () => { state.time = +b.dataset.h; tod.value = state.time; applyTime(state.time); saveState(); });
+  const tod = $('#tod'); tod.value = state.time; tod.oninput = () => { glide = null; state.time = +tod.value; applyTime(state.time); saveState(); };
+  document.querySelectorAll('#todTicks button').forEach(b => b.onclick = () => { glide = null; state.time = +b.dataset.h; tod.value = state.time; applyTime(state.time); saveState(); });
   $('#btnReset').onclick = () => { $('#resetConfirm').hidden = false; $('#btnReset').hidden = true; };
   $('#resetNo').onclick = () => { $('#resetConfirm').hidden = true; $('#btnReset').hidden = false; };
   $('#resetYes').onclick = () => {
@@ -3444,8 +3602,9 @@ function setLook(her) {
   const snap = { style: state.style, rooms: structuredClone(state.rooms), over: { ...state.over } };
   state.style = id; state.over = {};
   for (const r of ROOMS) state.rooms[r.id] = styleRoomState(id, r, state.rooms[r.id]);
-  refreshStyleMaterials(); ROOMS.forEach(x => refreshRoomMaterials(x.id)); buildAllFurniture(); saveState(); syncPanel();
+  refreshStyleMaterials(); ROOMS.forEach(x => refreshRoomMaterials(x.id)); const built = buildAllFurniture(); saveState(); syncPanel();
   toast(her ? `Heringericht: ${STYLES[id].name}` : 'Het huis zoals het nu is', { action: 'Ongedaan maken', onAction: () => restoreLook(snap) });
+  return built;
 }
 function applyStyle(id) {
   if (!Object.hasOwn(STYLES, id)) return;
@@ -3478,11 +3637,16 @@ function applyStyle(id) {
   setMode('walk' | 'doll'), mode, view, setInteractive(bool)   false: the app ignores canvas clicks / taps (e.g. while measuring)
   ui.addTool({ id, label, icon, title, onClick }) -> button   small tools strip under the top rail; icon may be an SVG string
   ui.toast(text, { action, onAction, ms }) -> element         non-modal toast
-  dogs                                    set by the dalmatian module below: { dogs, pet(obj), setObstacles(list), ... }
+  dogs                                    set by the dalmatian module below: { dogs, pet(obj), place, rest, nav, ... } (they see the drawn furniture)
   furniture, pickup                       pieces you can pick up and where they were put (above); pickup is set by modules/pickup.js
+  lights { state, level(id), lit(id), toggle(id), set(id, 'auto' | 'on' | 'off'), all(s) }   per-room light switches: state = the
+                                          rooms switched by hand ({ id: 'on' | 'off' }, absent = auto, on after dusk); level = the
+                                          room's point-light factor 0..1 (post.js exposes for it), lit = its lamp glow 0..1
+  setTime(h)                              glide the time of day to h (6..24) in a second, like the walk keys T and [ ]
+  setLook(bool), rebuildFurniture(), furnished   the furniture is rebuilt a few rooms per task; these promises resolve when it is all done
   Picking: one app-wide picker handles doors, klinken, floors, furniture and dogs; while measuring, call setInteractive(false).
 */
-const tickFns = new Set([mirrorTick, lampTick, interactTick]);
+const tickFns = new Set([mirrorTick, lampTick, interactTick, glideTick]);
 let interactive = true, toastTimer = 0;
 function pickables() {
   const out = [];
@@ -3513,14 +3677,14 @@ function walkMove(st, dx, dz) {
   for (let i = 0; i < n; i++) stepState(s, dx / n, dz / n);
   return { x: s.x, z: s.z, l: s.l, y: s.y, f: s.f, s: s.f ? FLIGHTS.indexOf(s.f) : -1 };
 }
-window.HOUSE = {
-  scene, THREE, camera, renderer,
+const HOUSE = { // published as window.HOUSE once the house is built (end of the boot below)
+  scene, THREE, camera, renderer, gpu: GPU_NAME,
   floors: LV.map(l => ({ ...l, y: l.floor })),
   rooms: ROOMS.map(r => ({ id: r.id, name: r.name, level: r.lvl, floorY: LV[r.lvl].floor, rects: r.rects.map(q => ({ x0: q[0], x1: q[1], z0: q[2], z1: q[3] })) })),
   data: { LV, ROOMS, get WALLS() { return WALLS.concat(KWALLS[newKitchen ? 'nw' : 'old']); }, HOLES, FLOORS, PAINTS, STYLES, FLIGHTS },
   stairs: FLIGHTS.map(f => Object.assign([f.l, f.x0, f.x1, f.zBot, f.zTop, f.yBot, f.yTop], { id: f.id, name: f.name, l: f.l, x0: f.x0, x1: f.x1, zBot: f.zBot, zTop: f.zTop, yBot: f.yBot, yTop: f.yTop, zMin: f.zMin, zMax: f.zMax, exits: f.exits })),
   addToRoom(roomId, obj) { const r = ROOM[roomId]; (r ? G[r.lvl].main : EXT).add(obj); invalidatePicks(); return obj; },
-  rebuildFurniture: () => buildAllFurniture(), setLook: her => setLook(!!her), get look() { return isHer() ? 'her' : 'nu'; },
+  rebuildFurniture: () => buildAllFurniture(), setLook: her => setLook(!!her), get look() { return isHer() ? 'her' : 'nu'; }, get furnished() { return furnJob; },
   setNewKitchen: on => setNewKitchen(!!on), get newKitchen() { return newKitchen; },
   // furniture you can pick up (modules/pickup.js): pieces Map key -> piece, moves = the current look's { key: [x, z, ry] },
   // carry(key) -> { group, foot, piece } | null, place(key, [x, z, ry] | null | undefined), setMoves(obj) -> old moves
@@ -3544,6 +3708,9 @@ window.HOUSE = {
   setMode: m => setMode(m), setInteractive(on) { interactive = !!on; },
   get mode() { return mode; }, get view() { return view; },
   ui: { addTool, toast },
+  lights: { get state() { return { ...LIGHT }; }, level: id => ROOM[id] ? lightOf(id) : null, lit: id => litOf(id), toggle: id => toggleLight(id),
+    set(id, s) { setLight(id, s); applyLights(); }, all: s => allLights(s) },
+  setTime: h => glideTime(+h),
 };
 
 /* ================= BOOT + LOOP ================= */
@@ -3560,7 +3727,8 @@ function bootFail(e) {
 }
 function resize() { const w = stage.clientWidth || innerWidth, h = stage.clientHeight || innerHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 try {
-  buildArchitecture(); buildFixtures(); buildKitchenVariants(); buildAllFurniture();
+  buildArchitecture(); await breathe(); buildFixtures(); await breathe(); buildKitchenVariants(); await breathe();
+  for (const id of furnRooms()) { buildRoomFurniture(id); await breathe(); }
   buildPanel(); syncPanel(); applyTime(state.time); setHint();
   loadTextureSets(); loadSky();
   addEventListener('resize', resize); resize();
@@ -3569,6 +3737,7 @@ try {
   setMode('walk'); // the app opens walking, just inside the front door
   booted = true;
 } catch (e) { bootFail(e); }
+window.HOUSE = HOUSE; // the modules poll for it (every 100-150 ms) and install themselves onto the finished house
 const clock = new THREE.Clock(); let frames = 0, aimTick = 0, aimSig = '', loopErrs = 0, cvsRect = cvs.getBoundingClientRect();
 
 addEventListener('resize', () => { cvsRect = cvs.getBoundingClientRect(); });
@@ -3605,40 +3774,103 @@ function loop() { try { frame(); } catch (e) { if (frames < 2) bootFail(e); else
 // with a count on the loading screen. Left to three they compile one by one on first use (~80 programs at 0.25-0.6 s each
 // with D3D), which froze the house for 10-15 s right after it appeared. Resolves when every program can be used.
 function precompile(objs = scene, onPart) {
-  const lv = HOUSE.post?.levels?.[HOUSE.post.quality], list = [].concat(objs), progs = new Set(), texs = new Set();
+  HOUSE.post?.scan?.(); // the lighting patch onto materials of modules that installed after post.js, before they compile
+  const lv = HOUSE.post?.levels?.[HOUSE.post.quality], progs = new Set(), texs = new Set(), whole = objs === scene;
   const rt = lv?.composer ? new THREE.WebGLRenderTarget(1, 1) : null; // the composer draws the scene into a target: linear, no tone mapping
-  try {
-    renderer.setRenderTarget(rt);
-    const mats = renderer.compile(objs === scene ? scene : { traverse: f => list.forEach(o => o.traverse(f)), traverseVisible() { } }, camera, scene);
-    for (const m of mats) { for (const p of renderer.properties.get(m).programs?.values() || []) progs.add(p); for (const k in m) if (m[k]?.isTexture) texs.add(m[k]); }
-  } catch (e) { console.warn('[boot] precompile', e); } finally { renderer.setRenderTarget(null); rt?.dispose(); }
-  const n = progs.size;
-  return new Promise(res => {
-    // finished programs are fetched a few per tick (their uniform lookup blocks), so the count keeps moving; in between the
-    // loaded textures go up to the GPU (decode + upload), which three would otherwise do all at once in the first frame
+  const off = new THREE.WebGLRenderTarget(1, 1); // the PMREM and post passes draw into targets as well
+  // a mirror's program converts its cube envMap (PMREM) when it is made, and that pass waits for every compile queued before
+  // it: the mirrors are made last, when the batch (with the PMREM shaders) is done
+  const later = new Set(whole ? MIRRORS.map(M => M.m) : []);
+  const compile = (os, target = rt, into = scene) => {
+    try {
+      renderer.setRenderTarget(target);
+      const mats = into ? renderer.compile({ traverse: f => os.forEach(o => o.traverse(c => { if (!later.has(c)) f(c); })), traverseVisible() { } }, camera, into)
+        : os.flatMap(o => [...renderer.compile(o, camera)]); // a pass or PMREM quad: no lights, no fog
+      for (const m of mats) { for (const p of renderer.properties.get(m).programs?.values() || []) progs.add(p); for (const k in m) if (m[k]?.isTexture) texs.add(m[k]); }
+    } catch (e) { console.warn('[boot] precompile', e); } finally { renderer.setRenderTarget(null); }
+  };
+  // the work in parts of ~120 materials, a few per task: compiling the whole house in one call held the page for ~0.5 s
+  const parts = [], cut = o => { let n = 0; o.traverse(c => { if (c.material) n++; }); if (n > 120 && o.children.length && !o.material) o.children.forEach(cut); else if (n) parts.push(o); };
+  [].concat(objs).forEach(cut);
+  // finished programs are fetched a few per tick (their uniform lookup blocks), so the count keeps moving; in between the
+  // loaded textures go up to the GPU (decode + upload), which three would otherwise do all at once in the first frame
+  const total = () => progs.size + done;
+  let done = 0;
+  const ready = () => new Promise(res => {
     const tick = () => {
       const t0 = performance.now(), full = () => performance.now() - t0 > 12;
-      for (const p of progs) { if (p.isReady()) { p.getUniforms(); progs.delete(p); } if (full()) break; }
-      for (const t of texs) { if (full()) break; texs.delete(t); if (t.version > 0 && !t.isRenderTargetTexture && t.image && t.image.complete !== false) renderer.initTexture(t); }
-      onPart?.(n ? 1 - progs.size / n : 1);
-      if (progs.size || texs.size) setTimeout(tick, progs.size ? 16 : 0); else res(n);
+      for (const p of progs) { if (p.isReady()) { p.getUniforms(); progs.delete(p); done++; } if (full()) break; }
+      if (!progs.size) for (const t of texs) { if (full()) break; texs.delete(t); if (t.version > 0 && !t.isRenderTargetTexture && t.image && t.image.complete !== false) renderer.initTexture(t); }
+      onPart?.(0.2 + 0.8 * done / Math.max(1, total()));
+      if (progs.size || texs.size) setTimeout(tick, progs.size ? 16 : 0); else res();
     };
     tick();
   });
+  // the first frame's other programs, one stand-in per kind of mesh: the shadow pass draws the casters with a depth material
+  // set up from their own (as three r170's WebGLShadowMap.getDepthMaterial does, in an empty scene) and the AO pre-pass draws
+  // every mesh with its normal override. These compiled one by one in the first frame (~0.15 s); a kind missed here still does
+  const standIns = () => {
+    const vsm = renderer.shadowMap.type === THREE.VSMShadowMap, flip = { [THREE.FrontSide]: THREE.BackSide, [THREE.BackSide]: THREE.FrontSide, [THREE.DoubleSide]: THREE.DoubleSide };
+    const lit = new Set(); scene.traverseVisible(o => { if (o.isLight && o.castShadow) lit.add(!!o.isPointLight); });
+    const tex = t => t ? t.channel + (t.isVideoTexture ? 'v' : '') : '', dms = new Map(), depth = (m, point) => {
+      const side = m.shadowSide ?? (vsm ? m.side : flip[m.side]), k = [point, side, tex(m.map), tex(m.alphaMap), m.alphaTest > 0, tex(m.displacementMap)].join();
+      if (!dms.has(k)) dms.set(k, Object.assign(point ? new THREE.MeshDistanceMaterial() : new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }),
+        { side, map: m.map, alphaMap: m.alphaMap, alphaTest: m.alphaTest, displacementMap: m.displacementMap }));
+      return dms.get(k);
+    };
+    const stand = (to, o, m) => {
+      const k = m.id + (o.isInstancedMesh ? 'I' + !o.instanceColor : '') + (o.isSkinnedMesh ? 'S' : '') + (o.isBatchedMesh ? 'B' : '') + Object.keys(o.geometry.morphAttributes);
+      if (!to.has(k)) to.set(k, Object.create(o, { material: { value: m }, traverse: { value(f) { f(this); } } }));
+    };
+    const casters = new Map(), drawn = new Map(), over = HOUSE.post?.overrides?.() || [];
+    [].concat(objs).forEach(r => r.traverseVisible(o => {
+      if (!(o.isMesh || o.isLine || o.isPoints) || !o.layers.test(camera.layers) || later.has(o)) return;
+      if (o.castShadow && !o.customDepthMaterial && !o.customDistanceMaterial) for (const m of [].concat(o.material)) if (m?.visible) for (const point of lit) stand(casters, o, depth(m, point));
+      for (const m of over) stand(drawn, o, m);
+    }));
+    compile([...casters.values()], off, { isScene: true, fog: null, environment: null, background: null, overrideMaterial: null, traverseVisible: f => scene.traverseVisible(f) });
+    compile([...drawn.values()], off);
+  };
+  const job = (async () => {
+    for (let i = 0; i < parts.length;) {
+      const t0 = performance.now();
+      while (i < parts.length && performance.now() - t0 < 30) compile([parts[i++]]);
+      onPart?.(0.2 * i / parts.length); await new Promise(r => setTimeout(r, 0));
+    }
+    if (whole) {
+      const quad = new THREE.PlaneGeometry(2, 2), M = m => new THREE.Mesh(quad, m);
+      renderer.setRenderTarget(off); pmrem.compileCubemapShader(); pmrem.compileEquirectangularShader(); renderer.setRenderTarget(null); // (three r170 internals)
+      compile([pmrem._cubemapMaterial, pmrem._equirectMaterial, pmrem._blurMaterial, ...(HOUSE.post?.materials?.() || [])].filter(Boolean).map(M), off, null);
+    }
+    standIns();
+    await ready();
+    if (later.size) { const ms = [...later]; later.clear(); compile(ms); await ready(); }
+    rt?.dispose(); off.dispose();
+    return done;
+  })();
+  if (whole) { compiling = job; const end = () => { compiling = null; }; job.then(end, end); }
+  return job;
 }
 HOUSE.precompile = precompile;
-// first frame: once the modules have run (DOMContentLoaded: lighting patch, garden, office), their shaders and the house's are
+// first frame: once the modules have installed (lighting patch, garden, office), their shaders and the house's are
 // compiled; furniture models that are on their way get a few more seconds (models.js compiles its own before placing them)
-let domReady = false; addEventListener('DOMContentLoaded', () => { domReady = true; }, { once: true });
 async function warmUp() {
   const L = $('#loading'), wait = ms => new Promise(r => setTimeout(r, ms));
   const until = async (ok, ms) => { const t = performance.now() + ms; while (!ok() && performance.now() < t) await wait(40); };
-  await until(() => domReady || document.readyState === 'complete', 8000);
+  // the modules that add shaders poll for HOUSE and install in no fixed order; wait for them, so all go into one batch
+  const mods = ['garden', 'frontgarden', 'office', 'dogs'].concat(new URLSearchParams(location.search).get('post') === '0' ? [] : ['post']);
+  await until(() => (domReady || document.readyState === 'complete') && mods.every(k => HOUSE[k]), 5000);
   await precompile(scene, k => { L.textContent = `LICHT EN MATERIALEN VOORBEREIDEN… ${Math.round(k * 100)}%`; });
   let models = !HOUSE.models; HOUSE.models?.ready.then(() => { models = true; }, () => { models = true; });
   // while they load, a rehearsal frame behind the loading screen builds what only a real frame does (shadow, sky and post
-  // shaders, texture uploads), so the first visible frame is quick
-  if (!models) { L.textContent = 'MEUBELS LADEN…'; await wait(0); try { renderer.render(scene, camera); } catch (e) { } await until(() => models, 4000); }
+  // shaders, texture uploads), so the first visible frame is quick. In two tasks: first, into a 1-px target with the AO
+  // pre-pass material (compiled above), the geometry uploads, the shadow maps and the sky backdrop; then the real frame
+  if (!models) {
+    L.textContent = 'MEUBELS LADEN…'; await wait(0);
+    const nm = HOUSE.post?.overrides?.()[0], ov = scene.overrideMaterial, t = nm && new THREE.WebGLRenderTarget(1, 1);
+    if (t) { try { scene.overrideMaterial = nm; renderer.setRenderTarget(t); renderer.render(scene, camera); } catch (e) { } finally { scene.overrideMaterial = ov; renderer.setRenderTarget(null); t.dispose(); } await wait(0); }
+    try { renderer.render(scene, camera); } catch (e) { } await until(() => models, 4000);
+  }
 }
 if (booted) warmUp().catch(e => console.warn('[boot]', e)).then(() => renderer.setAnimationLoop(loop));
 
@@ -3647,34 +3879,10 @@ if (booted) warmUp().catch(e => console.warn('[boot]', e)).then(() => renderer.s
 <script type="module">
 // Logan & Gemma: a separate module so it can be swapped independently. Petting goes through the app's picker (HOUSE.dogs.pet).
 import { addDalmatians } from './dalmatians.js';
-// woonkamer furniture footprints (x0, x1, z0, z1) per item id, so a hidden item frees its floor; dalmatians.js inflates them by 0.3 m
-const DOG_BLOCKS = {
-  bank: [[6.06, 6.98, 7.75, 10.05]], salontafel: [[5.04, 5.66, 8.33, 9.48]], fauteuil: [[3.95, 4.75, 10.2, 11.0]],
-  leesstoel: [[7.85, 8.75, 4.55, 5.45]], boekenkast: [[3.25, 3.6, 4.8, 6.4]], eettafel: [[4.3, 6.0, 0.25, 2.25]],
-  vloerlamp: [[6.5, 6.9, 10.25, 10.65], [8.55, 8.95, 4.2, 4.6]], planten: [[6.42, 6.82, 11.7, 12.1], [3.42, 3.82, 4.25, 4.65], [8.5, 8.9, 7.0, 7.4]],
-};
-// the same for the "Heringericht" plan (HER_ITEMS); the dogs' bed by the chimney stays reachable between dressoir and tv unit
-const DOG_BLOCKS_HER = {
-  bank: [[6.0, 6.98, 7.55, 10.05]], salontafel: [[4.7, 5.9, 8.45, 9.15]], fauteuil: [[4.05, 4.95, 10.15, 11.05]], bijzettafel: [[3.55, 4.0, 11.2, 11.7]],
-  leesstoel: [[7.85, 8.75, 4.55, 5.45]], poef: [[7.3, 7.9, 5.4, 6.0]], tv: [[3.6, 4.05, 7.7, 9.1]], dressoir: [[3.25, 3.75, 4.55, 6.25]], boekenkast: [[6.6, 7.0, 10.55, 11.65]],
-  eettafel: [[4.2, 6.1, 0.25, 2.35]], vloerlamp: [[6.55, 6.9, 10.08, 10.42], [8.55, 8.95, 4.2, 4.6]], planten: [[6.5, 7.0, 11.7, 12.15], [8.5, 8.9, 7.0, 7.4], [6.55, 6.95, 4.15, 4.55]],
-};
-const FIXED = [[3.25, 3.6, 7.9, 8.9]]; // chimney breast with the tv
-function obstacles(H) {
-  const items = H.state?.rooms?.woonkamer?.items || {}, B = H.state?.style === 'huidig' ? DOG_BLOCKS : DOG_BLOCKS_HER, out = [...FIXED];
-  // an item with a piece picked up and put elsewhere (modules/pickup.js) blocks with the real footprints of all its pieces instead
-  const ps = [...(H.furniture?.pieces?.values() || [])].filter(p => p.l === 0 && p.movable);
-  const moved = new Set(ps.filter(p => p.moved).map(p => p.room + '/' + p.iid));
-  for (const id in B) if (items[id] !== false && !moved.has('woonkamer/' + id)) out.push(...B[id]);
-  for (const p of ps) if (moved.has(p.room + '/' + p.iid)) out.push([p.foot.min.x, p.foot.max.x, p.foot.min.z, p.foot.max.z]);
-  if (Array.isArray(H.office?.obstacles)) out.push(...H.office.obstacles); // desk, sim rig, chair, cabinets of the office corner
-  return out.map(([x0, x1, z0, z1]) => ({ x0, x1, z0, z1 }));
-}
 // the green bean bag in the office corner (modules/office.js, only in the "Nu" look) is a dog bed; Logan starts asleep on it, as in the photo
 function syncOffice(H, dogs, first) {
   const b = H.office?.dogBed;
   if (b) dogs.addBed({ id: 'kantoor', x: b.x, z: b.z, y: b.top, r: Math.max(0.3, b.r - 0.08), heading: 0, room: 'zitkamer' }); else dogs.removeBed('kantoor');
-  dogs.setObstacles(obstacles(H));
   if (first && b) dogs.place('Logan', { bed: 'kantoor' });
 }
 function boot(n = 0) {
@@ -3682,7 +3890,7 @@ function boot(n = 0) {
   if (!H) { if (n < 600) setTimeout(() => boot(n + 1), 100); return; }
   const T = H.THREE, home = new T.Group(); home.name = 'dalmatians';
   // Gemma's spot: the blanket on the zitkamer corner sofa
-  const dogs = addDalmatians(T, home, { onTick: H.onTick, obstacles: obstacles(H), sofa: { x: 0.62, z: 1.95, y: 0.49, heading: 0.15 } });
+  const dogs = addDalmatians(T, home, { onTick: H.onTick, sofa: { x: 0.62, z: 1.95, y: 0.49, heading: 0.15 } });
   H.addToRoom('woonkamer', home);
   H.dogs = dogs;
   H.on('change', () => setTimeout(() => syncOffice(H, dogs), 0)); // after office.js has rebuilt for the new style

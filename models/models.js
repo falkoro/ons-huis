@@ -2,7 +2,7 @@
 // Self-boots on import (waits for window.HOUSE); also exports install(HOUSE).
 //
 // HOUSE.models = {
-//   ready                      Promise -> { loaded, failed, ms }   (settles when every GLB has loaded or failed)
+//   ready                      Promise -> { loaded, failed, ms }   (settles when every GLB has loaded or failed and the furniture is rebuilt with them)
 //   has(kind, variant?)        true once a model for that kind (and variant) has loaded
 //   known(kind)                true when the manifest lists the kind (it may still be loading)
 //   place(kind, { x, y, z, ry, w, d, h, variant, drop, dress, seed }) -> THREE.Group | null
@@ -335,17 +335,19 @@ export function install(H) {
     }
   }
 
+  // ready = loaded, compiled and placed (the host rebuilds its furniture over a few tasks)
+  const placed = ready.then(async r => {
+    if (r.loaded) { try { await H.rebuildFurniture?.(); } catch (err) { console.error(err); } }
+    window.dispatchEvent(new CustomEvent('house-models-ready', { detail: r }));
+    return r;
+  });
   const api = {
-    ready, has, place,
+    ready: placed, has, place,
     known: kind => byKind.has(kind) || entries.length === 0,
     list: () => entries.map(e => ({ kind: e.kind, variant: e.variant, file: e.file, loaded: !!e.loaded, ms: e.loadMs })),
     stats,
   };
   H.models = api;
-  ready.then(r => {
-    if (r.loaded) { try { H.rebuildFurniture?.(); } catch (err) { console.error(err); } }
-    window.dispatchEvent(new CustomEvent('house-models-ready', { detail: r }));
-  });
   return api;
 }
 
