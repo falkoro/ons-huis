@@ -12,24 +12,25 @@
 /* Layout: full-bleed 3D canvas; floating control rail top-left, material panel on the right (bottom sheet on phones) */
 :root{
   --bg:#e7ebe6; --surface:#f7f8f5; --surface-2:#edf0eb; --ink:#1b231f; --ink-2:#56625b; --line:#d0d7cf;
-  --accent:#2d5a4c; --accent-ink:#f3f7f4; --brass:#9a7531; --glass:rgba(247,248,245,.88);
-  --shadow:0 12px 32px rgba(27,35,31,.16); --focus:#2d5a4c;
+  --accent:#2d5a4c; --accent-ink:#f3f7f4; --brass:#9a7531; --glass:rgba(247,248,245,.84);
+  --shadow:0 1px 2px rgba(27,35,31,.07),0 8px 24px rgba(27,35,31,.13); --focus:#2d5a4c;
+  --blur:blur(16px) saturate(1.35); --tint:color-mix(in srgb,var(--accent) 15%,transparent);
   --font-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
   --font-body:'Figtree','Segoe UI',system-ui,-apple-system,sans-serif;
   --font-mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
-  --r:12px; --r-sm:8px;
+  --r:14px; --r-sm:9px;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#0f1412; --surface:#18201c; --surface-2:#1f2924; --ink:#e3eae5; --ink-2:#9aa89f; --line:#2d3833;
-    --accent:#8cc5ae; --accent-ink:#0d1411; --brass:#d3ae63; --glass:rgba(21,28,25,.88);
-    --shadow:0 12px 32px rgba(0,0,0,.45); --focus:#8cc5ae; color-scheme:dark;
+    --accent:#8cc5ae; --accent-ink:#0d1411; --brass:#d3ae63; --glass:rgba(21,28,25,.84);
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.42); --focus:#8cc5ae; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --bg:#0f1412; --surface:#18201c; --surface-2:#1f2924; --ink:#e3eae5; --ink-2:#9aa89f; --line:#2d3833;
-  --accent:#8cc5ae; --accent-ink:#0d1411; --brass:#d3ae63; --glass:rgba(21,28,25,.88);
-  --shadow:0 12px 32px rgba(0,0,0,.45); --focus:#8cc5ae; color-scheme:dark;
+  --accent:#8cc5ae; --accent-ink:#0d1411; --brass:#d3ae63; --glass:rgba(21,28,25,.84);
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.42); --focus:#8cc5ae; color-scheme:dark;
 }
 html,body{height:100%;margin:0;overflow:hidden}
 body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--font-body);-webkit-font-smoothing:antialiased}
@@ -41,41 +42,52 @@ button{cursor:pointer}
 :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 
 /* ---------- top rail ---------- */
-#topbar{position:absolute;left:16px;top:calc(16px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:10px;
-  max-width:min(560px,calc(100vw - 32px));z-index:5;pointer-events:none}
+#topbar{position:absolute;left:16px;top:calc(16px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;align-items:flex-start;gap:8px;
+  max-width:min(500px,calc(100vw - 32px));z-index:5;pointer-events:none}
 #topbar>*{pointer-events:auto}
-.brand{display:flex;align-items:center;gap:10px;background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  border:1px solid var(--line);border-radius:var(--r);padding:8px 14px 8px 10px;box-shadow:var(--shadow);width:max-content;max-width:100%}
+.brand{display:flex;align-items:center;gap:10px;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--line);border-radius:var(--r);padding:7px 16px 7px 8px;box-shadow:var(--shadow);width:max-content;max-width:100%}
 .brand svg{flex:none}
-.brand h1{font:700 18px/1.1 var(--font-display);letter-spacing:-.01em;margin:0}
-.brand p{margin:2px 0 0;font:500 11px/1.2 var(--font-mono);color:var(--ink-2);letter-spacing:.02em}
-.seg{display:inline-flex;gap:2px;background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+.brand h1{font:700 18px/1.1 var(--font-display);letter-spacing:-.015em;margin:0}
+.brand p{margin:2px 0 0;font:500 12px/1.2 var(--font-body);color:var(--ink-2)}
+.seg{display:inline-flex;gap:2px;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
   border:1px solid var(--line);border-radius:999px;padding:3px;box-shadow:var(--shadow);max-width:100%}
-.seg button{border:0;background:transparent;border-radius:999px;padding:7px 14px;font-weight:500;font-size:14px;white-space:nowrap;color:var(--ink-2)}
+.seg button{border:0;background:transparent;border-radius:999px;padding:7px 14px;font-weight:500;font-size:14px;white-space:nowrap;color:var(--ink-2);transition:background-color .15s,color .15s}
 .seg button:hover{color:var(--ink)}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
 .seg.scroll{overflow-x:auto;scrollbar-width:none;max-width:100%}
 @media (max-width:760px){.seg .lg{display:none}}
-.seg.scroll::-webkit-scrollbar{display:none}
+.seg.scroll::-webkit-scrollbar,.rchips::-webkit-scrollbar,#tools::-webkit-scrollbar{display:none}
 .rail-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.jump{display:inline-flex;align-items:center;gap:8px;background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  border:1px solid var(--line);border-radius:999px;padding:3px 4px 3px 14px;box-shadow:var(--shadow)}
-.jump span{font:500 11px/1 var(--font-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2)}
-.jump select{border:0;background:var(--surface);border-radius:999px;padding:6px 10px;font-weight:500;max-width:52vw}
+/* floors + rooms: the floor tabs on top, the rooms of that floor under a hairline */
+.nav{display:flex;flex-direction:column;align-self:stretch;box-sizing:border-box;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--line);border-radius:22px;padding:3px;box-shadow:var(--shadow)}
+.nav .seg{background:transparent;border:0;box-shadow:none;padding:0;backdrop-filter:none;-webkit-backdrop-filter:none}
+.rchips{display:flex;flex-wrap:wrap;gap:2px;margin:3px 10px 0;padding:5px 0 2px;border-top:1px solid var(--line)}
+.rchips:empty{display:none}
+.rchip{border:0;background:transparent;border-radius:999px;padding:5px 10px;font-size:13.5px;font-weight:500;white-space:nowrap;color:var(--ink-2);transition:background-color .15s,color .15s}
+.rchip:hover{color:var(--ink);background:var(--surface-2)}
+.rchip[aria-pressed="true"]{color:var(--accent);background:var(--tint)}
+.rchips .rchip:first-child{margin-left:-4px}
 
 /* ---------- panel ---------- */
 #panel{position:absolute;right:16px;top:calc(16px + env(safe-area-inset-top,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:340px;z-index:6;
-  display:flex;flex-direction:column;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+  display:flex;flex-direction:column;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
 .handle{display:none}
-.panel-body{overflow-y:auto;overscroll-behavior:contain;padding:6px 18px 18px;display:flex;flex-direction:column}
-.panel-body section{padding:14px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px;min-width:0}
+.panel-body{overflow-y:auto;overscroll-behavior:contain;padding:4px 18px 18px;display:flex;flex-direction:column;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.panel-body section{padding:16px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px;min-width:0}
 .panel-body section:last-child{border-bottom:0}
-.eyebrow,h3{font:500 11px/1 var(--font-mono);text-transform:uppercase;letter-spacing:.1em;color:var(--ink-2);margin:0}
+.eyebrow,h3{font:700 14px/1.2 var(--font-display);letter-spacing:-.005em;color:var(--ink);margin:0}
 h2{font:700 24px/1.1 var(--font-display);margin:0;letter-spacing:-.015em;text-wrap:balance}
-.selrow{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.mono{font:500 12px/1.2 var(--font-mono);color:var(--ink-2);font-variant-numeric:tabular-nums}
-.panel-body select{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:var(--r-sm);padding:8px 10px}
+.selrow{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:2px}
+.mono{font:500 13px/1.2 var(--font-body);color:var(--ink-2);font-variant-numeric:tabular-nums}
+.roompick{display:grid;gap:5px}
+.rgroup{display:flex;flex-wrap:wrap;gap:4px;position:relative;padding-left:26px}
+.rlvl{position:absolute;left:0;top:6px;font:700 12px/1 var(--font-display);color:var(--ink-2)}
+.roompick .rchip{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:4px 9px;font-size:12.5px}
+.roompick .rchip:hover{border-color:var(--ink-2);background:var(--surface)}
+.roompick .rchip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .seg.small{box-shadow:none;background:var(--surface-2);width:100%;display:flex}
 .seg.small button{flex:1;padding:6px 8px;font-size:13px}
 .seg.looks button{padding:11px 8px;font-size:15px;font-weight:600}
@@ -104,17 +116,18 @@ input[type=color]{width:38px;height:28px;border:1px solid var(--line);border-rad
 .empty{font-size:13px;color:var(--ink-2);margin:0}
 .time{display:flex;align-items:center;gap:10px}
 .time input{flex:1;accent-color:var(--accent);min-width:0}
-.time output{font:500 14px/1 var(--font-mono);font-variant-numeric:tabular-nums;width:46px;text-align:right}
+.time output{font:600 14px/1 var(--font-body);font-variant-numeric:tabular-nums;width:46px;text-align:right}
 .ticks{display:flex;gap:6px;flex-wrap:wrap}
 .ticks button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:12px}
 .foot{flex-direction:row!important;align-items:center;flex-wrap:wrap}
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:var(--r-sm);padding:8px 12px;font-size:13px;font-weight:500}
 .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .note{font-size:12px;color:var(--ink-2);margin:0}
+.note+h3{margin-top:8px}
 
 /* ---------- overlays ---------- */
 #hint{position:absolute;left:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:4;max-width:min(520px,calc(100vw - 390px));
-  background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:var(--r);
+  background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--line);border-radius:var(--r);
   padding:8px 12px;font-size:12.5px;color:var(--ink-2);box-shadow:var(--shadow)}
 #hint kbd{font:500 11px/1 var(--font-mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:2px 5px;background:var(--surface);color:var(--ink)}
 #cross{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;z-index:3;pointer-events:none}
@@ -124,21 +137,25 @@ input[type=color]{width:38px;height:28px;border:1px solid var(--line);border-rad
 #tag{position:absolute;z-index:3;pointer-events:none;transform:translate(-50%,14px);background:var(--ink);color:var(--bg);
   font:500 12px/1 var(--font-body);padding:5px 9px;border-radius:999px;white-space:nowrap;opacity:.92}
 #roomTag{position:absolute;left:16px;bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:3;pointer-events:none; /* stacked above #hint */
-  background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);color:var(--ink);
-  font:600 13px/1 var(--font-body);letter-spacing:.01em;padding:7px 14px;border-radius:999px;white-space:nowrap;box-shadow:var(--shadow)}
+  background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--line);color:var(--ink);
+  font:700 14px/1 var(--font-display);letter-spacing:-.005em;padding:8px 15px 8px 13px;border-radius:999px;white-space:nowrap;box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:8px}
+#roomTag[hidden]{display:none}
+#roomTag::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--tint)}
 #walkPad{position:absolute;right:372px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:4;display:flex;align-items:center;gap:8px}
 #walkPad[hidden]{display:none}
-#walkPad .round{width:38px;height:38px;padding:0;border-radius:50%;display:grid;place-items:center;background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+#walkPad .round{width:38px;height:38px;padding:0;border-radius:50%;display:grid;place-items:center;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
   border:1px solid var(--line);color:var(--ink);box-shadow:var(--shadow);cursor:pointer;touch-action:manipulation}
 #walkPad .round[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:transparent}
 #timeChip{display:inline-flex;align-items:center;gap:6px;
-  background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);color:var(--ink);
-  font:600 13px/1 var(--font-mono);font-variant-numeric:tabular-nums;padding:7px 12px;border-radius:999px;box-shadow:var(--shadow);cursor:pointer}
+  background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--line);color:var(--ink);
+  font:600 13px/1 var(--font-body);font-variant-numeric:tabular-nums;padding:8px 13px;border-radius:999px;box-shadow:var(--shadow);cursor:pointer}
 #joy{position:absolute;left:24px;bottom:calc(96px + env(safe-area-inset-bottom,0px));width:120px;height:120px;border-radius:50%;z-index:5;
   background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);touch-action:none}
 #joyKnob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(255,255,255,.85);box-shadow:0 2px 10px rgba(0,0,0,.25)}
 #walkStart{position:absolute;inset:0;z-index:4;display:grid;place-items:end center;padding-bottom:20vh;box-sizing:border-box;pointer-events:none}
-#walkStart button{pointer-events:auto;border:0;background:var(--accent);color:var(--accent-ink);font-weight:600;border-radius:999px;padding:12px 22px;box-shadow:var(--shadow)}
+#walkStart button{pointer-events:auto;border:0;background:var(--accent);color:var(--accent-ink);font:600 15px/1 var(--font-body);border-radius:999px;padding:14px 24px;
+  box-shadow:var(--shadow),0 0 0 6px var(--tint)}
 #loading{position:absolute;inset:0;display:grid;place-items:center;z-index:9;background:var(--bg);font:500 13px var(--font-mono);color:var(--ink-2);letter-spacing:.06em}
 #loading .err button{font:600 14px var(--font-body);padding:10px 18px;border-radius:999px;border:0;background:var(--accent);color:var(--accent-ink);cursor:pointer}
 #loading .err{
@@ -146,23 +163,31 @@ display:grid;gap:12px;justify-items:center;max-width:min(420px,calc(100vw - 32px
 #walkTip{position:absolute;left:12px;right:12px;bottom:calc(212px + env(safe-area-inset-bottom,0px));z-index:6;pointer-events:none;
   background:var(--ink);color:var(--bg);font:500 13px/1.4 var(--font-body);padding:10px 14px;border-radius:12px;box-shadow:var(--shadow)}
 #toast{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(120px + env(safe-area-inset-bottom,0px));z-index:7;max-width:min(460px,calc(100vw - 24px));box-sizing:border-box;
-  display:flex;gap:10px;align-items:center;background:var(--ink);color:var(--bg);font:500 13px/1.35 var(--font-body);padding:8px 8px 8px 14px;border-radius:12px;box-shadow:var(--shadow)}
-#toast button{border:0;background:var(--accent);color:var(--accent-ink);font-weight:600;border-radius:999px;padding:5px 12px;font-size:13px;white-space:nowrap}
+  display:flex;gap:12px;align-items:center;background:var(--ink);color:var(--bg);font:500 13.5px/1.35 var(--font-body);padding:8px 8px 8px 16px;border-radius:999px;box-shadow:var(--shadow)}
+#toast button{border:0;background:var(--accent);color:var(--accent-ink);font-weight:600;border-radius:999px;padding:6px 13px;font-size:13px;white-space:nowrap}
 #toast span{overflow-wrap:anywhere}
-#tools{display:flex;gap:6px;flex-wrap:wrap;max-width:100%}
-#tools button{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  border-radius:999px;padding:6px 12px;font-size:13px;font-weight:500;color:var(--ink);box-shadow:var(--shadow);white-space:nowrap}
-#tools button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-#tools button .ic{font-size:15px;line-height:1}
+#tools{display:flex;gap:2px;flex-wrap:wrap;align-self:stretch;box-sizing:border-box;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--line);border-radius:20px;padding:3px;box-shadow:var(--shadow)}
+#tools button{display:inline-flex;align-items:center;gap:7px;border:0;background:transparent;border-radius:999px;padding:6px 12px 6px 10px;font-size:13px;font-weight:500;
+  color:var(--ink);white-space:nowrap;transition:background-color .15s,color .15s}
+#tools button:hover{background:var(--surface-2)}
+#tools button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+#tools button .ic{font-size:15px;line-height:1;display:inline-flex;color:var(--ink-2)}
+#tools button[aria-pressed="true"] .ic{color:inherit}
 
 
 /* ---------- phone: bottom sheet ---------- */
 @media (max-width:760px){
-  #topbar{right:16px;max-width:none;gap:8px}
-  .brand{padding:6px 12px 6px 8px}
+  #topbar{right:16px;max-width:none;gap:6px}
+  .rail-row{flex-wrap:nowrap}
+  .brand{padding:5px 12px 5px 6px}
+  .brand svg{width:26px;height:26px}
   .brand h1{font-size:16px}
   .brand p{display:none}
   .seg button{padding:6px 11px;font-size:13px}
+  /* one swipeable row each for floors, rooms and tools: the rail used to cover half the screen */
+  .rchips,#tools{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .rchip{font-size:13px;padding:5px 9px}
   #panel{left:0;right:0;top:auto;bottom:0;width:auto;max-height:64vh;border-radius:18px 18px 0 0;border-bottom:0;
     padding-bottom:env(safe-area-inset-bottom,0px);transition:max-height .25s ease}
   #panel.collapsed{max-height:calc(58px + env(safe-area-inset-bottom,0px))}
@@ -170,7 +195,7 @@ display:grid;gap:12px;justify-items:center;max-width:min(420px,calc(100vw - 32px
   .handle{display:flex;align-items:center;gap:12px;border:0;background:transparent;padding:10px 16px 8px;width:100%;flex-direction:column}
   .handle .grip{width:40px;height:4px;border-radius:2px;background:var(--line)}
   .handle .ht{font:600 14px var(--font-body);display:flex;gap:8px;align-items:baseline}
-  .handle .ht small{font:500 11px var(--font-mono);color:var(--ink-2)}
+  .handle .ht small{font:500 12px var(--font-body);color:var(--ink-2)}
   .panel-body{padding:0 16px 16px}
   #hint{display:none}
   #roomTag{left:50%;transform:translateX(-50%);bottom:calc(68px + env(safe-area-inset-bottom,0px))}
@@ -178,7 +203,7 @@ display:grid;gap:12px;justify-items:center;max-width:min(420px,calc(100vw - 32px
   #joy{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
   #walkPad{right:16px;bottom:calc(68px + env(safe-area-inset-bottom,0px));flex-direction:column;align-items:flex-end} /* stacked above the clock: a row ran into the centred room chip */
   #toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
-  #tools button{padding:5px 10px;font-size:12.5px}
+  #tools button{padding:5px 10px 5px 8px;font-size:12.5px}
 
   .tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
@@ -223,24 +248,25 @@ html.vault-ok #vault{display:none}
   <div id="stage"></div>
 
   <header id="topbar">
-    <div class="brand">
-      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="7" fill="var(--accent)"/><path d="M7 21V13.5L15 7l8 6.5V21h-5.5v-5h-5v5z" fill="var(--accent-ink)"/></svg>
-      <div><h1>Ons Huis</h1><p>INTERIEURPLANNER · 3 LAGEN · 9,2 × 12,5 M</p></div>
-    </div>
     <div class="rail-row">
+      <div class="brand">
+        <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="7" fill="var(--accent)"/><path d="M7 21V13.5L15 7l8 6.5V21h-5.5v-5h-5v5z" fill="var(--accent-ink)"/></svg>
+        <div><h1>Ons Huis</h1><p>Interieurplanner, 3 lagen, 9,2 × 12,5 m</p></div>
+      </div>
       <div class="seg" role="group" aria-label="Weergave">
         <button id="btnWalk" aria-pressed="true">Rondlopen</button>
         <button id="btnDoll" aria-pressed="false">Poppenhuis</button>
-
       </div>
-      <label class="jump" for="roomJump"><span>Kamer</span><select id="roomJump"></select></label>
     </div>
-    <div class="seg scroll" id="floorSeg" role="group" aria-label="Verdieping">
-      <button data-floor="0" aria-pressed="true">Begane grond</button>
-      <button data-floor="1" aria-pressed="false">1e<span class="lg"> verdieping</span></button>
-      <button data-floor="2" aria-pressed="false">2e <span class="lg">verdieping (</span>zolder<span class="lg">)</span></button>
-      <button data-floor="out" aria-pressed="false">Buiten</button>
-    </div>
+    <nav class="nav" aria-label="Verdiepingen en kamers">
+      <div class="seg scroll" id="floorSeg" role="group" aria-label="Verdieping">
+        <button data-floor="0" aria-pressed="true">Begane grond</button>
+        <button data-floor="1" aria-pressed="false">1e<span class="lg"> verdieping</span></button>
+        <button data-floor="2" aria-pressed="false">2e <span class="lg">verdieping (</span>zolder<span class="lg">)</span></button>
+        <button data-floor="out" aria-pressed="false">Buiten</button>
+      </div>
+      <div id="roomChips" class="rchips" role="group" aria-label="Ga naar kamer"></div>
+    </nav>
     <div id="tools" role="toolbar" aria-label="Extra" hidden></div>
   </header>
 
@@ -249,9 +275,8 @@ html.vault-ok #vault{display:none}
     <button id="sheetHandle" class="handle" aria-expanded="true" aria-controls="panelBody"><span class="grip"></span><span class="ht"><span id="sheetRoom">Woonkamer</span><small>aanpassen</small></span></button>
     <div class="panel-body" id="panelBody">
       <section>
-        <div class="eyebrow">Selectie</div>
         <div class="selrow"><h2 id="selName">Woonkamer</h2><span id="selMeta" class="mono"></span></div>
-        <select id="roomSelect" aria-label="Kamer kiezen"></select>
+        <div id="roomPick" class="roompick" role="group" aria-label="Kamer kiezen"></div>
         <div class="seg small" role="group" aria-label="Toepassen op" id="scopeSeg">
           <button data-scope="room" aria-pressed="true">Kamer</button>
           <button data-scope="floor" aria-pressed="false">Hele verdieping</button>
@@ -381,7 +406,7 @@ const ROOMS = [
   { id: 'zolderR', name: 'Zolder (overloop)', lvl: 2, rects: [[6.8, 9.0, 5.12, 7.7], [7.06, 8.09, 7.7, 11.35], [8.09, 9.0, 7.7, 8.26], [8.09, 9.0, 10.25, 11.35]], spawn: [7.6, 9.6, 0] },
 ];
 const ROOM = Object.fromEntries(ROOMS.map(r => [r.id, r]));
-const JUMP = ['woonkamer', 'keuken', 'zitkamer', 'entree', 'sk1', 'sk2', 'sk3', 'badkamer', 'wasruimte', 'zolderL', 'tuin'];
+const JUMP = ['woonkamer', 'keuken', 'zitkamer', 'entree', 'sk1', 'sk2', 'badkamer', 'wasruimte', 'zolderL', 'sk3', 'zolderR', 'tuin']; // the rail's room chips, per floor
 const TUIN = { id: 'tuin', name: 'Tuin', lvl: 0, spawn: [4.6, -7.5, Math.PI] };
 const FLOOR_SPAWN = [[7.6, 11.65, 0.12], [7.6, 9.6, 1.57], [7.6, 9.9, 0.4]];
 
@@ -3431,6 +3456,18 @@ function applyVisibility() {
 
   updateLamps();
   document.querySelectorAll('#floorSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.floor === String(view))));
+  syncRooms();
+}
+// room chips instead of dropdowns: the rail shows the rooms of the floor in view (a click goes there), the panel lists every
+// room per floor (a click selects it for the finishes). Plain buttons, so Tab / Enter / Space and touch work as usual
+const roomChip = (id, name, onClick) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'rchip'; b.dataset.room = id; b.textContent = name; b.onclick = () => onClick(id); return b; };
+let railView = null;
+function syncRooms() {
+  if (railView !== view) {
+    railView = view;
+    $('#roomChips').replaceChildren(...JUMP.filter(id => (id === 'tuin' ? 'out' : ROOM[id].lvl) === view).map(id => roomChip(id, (ROOM[id] || TUIN).name, jumpTo)));
+  }
+  document.querySelectorAll('.rchip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.room === state?.sel || (b.dataset.room === 'tuin' && view === 'out'))));
 }
 const viewTarget = v => v === 'out' ? V(4.6, 2.2, 3.5) : V(4.6, LV[v].floor + 0.3, 6.2);
 let fly = null;
@@ -3792,8 +3829,8 @@ function applyToTargets(fn) { for (const id of targets()) { fn(state.rooms[id], 
 function swatch(hex, name, pressed, onClick) { const b = document.createElement('button'); b.className = 'sw'; b.style.background = hex; b.title = name; b.setAttribute('aria-label', name); b.setAttribute('aria-pressed', String(pressed)); b.onclick = onClick; return b; }
 function syncPanel() {
   const r = ROOM[state.sel], rs = state.rooms[r.id];
-  $('#selName').textContent = r.name; $('#sheetRoom').textContent = r.name; $('#roomSelect').value = r.id;
-  $('#selMeta').textContent = `${roomArea(r).toFixed(1).replace('.', ',')} m² · ${LVSHORT[r.lvl]}`;
+  $('#selName').textContent = r.name; $('#sheetRoom').textContent = r.name; syncRooms();
+  $('#selMeta').textContent = `${roomArea(r).toFixed(1).replace('.', ',')} m²`;
   document.querySelectorAll('#scopeSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.scope === state.scope)));
   document.querySelectorAll('#looks button').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.look === 'her') === isHer())));
   document.querySelectorAll('#styles .chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === state.design)));
@@ -3824,12 +3861,11 @@ function syncPanel() {
   }));
 }
 function buildPanel() {
-  const jumpSel = $('#roomJump'); jumpSel.append(new Option('Ga naar…', ''));
-  for (const id of JUMP) jumpSel.append(new Option(id === 'tuin' ? 'Tuin' : ROOM[id].name, id));
-  jumpSel.onchange = () => { if (jumpSel.value) jumpTo(jumpSel.value); jumpSel.value = ''; jumpSel.blur(); };
-  const rsel = $('#roomSelect');
-  LV.forEach(l => { const og = document.createElement('optgroup'); og.label = l.name; ROOMS.filter(r => r.lvl === l.id).forEach(r => og.append(new Option(r.name, r.id))); rsel.append(og); });
-  rsel.onchange = () => selectRoom(rsel.value);
+  $('#roomPick').replaceChildren(...LV.map(l => {
+    const g = document.createElement('div'); g.className = 'rgroup'; g.setAttribute('role', 'group'); g.setAttribute('aria-label', l.name);
+    const h = document.createElement('span'); h.className = 'rlvl'; h.textContent = LVSHORT[l.id]; h.title = l.name; h.setAttribute('aria-hidden', 'true');
+    g.append(h, ...ROOMS.filter(r => r.lvl === l.id).map(r => roomChip(r.id, r.name, selectRoom))); return g;
+  }));
   document.querySelectorAll('#scopeSeg button').forEach(b => b.onclick = () => { state.scope = b.dataset.scope; saveState(); syncPanel(); });
   document.querySelectorAll('#looks button').forEach(b => b.onclick = () => setLook(b.dataset.look === 'her'));
   $('#nkToggle').onchange = e => setNewKitchen(e.target.checked);
@@ -3907,6 +3943,7 @@ function applyStyle(id) {
                                           'kitchen' (on) after the "Nieuwe keuken" toggle swapped walls, colliders and doors
   walker                                  live { x, z, l, y (feet), yaw, pitch, f (stair flight or null) }; the camera is the eye
   setWalker({ x, z, l, yaw, pitch }) or setWalker(l, x, z, yaw)   teleport (snaps onto a stair flight when (x, z) lies on one)
+  jumpTo(roomId | 'tuin')                 what a room chip does: walk mode spawns there, the dollhouse flies over it
   walkMove(st, dx, dz) -> { x, z, l, y, s }   the walker physics (stairs + sliding collisions) on any state; s = stair index or -1
   stairs                                  v1 arrays [l, x0, x1, zBot, zTop, yBot, yTop] that also carry { id, name, l, x0, x1, zBot, zTop,
                                           yBot, yTop, zMin, zMax, exits, y(x, z) = stair height }; ceilAt(l, x, z) -> ceiling Y
@@ -3972,6 +4009,7 @@ const HOUSE = { // published as window.HOUSE once the house is built (end of the
   on(evt, fn) { if (!HUB[evt]) HUB[evt] = new Set(); HUB[evt].add(fn); return () => HUB[evt].delete(fn); },
   off(evt, fn) { HUB[evt]?.delete(fn); },
   get state() { return state; },
+  jumpTo: id => (ROOM[id] || id === 'tuin') && jumpTo(id),
   walker, setWalker: (a, x, z, yaw) => setWalker(a && typeof a === 'object' ? a : { l: a, x, z, yaw }), walkMove, invalidatePicks, ceilAt: (l, x, z) => ceilAt(l, x, z),
   roomAt: (level, x, z) => roomAt(level, x, z)?.id || null,
   pickables, colliders, doors, toggleDoor: d => toggleDoor(d),
